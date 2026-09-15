@@ -49,3 +49,7 @@ app.*.map.json
 
 #env files
 Backend/.env
+Backend/venv/
+.env
+venv/
+__pycache__/
