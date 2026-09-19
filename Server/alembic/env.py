@@ -11,8 +11,8 @@ sys.path.append(os.getcwd())
 from dotenv import load_dotenv
 load_dotenv()
 
-from database import Base
-from models import User
+from data_and_integration_layer.database.connection import Base
+from data_and_integration_layer.database.models.user import User
 
 target_metadata = Base.metadata
 

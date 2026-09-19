@@ -53,3 +53,20 @@ Backend/venv/
 .env
 venv/
 __pycache__/
+
+Server/.env
+Server/venv/
+Server/__pycache__/
+
+# Python virtual environments
+venv/
+.venv/
+
+# Python-generated cache
+__pycache__/
+*.py[cod]
+
+# Secrets
+.env
+.env.*
+!.env.example
