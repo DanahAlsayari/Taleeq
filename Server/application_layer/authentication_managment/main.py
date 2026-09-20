@@ -3,20 +3,18 @@ from sqlalchemy.orm import Session
 
 from data_and_integration_layer.database.connection import get_db
 from data_and_integration_layer.database.models.user import User
+
 from . import schemas
 from . import auth
 from .reset_password import router as reset_password_router
+from .profile import router as profile_router
 
 
 app = FastAPI()
 
-# Reset Password routes
 app.include_router(reset_password_router)
+app.include_router(profile_router)
 
-
-# =========================================================
-# Sign Up
-# =========================================================
 
 @app.post("/signup", response_model=schemas.UserOut)
 def signup(
@@ -50,10 +48,6 @@ def signup(
 
     return new_user
 
-
-# =========================================================
-# Login
-# =========================================================
 
 @app.post("/login", response_model=schemas.Token)
 def login(
