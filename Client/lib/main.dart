@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
+import 'presentation_layer/profileUI/profile_screen.dart';
 
 void main() {
   runApp(const TaleeqApp());
@@ -48,8 +49,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme == 'taleeq' &&
-        uri.host == 'reset-password') {
+    if (uri.scheme == 'taleeq' && uri.host == 'reset-password') {
       final token = uri.queryParameters['token'];
 
       if (token != null && token.isNotEmpty) {
@@ -70,11 +70,24 @@ class _TaleeqAppState extends State<TaleeqApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: _resetToken == null
-          ? const ForgotPasswordScreen()
-          : ResetPasswordScreen(
+
+      // يدعم اتجاه التطبيق العربي
+      builder: (context, child) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child!,
+        );
+      },
+
+      // إذا جاء المستخدم من رابط Reset Password
+      // نفتح صفحة تغيير كلمة المرور مباشرة.
+      home: _resetToken != null
+          ? ResetPasswordScreen(
               token: _resetToken!,
-            ),
+            )
+
+          // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
+          : const ProfileScreen(),
     );
   }
 }
