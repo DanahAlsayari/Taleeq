@@ -1,4 +1,6 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
+
 from ..connection import Base
 
 
@@ -12,3 +14,13 @@ class User(Base):
     phone_number = Column(String(20), nullable=False)
     age = Column(Integer, nullable=False)
     gender = Column(String(20), nullable=False)
+
+    assessments = relationship(
+        "Assessment", back_populates="user", cascade="all, delete-orphan"
+    )
+    fluency_profile = relationship(
+        "FluencyProfile",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )

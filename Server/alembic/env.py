@@ -12,6 +12,13 @@ load_dotenv()
 
 from data_and_integration_layer.database.connection import Base
 from data_and_integration_layer.database.models.user import User
+from data_and_integration_layer.database.models.assessment import (
+    Assessment,
+    AssessmentTask,
+    FluencyProfile,
+    SpeechEvent,
+    TaskAnalysisResult,
+)
 from data_and_integration_layer.database.models.training_goal import TrainingGoal
 from data_and_integration_layer.database.models.reminder_setting import ReminderSetting
 
