@@ -70,3 +70,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+Server/.env
+
+Server/.env

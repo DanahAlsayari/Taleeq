@@ -21,10 +21,12 @@ class AudioAnalysisResult(BaseModel):
     repetition_percent: float = Field(ge=0.0, le=100.0)
     prolongation_percent: float = Field(ge=0.0, le=100.0)
     block_percent: float = Field(ge=0.0, le=100.0)
+    #float 
     speaking_rate_wpm: float | None = None
     speaking_rate: float = Field(ge=0.0, le=100.0)
     timing_pacing: float = Field(ge=0.0, le=100.0)
     speech_events: list[SpeechEvent] = []
+
 
 
 class OpenAIAudioAnalyzer:
