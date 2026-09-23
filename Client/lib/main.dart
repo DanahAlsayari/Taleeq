@@ -3,11 +3,20 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
 import 'presentation_layer/profileUI/profile_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://vlpuloanqnelmnlypuea.supabase.co',
+    publishableKey: 'sb_publishable_oTcjgcxxEvZGjcolI8Ks3Q_jaYGufB2',
+  );
+
   runApp(const TaleeqApp());
 }
 
@@ -41,11 +50,9 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _listenForLinks() {
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) {
-        _handleLink(uri);
-      },
-    );
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleLink(uri);
+    });
   }
 
   void _handleLink(Uri uri) {
@@ -73,19 +80,13 @@ class _TaleeqAppState extends State<TaleeqApp> {
 
       // يدعم اتجاه التطبيق العربي
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
-        );
+        return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
 
       // إذا جاء المستخدم من رابط Reset Password
       // نفتح صفحة تغيير كلمة المرور مباشرة.
       home: _resetToken != null
-          ? ResetPasswordScreen(
-              token: _resetToken!,
-            )
-
+          ? ResetPasswordScreen(token: _resetToken!)
           // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
           : const ProfileScreen(),
     );
