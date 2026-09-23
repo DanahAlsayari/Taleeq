@@ -55,7 +55,6 @@ PUBLIC_BASE_URL = (
 # =========================================================
 
 router = APIRouter(
-    prefix="/auth",
     tags=["Authentication"],
 )
 

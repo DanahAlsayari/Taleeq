@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
-import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
-import 'presentation_layer/profileUI/profile_screen.dart';
+import 'presentation_layer/authenticationUI/welcome_screen.dart';
 
 void main() {
   runApp(const TaleeqApp());
@@ -71,23 +70,31 @@ class _TaleeqAppState extends State<TaleeqApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      // يدعم اتجاه التطبيق العربي
+      theme: ThemeData(
+      scaffoldBackgroundColor: const Color(0xFFFFFBF6),
+
+     fontFamily: 'Tajawal',
+
+     colorScheme: ColorScheme.fromSeed(
+      seedColor: const Color(0xFF1F5F5A),
+    ),
+  ),
+
+      // Makes the entire application right-to-left.
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.rtl,
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
 
-      // إذا جاء المستخدم من رابط Reset Password
-      // نفتح صفحة تغيير كلمة المرور مباشرة.
-      home: _resetToken != null
-          ? ResetPasswordScreen(
+      // Normally display the welcome screen.
+      // If the app receives a reset token, display the reset screen.
+      home: _resetToken == null
+          ? const WelcomeScreen()
+          : ResetPasswordScreen(
               token: _resetToken!,
-            )
-
-          // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
-          : const ProfileScreen(),
+            ),
     );
   }
 }

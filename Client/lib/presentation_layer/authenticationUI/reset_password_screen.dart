@@ -6,19 +6,14 @@ import 'package:http/http.dart' as http;
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
 
-  const ResetPasswordScreen({
-    super.key,
-    required this.token,
-  });
+  const ResetPasswordScreen({super.key, required this.token});
 
   @override
-  State<ResetPasswordScreen> createState() =>
-      _ResetPasswordScreenState();
+  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final TextEditingController _passwordController =
-      TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
@@ -41,17 +36,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   static const Color border = Color(0xFFE3EEEB);
   static const Color errorRed = Color(0xFFD9534F);
 
-  bool get _hasEightCharacters =>
-      _passwordController.text.length >= 8;
+  bool get _hasEightCharacters => _passwordController.text.length >= 8;
 
-  bool get _hasUppercase =>
-      RegExp(r'[A-Z]').hasMatch(_passwordController.text);
+  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
 
-  bool get _hasLowercase =>
-      RegExp(r'[a-z]').hasMatch(_passwordController.text);
+  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordController.text);
 
-  bool get _hasNumber =>
-      RegExp(r'[0-9]').hasMatch(_passwordController.text);
+  bool get _hasNumber => RegExp(r'[0-9]').hasMatch(_passwordController.text);
 
   bool get _hasSpecialCharacter =>
       RegExp(r'[!@#$%^&*]').hasMatch(_passwordController.text);
@@ -64,8 +55,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _hasSpecialCharacter;
 
   bool get _passwordsMatch =>
-      _passwordController.text ==
-          _confirmPasswordController.text &&
+      _passwordController.text == _confirmPasswordController.text &&
       _confirmPasswordController.text.isNotEmpty;
 
   Future<void> _resetPassword() async {
@@ -77,8 +67,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (!_passwordIsValid) {
       setState(() {
-        _errorMessage =
-            'يرجى التأكد من استيفاء جميع شروط كلمة المرور.';
+        _errorMessage = 'يرجى التأكد من استيفاء جميع شروط كلمة المرور.';
       });
       return;
     }
@@ -96,15 +85,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          'http://10.0.2.2:8000/auth/reset-password',
-        ),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('http://10.0.2.2:8000/auth/reset-password'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': widget.token,
           'new_password': _passwordController.text,
+          'confirm_password': _confirmPasswordController.text,
         }),
       );
 
@@ -112,18 +98,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       if (response.statusCode == 200) {
         setState(() {
-          _successMessage =
-              'تم تغيير كلمة المرور بنجاح.';
+          _successMessage = 'تم تغيير كلمة المرور بنجاح.';
           _errorMessage = null;
         });
       } else {
-        String message =
-            'تعذر تغيير كلمة المرور. يرجى المحاولة مرة أخرى.';
+        String message = 'تعذر تغيير كلمة المرور. يرجى المحاولة مرة أخرى.';
 
         try {
           final data = jsonDecode(response.body);
-          message =
-              data['detail']?.toString() ?? message;
+          message = data['detail']?.toString() ?? message;
         } catch (_) {}
 
         setState(() {
@@ -134,8 +117,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage =
-            'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
+        _errorMessage = 'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
       });
     } finally {
       if (mounted) {
@@ -146,10 +128,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
   }
 
-  Widget _requirement(
-    String text,
-    bool isValid,
-  ) {
+  Widget _requirement(String text, bool isValid) {
     final Color color;
 
     if (!_showValidation) {
@@ -165,9 +144,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       child: Row(
         children: [
           Icon(
-            isValid
-                ? Icons.check_circle_rounded
-                : Icons.circle_outlined,
+            isValid ? Icons.check_circle_rounded : Icons.circle_outlined,
             size: 18,
             color: color,
           ),
@@ -175,11 +152,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(
-                color: color,
-                fontSize: 13,
-                fontFamily: 'Cairo',
-              ),
+              style: TextStyle(color: color, fontSize: 13, fontFamily: 'Cairo'),
             ),
           ),
         ],
@@ -207,13 +180,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         backgroundColor: ivory,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 28,
-              vertical: 24,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Align(
                   alignment: Alignment.centerRight,
@@ -222,10 +191,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     height: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(
-                        color: border,
-                        width: 2,
-                      ),
+                      border: Border.all(color: border, width: 2),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -250,8 +216,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     height: 105,
                     decoration: BoxDecoration(
                       color: aquaLight,
-                      borderRadius:
-                          BorderRadius.circular(42),
+                      borderRadius: BorderRadius.circular(42),
                     ),
                     child: const Icon(
                       Icons.lock_reset_rounded,
@@ -308,8 +273,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _hidePassword =
-                              !_hidePassword;
+                          _hidePassword = !_hidePassword;
                         });
                       },
                       icon: Icon(
@@ -319,28 +283,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         color: muted,
                       ),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 20,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(22),
                       borderSide: BorderSide(
-                        color: _showValidation &&
-                                !_passwordIsValid
+                        color: _showValidation && !_passwordIsValid
                             ? errorRed
                             : Colors.transparent,
                         width: 1.5,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(22),
                       borderSide: BorderSide(
-                        color: _showValidation &&
-                                !_passwordIsValid
+                        color: _showValidation && !_passwordIsValid
                             ? errorRed
                             : teal,
                         width: 1.5,
@@ -352,8 +311,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 const SizedBox(height: 16),
 
                 TextField(
-                  controller:
-                      _confirmPasswordController,
+                  controller: _confirmPasswordController,
                   obscureText: _hideConfirmPassword,
                   onChanged: (_) {
                     setState(() {
@@ -372,8 +330,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     suffixIcon: IconButton(
                       onPressed: () {
                         setState(() {
-                          _hideConfirmPassword =
-                              !_hideConfirmPassword;
+                          _hideConfirmPassword = !_hideConfirmPassword;
                         });
                       },
                       icon: Icon(
@@ -383,28 +340,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         color: muted,
                       ),
                     ),
-                    contentPadding:
-                        const EdgeInsets.symmetric(
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 20,
                     ),
                     enabledBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(22),
                       borderSide: BorderSide(
-                        color: confirmError
-                            ? errorRed
-                            : Colors.transparent,
+                        color: confirmError ? errorRed : Colors.transparent,
                         width: 1.5,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(22),
+                      borderRadius: BorderRadius.circular(22),
                       borderSide: BorderSide(
-                        color: confirmError
-                            ? errorRed
-                            : teal,
+                        color: confirmError ? errorRed : teal,
                         width: 1.5,
                       ),
                     ),
@@ -429,12 +379,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: aquaLight,
-                    borderRadius:
-                        BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'يجب أن تحتوي كلمة المرور على:',
@@ -446,22 +394,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _requirement(
-                        '8 أحرف على الأقل',
-                        _hasEightCharacters,
-                      ),
-                      _requirement(
-                        'حرف كبير واحد على الأقل',
-                        _hasUppercase,
-                      ),
-                      _requirement(
-                        'حرف صغير واحد على الأقل',
-                        _hasLowercase,
-                      ),
-                      _requirement(
-                        'رقم واحد على الأقل',
-                        _hasNumber,
-                      ),
+                      _requirement('8 أحرف على الأقل', _hasEightCharacters),
+                      _requirement('حرف كبير واحد على الأقل', _hasUppercase),
+                      _requirement('حرف صغير واحد على الأقل', _hasLowercase),
+                      _requirement('رقم واحد على الأقل', _hasNumber),
                       _requirement(
                         'رمز خاص واحد (! @ # \$ % ^ & *)',
                         _hasSpecialCharacter,
@@ -486,8 +422,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 if (_successMessage != null) ...[
                   const SizedBox(height: 15),
                   Row(
-                    mainAxisAlignment:
-                        MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(
                         Icons.check_circle_rounded,
@@ -516,34 +451,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     gradient: const LinearGradient(
                       begin: Alignment.centerRight,
                       end: Alignment.centerLeft,
-                      colors: [
-                        teal,
-                        tealLight,
-                      ],
+                      colors: [teal, tealLight],
                     ),
-                    borderRadius:
-                        BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(22),
                   ),
                   child: ElevatedButton(
-                    onPressed:
-                        _isLoading ? null : _resetPassword,
+                    onPressed: _isLoading ? null : _resetPassword,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Colors.transparent,
+                      backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      disabledBackgroundColor:
-                          Colors.transparent,
+                      disabledBackgroundColor: Colors.transparent,
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(22),
                       ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child:
-                                CircularProgressIndicator(
+                            child: CircularProgressIndicator(
                               strokeWidth: 2.5,
                               color: Colors.white,
                             ),
@@ -553,8 +479,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
-                              fontWeight:
-                                  FontWeight.w700,
+                              fontWeight: FontWeight.w700,
                               fontFamily: 'Cairo',
                             ),
                           ),
