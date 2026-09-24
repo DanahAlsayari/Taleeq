@@ -5,9 +5,13 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
+
+from data_and_integration_layer.database.Repositories.assessment_repository import (
+    AssessmentRepository,
+)
+
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-
 from application_layer.assessment_analysis.assessment_analysis_service import (
     AssessmentAnalysisService,
 )
@@ -207,3 +211,77 @@ def submit_pre_assessment(
         "submission_id": submission.id,
         "submitted_at": submission.submitted_at,
     }
+
+@router.get("/fluency-profile")
+def get_fluency_profile(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+
+    profile = repository.get_fluency_profile(
+        current_user.id
+    )
+
+    if not profile:
+        raise HTTPException(
+            status_code=404,
+            detail="Fluency profile not found",
+        )
+
+    return {
+        "overall_stuttering_percent": profile.overall_stuttering_percent,
+        "primary_pattern": profile.primary_pattern,
+        "repetition_percent": profile.repetition_percent,
+        "prolongation_percent": profile.prolongation_percent,
+        "block_percent": profile.block_percent,
+        "speaking_rate": profile.speaking_rate,
+        "timing_pacing": profile.timing_pacing,
+    }
+
+
+@router.get("/{assessment_id}/task-results")
+def get_task_results(
+    assessment_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+
+    assessment = repository.get_assessment(assessment_id)
+
+    if not assessment:
+        return {"message": "Assessment not found"}
+
+    if assessment.user_id != current_user.id:
+        return {"message": "Unauthorized"}
+
+    tasks = repository.get_assessment_tasks(assessment_id)
+
+    results = []
+
+    for task in tasks:
+        analysis = task.analysis_result
+
+        if not analysis:
+            continue
+
+        patterns = {
+            "repetition": analysis.repetition_percent,
+            "prolongation": analysis.prolongation_percent,
+            "block": analysis.block_percent,
+        }
+
+        highest_pattern = max(
+            patterns,
+            key=patterns.get,
+        )
+
+        results.append({
+            "task_id": task.id,
+            "task_type": task.task_type,
+            "highest_pattern": highest_pattern,
+            "highest_pattern_percent": patterns[highest_pattern],
+        })
+
+    return results

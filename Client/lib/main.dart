@@ -20,7 +20,8 @@ class TaleeqApp extends StatefulWidget {
 class _TaleeqAppState extends State<TaleeqApp> {
   final AppLinks _appLinks = AppLinks();
 
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _navigatorKey =
+      GlobalKey<NavigatorState>();
 
   StreamSubscription<Uri>? _linkSubscription;
 
@@ -47,7 +48,8 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme != 'taleeq' || uri.host != 'reset-password') {
+    if (uri.scheme != 'taleeq' ||
+        uri.host != 'reset-password') {
       return;
     }
 
@@ -65,7 +67,11 @@ class _TaleeqAppState extends State<TaleeqApp> {
       }
 
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => ResetPasswordScreen(token: token)),
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(
+            token: token,
+          ),
+        ),
         (route) => false,
       );
     });
@@ -83,9 +89,12 @@ class _TaleeqAppState extends State<TaleeqApp> {
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor: const Color(0xFFFFFBF6),
+        scaffoldBackgroundColor:
+            const Color(0xFFFFFBF6),
         fontFamily: 'Tajawal',
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F5F5A)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1F5F5A),
+        ),
       ),
       builder: (context, child) {
         return Directionality(
