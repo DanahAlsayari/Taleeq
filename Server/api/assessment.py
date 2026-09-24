@@ -1,13 +1,39 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+)
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from application_layer.assessment_analysis.assessment_analysis_service import (
     AssessmentAnalysisService,
 )
-from data_and_integration_layer.database.connection import get_db
+from application_layer.authentication_managment import auth
 from data_and_integration_layer.ai_integration.openai_audio import (
     OpenAIAudioAnalyzer,
 )
+from data_and_integration_layer.database.connection import get_db
+from data_and_integration_layer.database.models.pre_assessment import (
+    PreAssessmentSubmission,
+)
+from data_and_integration_layer.database.models.user import User
+
+
+class PreAssessmentAnswer(BaseModel):
+    question_id: int
+    selected_options: list[str] = Field(
+        min_length=1,
+    )
+
+
+class PreAssessmentSubmissionCreate(BaseModel):
+    answers: list[PreAssessmentAnswer] = Field(
+        min_length=6,
+        max_length=6,
+    )
 
 
 router = APIRouter(
@@ -24,7 +50,7 @@ def analyze_assessment(
     service = AssessmentAnalysisService(db)
 
     result = service.analyze_assessment(
-        assessment_id
+        assessment_id,
     )
 
     return result
@@ -54,7 +80,7 @@ def get_pre_assessment_questions():
         "questions": [
             {
                 "id": 1,
-                "question": "متى بدأت التأتأة لديك ؟",
+                "question": "متى بدأت التأتأة لديك؟",
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
@@ -66,14 +92,14 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 2,
-                "question": "كيف تصف بداية التأتأة لديك ؟",
+                "question": "كيف تصف بداية التأتأة لديك؟",
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
                     "بدأت في الطفولة بشكل تدريجي",
                     "يوجد تاريخ عائلي للتأتأة",
                     "بدأت بشكل مفاجئ",
-                    "بدأت بعد ضغط او تجربة نفسية صعبة",
+                    "بدأت بعد ضغط أو تجربة نفسية صعبة",
                     "بدأت بعد إصابة أو حادث",
                     "بدأت بعد مشكلة صحية أو عصبية",
                     "بدأت بعد دواء أو علاج",
@@ -82,7 +108,10 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 3,
-                "question": "هل سبق أن تلقيت جلسات علاج نطق/تخاطب للتأتأة ؟",
+                "question": (
+                    "هل سبق أن تلقيت جلسات علاج "
+                    "نطق/تخاطب للتأتأة؟"
+                ),
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
@@ -92,22 +121,27 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 4,
-                "question": "هل تتجنب أو تستبدل كلمات لأنك تتوقع انك ستتأتئ فيها ؟",
+                "question": (
+                    "هل تتجنب أو تستبدل كلمات لأنك "
+                    "تتوقع أنك ستتأتئ فيها؟"
+                ),
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
-                    "غالبا",
-                    "أحيانا",
-                    "أبدا",
+                    "غالبًا",
+                    "أحيانًا",
+                    "أبدًا",
                 ],
             },
             {
                 "id": 5,
-                "question": "في أي مواقف تزداد التأتأة لديك ؟",
-                "subtitle": "اختر جميع الإجابات التي تنطبق عليك",
+                "question": "في أي مواقف تزداد التأتأة لديك؟",
+                "subtitle": (
+                    "اختر جميع الإجابات التي تنطبق عليك"
+                ),
                 "multiple": True,
                 "options": [
-                    "التحدث مع اشخاص جدد",
+                    "التحدث مع أشخاص جدد",
                     "المكالمات الهاتفية",
                     "العروض والتحدث أمام مجموعة",
                     "القراءة بصوت مرتفع",
@@ -117,8 +151,10 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 6,
-                "question": "ماذا تريد ان تحسن ؟",
-                "subtitle": "اختر جميع الإجابات التي تنطبق عليك",
+                "question": "ماذا تريد أن تحسن؟",
+                "subtitle": (
+                    "اختر جميع الإجابات التي تنطبق عليك"
+                ),
                 "multiple": True,
                 "options": [
                     "التحدث براحة أكبر",
@@ -131,4 +167,43 @@ def get_pre_assessment_questions():
                 ],
             },
         ]
+    }
+
+
+@router.post(
+    "/pre-assessment/submissions",
+    status_code=201,
+)
+def submit_pre_assessment(
+    data: PreAssessmentSubmissionCreate,
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    question_ids = [
+        answer.question_id
+        for answer in data.answers
+    ]
+
+    if sorted(question_ids) != [1, 2, 3, 4, 5, 6]:
+        raise HTTPException(
+            status_code=400,
+            detail="All six questions must be answered once",
+        )
+
+    submission = PreAssessmentSubmission(
+        user_id=current_user.id,
+        answers=[
+            answer.model_dump()
+            for answer in data.answers
+        ],
+    )
+
+    db.add(submission)
+    db.commit()
+    db.refresh(submission)
+
+    return {
+        "message": "Pre-assessment submitted successfully",
+        "submission_id": submission.id,
+        "submitted_at": submission.submitted_at,
     }
