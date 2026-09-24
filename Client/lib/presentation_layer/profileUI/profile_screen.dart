@@ -8,6 +8,7 @@ import 'widgets/logout_button.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/reminder_card.dart';
 import 'widgets/training_goals_section.dart';
+import '../authenticationUI/welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -29,10 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _email = '';
 
   bool _reminderEnabled = true;
-  TimeOfDay _reminderTime = const TimeOfDay(
-    hour: 18,
-    minute: 0,
-  );
+  TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 0);
 
   final List<Map<String, dynamic>> _goals = [];
 
@@ -65,20 +63,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         _goals
           ..clear()
-          ..addAll(
-            goals.map(
-              (goal) => Map<String, dynamic>.from(
-                goal as Map,
-              ),
-            ),
-          );
+          ..addAll(goals.map((goal) => Map<String, dynamic>.from(goal as Map)));
 
-        _reminderEnabled =
-            reminder['enabled'] as bool? ?? true;
+        _reminderEnabled = reminder['enabled'] as bool? ?? true;
 
-        _reminderTime = _parseTime(
-          reminder['reminder_time']?.toString(),
-        );
+        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
 
         _isLoading = false;
         _errorMessage = null;
@@ -121,9 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     String initialValue = '',
   }) async {
-    final controller = TextEditingController(
-      text: initialValue,
-    );
+    final controller = TextEditingController(text: initialValue);
 
     final result = await showDialog<String>(
       context: context,
@@ -152,16 +139,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fillColor: Colors.white,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: border,
-                  ),
+                  borderSide: const BorderSide(color: border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(
-                    color: darkGreen,
-                    width: 1.5,
-                  ),
+                  borderSide: const BorderSide(color: darkGreen, width: 1.5),
                 ),
               ),
             ),
@@ -204,9 +186,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _addGoal() async {
-    final goal = await _showGoalDialog(
-      title: 'إضافة هدف جديد',
-    );
+    final goal = await _showGoalDialog(title: 'إضافة هدف جديد');
 
     if (goal == null || !mounted) return;
 
@@ -272,14 +252,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: const Text(
               'حذف الهدف',
-              style: TextStyle(
-                color: darkText,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
             ),
-            content: const Text(
-              'هل أنتِ متأكدة من حذف هذا الهدف؟',
-            ),
+            content: const Text('هل أنتِ متأكدة من حذف هذا الهدف؟'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -337,12 +312,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       setState(() {
-        _reminderEnabled =
-            reminder['enabled'] as bool? ?? enabled;
+        _reminderEnabled = reminder['enabled'] as bool? ?? enabled;
 
-        _reminderTime = _parseTime(
-          reminder['reminder_time']?.toString(),
-        );
+        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
       });
     } catch (_) {
       _showError('تعذر تحديث التذكير');
@@ -350,10 +322,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changeReminderStatus(bool value) async {
-    await _updateReminder(
-      enabled: value,
-      time: _reminderTime,
-    );
+    await _updateReminder(enabled: value, time: _reminderTime);
   }
 
   Future<void> _changeReminderTime() async {
@@ -380,10 +349,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (selectedTime == null || !mounted) return;
 
-    await _updateReminder(
-      enabled: _reminderEnabled,
-      time: selectedTime,
-    );
+    await _updateReminder(enabled: _reminderEnabled, time: selectedTime);
   }
 
   void _showError(String message) {
@@ -391,10 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-        ),
+        content: Text(message, textAlign: TextAlign.center),
         backgroundColor: Colors.red,
       ),
     );
@@ -425,14 +388,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: const Text(
               'تسجيل الخروج',
-              style: TextStyle(
-                color: darkText,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
             ),
-            content: const Text(
-              'هل تريدين تسجيل الخروج من حسابك؟',
-            ),
+            content: const Text('هل تريدين تسجيل الخروج من حسابك؟'),
             actions: [
               TextButton(
                 onPressed: () {
@@ -466,8 +424,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).popUntil(
-      (route) => route.isFirst,
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      (route) => false,
     );
   }
 
@@ -486,11 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLoading() {
-    return const Center(
-      child: CircularProgressIndicator(
-        color: darkGreen,
-      ),
-    );
+    return const Center(child: CircularProgressIndicator(color: darkGreen));
   }
 
   Widget _buildError() {
@@ -500,19 +455,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.error_outline_rounded,
-              color: darkGreen,
-              size: 42,
-            ),
+            const Icon(Icons.error_outline_rounded, color: darkGreen, size: 42),
             const SizedBox(height: 12),
             Text(
               _errorMessage ?? 'حدث خطأ',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: darkText,
-                fontSize: 15,
-              ),
+              style: const TextStyle(color: darkText, fontSize: 15),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -547,34 +495,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: SingleChildScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(
-            18,
-            8,
-            18,
-            30,
-          ),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ProfileHeader(
-                name: _name,
-                email: _email,
-              ),
+              ProfileHeader(name: _name, email: _email),
               const SizedBox(height: 24),
               _sectionTitle('معلومات الحساب'),
               const SizedBox(height: 10),
-              AccountCard(
-                name: _name,
-                email: _email,
-              ),
+              AccountCard(name: _name, email: _email),
               const SizedBox(height: 24),
               _sectionTitle('أهداف التدريب'),
               const SizedBox(height: 10),
               TrainingGoalsSection(
                 goals: _goals
-                    .map(
-                      (goal) => goal['goal']?.toString() ?? '',
-                    )
+                    .map((goal) => goal['goal']?.toString() ?? '')
                     .toList(),
                 onAddGoal: _addGoal,
                 onEditGoal: _editGoal,
@@ -592,21 +527,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 24),
               _sectionTitle('التقييم'),
               const SizedBox(height: 10),
-              AssessmentCard(
-                onTap: _retakeAssessment,
-              ),
+              AssessmentCard(onTap: _retakeAssessment),
               const SizedBox(height: 28),
-              LogoutButton(
-                onPressed: _logout,
-              ),
+              LogoutButton(onPressed: _logout),
               const SizedBox(height: 25),
               const Center(
                 child: Text(
                   'طليق • الإصدار 1.0.0',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 11),
                 ),
               ),
             ],
@@ -637,8 +565,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: _isLoading
             ? _buildLoading()
             : _errorMessage != null
-                ? _buildError()
-                : _buildProfile(),
+            ? _buildError()
+            : _buildProfile(),
       ),
     );
   }

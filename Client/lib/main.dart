@@ -20,8 +20,9 @@ class TaleeqApp extends StatefulWidget {
 class _TaleeqAppState extends State<TaleeqApp> {
   final AppLinks _appLinks = AppLinks();
 
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
   StreamSubscription<Uri>? _linkSubscription;
-  String? _resetToken;
 
   @override
   void initState() {
@@ -40,23 +41,34 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _listenForLinks() {
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) {
-        _handleLink(uri);
-      },
-    );
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleLink(uri);
+    });
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme == 'taleeq' && uri.host == 'reset-password') {
-      final token = uri.queryParameters['token'];
-
-      if (token != null && token.isNotEmpty) {
-        setState(() {
-          _resetToken = token;
-        });
-      }
+    if (uri.scheme != 'taleeq' || uri.host != 'reset-password') {
+      return;
     }
+
+    final token = uri.queryParameters['token'];
+
+    if (token == null || token.isEmpty) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _navigatorKey.currentState;
+
+      if (navigator == null) {
+        return;
+      }
+
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => ResetPasswordScreen(token: token)),
+        (route) => false,
+      );
+    });
   }
 
   @override
@@ -68,33 +80,20 @@ class _TaleeqAppState extends State<TaleeqApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
-      scaffoldBackgroundColor: const Color(0xFFFFFBF6),
-
-     fontFamily: 'Tajawal',
-
-     colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF1F5F5A),
-    ),
-  ),
-
-      // Makes the entire application right-to-left.
+        scaffoldBackgroundColor: const Color(0xFFFFFBF6),
+        fontFamily: 'Tajawal',
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F5F5A)),
+      ),
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: child ?? const SizedBox.shrink(),
         );
       },
-
-      // Normally display the welcome screen.
-      // If the app receives a reset token, display the reset screen.
-      home: _resetToken == null
-          ? const WelcomeScreen()
-          : ResetPasswordScreen(
-              token: _resetToken!,
-            ),
+      home: const WelcomeScreen(),
     );
   }
 }

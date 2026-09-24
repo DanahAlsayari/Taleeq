@@ -61,13 +61,17 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
+    // Normalize the email exactly like Signup so capitalization does not
+    // affect login. For example, Test@gmail.com becomes test@gmail.com.
+    final normalizedEmail = _emailController.text.trim().toLowerCase();
+
     try {
       // Send the entered email and password to FastAPI.
       final response = await http.post(
         Uri.parse('http://10.0.2.2:8000/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': _emailController.text.trim(),
+          'email': normalizedEmail,
           'password': _passwordController.text,
         }),
       );

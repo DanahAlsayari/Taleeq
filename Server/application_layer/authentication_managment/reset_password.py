@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import BaseModel, EmailStr
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from data_and_integration_layer.database.connection import get_db
@@ -46,7 +47,7 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 # Temporary Cloudflare URL.
 # We will replace this with a new URL when testing.
 PUBLIC_BASE_URL = (
-    "https://saturn-costumes-desired-board.trycloudflare.com"
+    "https://cakes-vcr-fortune-frontpage.trycloudflare.com"
 )
 
 
@@ -288,9 +289,15 @@ def forgot_password(
     request: ForgotPasswordRequest,
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(
-        User.email == request.email
-    ).first()
+    normalized_email = str(request.email).strip().lower()
+
+    user = (
+        db.query(User)
+        .filter(
+            func.lower(User.email) == normalized_email
+        )
+        .first()
+    )
 
     if user:
         reset_token = create_reset_token(user.email)
@@ -300,7 +307,6 @@ def forgot_password(
             reset_token,
         )
 
-    # Same response whether the account exists or not.
     return {
         "message": (
             "If an account exists with this email, "

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'login_screen.dart';
+
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
 
@@ -17,24 +19,39 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final TextEditingController _confirmPasswordController =
       TextEditingController();
 
+  final FocusNode _passwordFocusNode = FocusNode();
+  final FocusNode _confirmPasswordFocusNode = FocusNode();
+
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
   bool _isLoading = false;
   bool _showValidation = false;
+  bool _showPasswordRequirements = false;
 
   String? _errorMessage;
   String? _successMessage;
 
-  // Taleeq Design Colors
   static const Color ivory = Color(0xFFFCFAF6);
   static const Color teal = Color(0xFF1F5F5A);
   static const Color tealLight = Color(0xFF2A7A74);
-  static const Color tealMuted = Color(0xFF6FA7A3);
   static const Color aquaLight = Color(0xFFEAF4F2);
   static const Color dark = Color(0xFF233330);
   static const Color muted = Color(0xFF8FA39F);
   static const Color border = Color(0xFFE3EEEB);
   static const Color errorRed = Color(0xFFD9534F);
+
+  @override
+  void initState() {
+    super.initState();
+
+    _passwordFocusNode.addListener(() {
+      if (!mounted) return;
+
+      setState(() {
+        _showPasswordRequirements = _passwordFocusNode.hasFocus;
+      });
+    });
+  }
 
   bool get _hasEightCharacters => _passwordController.text.length >= 8;
 
@@ -59,6 +76,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _confirmPasswordController.text.isNotEmpty;
 
   Future<void> _resetPassword() async {
+    FocusScope.of(context).unfocus();
+
     setState(() {
       _showValidation = true;
       _errorMessage = null;
@@ -73,9 +92,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
 
     if (!_passwordsMatch) {
+      _confirmPasswordController.clear();
+
       setState(() {
         _errorMessage = 'كلمتا المرور غير متطابقتين.';
       });
+
+      _confirmPasswordFocusNode.requestFocus();
       return;
     }
 
@@ -101,13 +124,26 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           _successMessage = 'تم تغيير كلمة المرور بنجاح.';
           _errorMessage = null;
         });
+
+        await Future.delayed(const Duration(seconds: 1));
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (route) => false,
+        );
+
+        return;
       } else {
         String message = 'تعذر تغيير كلمة المرور. يرجى المحاولة مرة أخرى.';
 
         try {
           final data = jsonDecode(response.body);
           message = data['detail']?.toString() ?? message;
-        } catch (_) {}
+        } catch (_) {
+          // Keep the Arabic fallback if the response is not JSON.
+        }
 
         setState(() {
           _errorMessage = message;
@@ -131,12 +167,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Widget _requirement(String text, bool isValid) {
     final Color color;
 
-    if (!_showValidation) {
-      color = muted;
-    } else if (isValid) {
+    if (isValid) {
       color = teal;
-    } else {
+    } else if (_showValidation) {
       color = errorRed;
+    } else {
+      color = muted;
     }
 
     return Padding(
@@ -150,10 +186,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           ),
           const SizedBox(width: 9),
           Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: color, fontSize: 13, fontFamily: 'Cairo'),
-            ),
+            child: Text(text, style: TextStyle(color: color, fontSize: 13)),
           ),
         ],
       ),
@@ -164,6 +197,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   void dispose() {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _passwordFocusNode.dispose();
+    _confirmPasswordFocusNode.dispose();
     super.dispose();
   }
 
@@ -180,6 +215,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         backgroundColor: ivory,
         body: SafeArea(
           child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -207,9 +243,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 42),
-
                 Center(
                   child: Container(
                     width: 120,
@@ -225,9 +259,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 35),
-
                 const Text(
                   'تعيين كلمة مرور جديدة',
                   textAlign: TextAlign.center,
@@ -235,39 +267,34 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     color: dark,
                     fontSize: 29,
                     fontWeight: FontWeight.w800,
-                    fontFamily: 'Cairo',
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 const Text(
                   'أدخل كلمة المرور الجديدة لحسابك.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: muted,
-                    fontSize: 16,
-                    fontFamily: 'Cairo',
-                  ),
+                  style: TextStyle(color: muted, fontSize: 16),
                 ),
-
                 const SizedBox(height: 35),
-
                 TextField(
                   controller: _passwordController,
+                  focusNode: _passwordFocusNode,
                   obscureText: _hidePassword,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.right,
                   onChanged: (_) {
                     setState(() {
+                      _showValidation = false;
                       _errorMessage = null;
                       _successMessage = null;
                     });
                   },
                   decoration: InputDecoration(
                     hintText: 'كلمة المرور الجديدة',
-                    hintStyle: const TextStyle(
-                      color: muted,
-                      fontFamily: 'Cairo',
-                    ),
+                    hintTextDirection: TextDirection.rtl,
+                    hintStyle: const TextStyle(color: muted),
                     filled: true,
                     fillColor: aquaLight,
                     suffixIcon: IconButton(
@@ -307,12 +334,53 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                 ),
-
+                if (_showPasswordRequirements) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: aquaLight,
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'يجب أن تحتوي كلمة المرور على:',
+                          style: TextStyle(
+                            color: dark,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        _requirement('8 أحرف على الأقل', _hasEightCharacters),
+                        _requirement(
+                          'حرف كبير واحد على الأقل (A-Z)',
+                          _hasUppercase,
+                        ),
+                        _requirement(
+                          'حرف صغير واحد على الأقل (a-z)',
+                          _hasLowercase,
+                        ),
+                        _requirement('رقم واحد على الأقل (0-9)', _hasNumber),
+                        _requirement(
+                          'رمز خاص واحد (! @ # \$ % ^ & *)',
+                          _hasSpecialCharacter,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
-
                 TextField(
                   controller: _confirmPasswordController,
+                  focusNode: _confirmPasswordFocusNode,
                   obscureText: _hideConfirmPassword,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.right,
                   onChanged: (_) {
                     setState(() {
                       _errorMessage = null;
@@ -321,10 +389,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   },
                   decoration: InputDecoration(
                     hintText: 'تأكيد كلمة المرور',
-                    hintStyle: const TextStyle(
-                      color: muted,
-                      fontFamily: 'Cairo',
-                    ),
+                    hintTextDirection: TextDirection.rtl,
+                    hintStyle: const TextStyle(color: muted),
                     filled: true,
                     fillColor: aquaLight,
                     suffixIcon: IconButton(
@@ -360,65 +426,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ),
                   ),
                 ),
-
                 if (confirmError) ...[
                   const SizedBox(height: 8),
                   const Text(
                     'كلمتا المرور غير متطابقتين.',
-                    style: TextStyle(
-                      color: errorRed,
-                      fontSize: 13,
-                      fontFamily: 'Cairo',
-                    ),
+                    style: TextStyle(color: errorRed, fontSize: 13),
                   ),
                 ],
-
-                const SizedBox(height: 22),
-
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: aquaLight,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'يجب أن تحتوي كلمة المرور على:',
-                        style: TextStyle(
-                          color: dark,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'Cairo',
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      _requirement('8 أحرف على الأقل', _hasEightCharacters),
-                      _requirement('حرف كبير واحد على الأقل', _hasUppercase),
-                      _requirement('حرف صغير واحد على الأقل', _hasLowercase),
-                      _requirement('رقم واحد على الأقل', _hasNumber),
-                      _requirement(
-                        'رمز خاص واحد (! @ # \$ % ^ & *)',
-                        _hasSpecialCharacter,
-                      ),
-                    ],
-                  ),
-                ),
-
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 15),
                   Text(
                     _errorMessage!,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: errorRed,
-                      fontSize: 13,
-                      fontFamily: 'Cairo',
-                    ),
+                    style: const TextStyle(color: errorRed, fontSize: 13),
                   ),
                 ],
-
                 if (_successMessage != null) ...[
                   const SizedBox(height: 15),
                   Row(
@@ -430,21 +452,21 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         size: 21,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        _successMessage!,
-                        style: const TextStyle(
-                          color: teal,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          fontFamily: 'Cairo',
+                      Flexible(
+                        child: Text(
+                          _successMessage!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: teal,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ],
-
                 const SizedBox(height: 25),
-
                 Container(
                   height: 62,
                   decoration: BoxDecoration(
@@ -480,7 +502,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              fontFamily: 'Cairo',
                             ),
                           ),
                   ),
