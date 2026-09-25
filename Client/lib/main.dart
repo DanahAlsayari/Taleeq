@@ -3,9 +3,8 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
-import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
-import 'presentation_layer/profileUI/profile_screen.dart';
+import 'presentation_layer/authenticationUI/welcome_screen.dart';
 
 void main() {
   runApp(const TaleeqApp());
@@ -21,8 +20,10 @@ class TaleeqApp extends StatefulWidget {
 class _TaleeqAppState extends State<TaleeqApp> {
   final AppLinks _appLinks = AppLinks();
 
+  final GlobalKey<NavigatorState> _navigatorKey =
+      GlobalKey<NavigatorState>();
+
   StreamSubscription<Uri>? _linkSubscription;
-  String? _resetToken;
 
   @override
   void initState() {
@@ -41,23 +42,39 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _listenForLinks() {
-    _linkSubscription = _appLinks.uriLinkStream.listen(
-      (uri) {
-        _handleLink(uri);
-      },
-    );
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleLink(uri);
+    });
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme == 'taleeq' && uri.host == 'reset-password') {
-      final token = uri.queryParameters['token'];
-
-      if (token != null && token.isNotEmpty) {
-        setState(() {
-          _resetToken = token;
-        });
-      }
+    if (uri.scheme != 'taleeq' ||
+        uri.host != 'reset-password') {
+      return;
     }
+
+    final token = uri.queryParameters['token'];
+
+    if (token == null || token.isEmpty) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final navigator = _navigatorKey.currentState;
+
+      if (navigator == null) {
+        return;
+      }
+
+      navigator.pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => ResetPasswordScreen(
+            token: token,
+          ),
+        ),
+        (route) => false,
+      );
+    });
   }
 
   @override
@@ -69,25 +86,23 @@ class _TaleeqAppState extends State<TaleeqApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
-
-      // يدعم اتجاه التطبيق العربي
+      theme: ThemeData(
+        scaffoldBackgroundColor:
+            const Color(0xFFFFFBF6),
+        fontFamily: 'Tajawal',
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1F5F5A),
+        ),
+      ),
       builder: (context, child) {
         return Directionality(
           textDirection: TextDirection.rtl,
-          child: child!,
+          child: child ?? const SizedBox.shrink(),
         );
       },
-
-      // إذا جاء المستخدم من رابط Reset Password
-      // نفتح صفحة تغيير كلمة المرور مباشرة.
-      home: _resetToken != null
-          ? ResetPasswordScreen(
-              token: _resetToken!,
-            )
-
-          // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
-          : const ProfileScreen(),
+      home: const WelcomeScreen(),
     );
   }
 }

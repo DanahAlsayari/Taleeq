@@ -225,3 +225,16 @@ class AssessmentRepository:
         self.db.refresh(profile)
 
         return profile
+
+
+
+
+    def get_fluency_profile(
+        self,
+        user_id: int,
+    ) -> FluencyProfile | None:
+        return (
+            self.db.query(FluencyProfile)
+            .filter(FluencyProfile.user_id == user_id)
+            .first()
+        )

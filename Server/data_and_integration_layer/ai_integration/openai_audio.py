@@ -76,8 +76,19 @@ Also provide:
 - block_percent: estimated percentage of the overall speech affected
   by blocks
 - speaking_rate_wpm
-- speaking_rate: 0-100 score
-- timing_pacing: 0-100 score
+
+- speaking_rate: 0-100 score representing how appropriate and stable
+  the speaking rate is.
+  80-100 = appropriate and stable speaking rate
+  60-79 = moderately appropriate, with some noticeable variation
+  0-59 = noticeably irregular or inappropriate speaking rate
+
+- timing_pacing: 0-100 score representing the overall stability and
+  naturalness of speech timing and pacing, considering pauses,
+  interruptions, and rhythm.
+  80-100 = stable and natural timing and pacing
+  60-79 = moderately stable, with some noticeable disruptions
+  0-59 = noticeably disrupted or irregular timing and pacing
 
 The four stuttering percentages must describe the overall speech, not the
 distribution of stuttering events. They do not need to add up to 100%.

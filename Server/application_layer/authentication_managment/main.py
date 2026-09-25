@@ -1,13 +1,14 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from data_and_integration_layer.database.connection import get_db
 from data_and_integration_layer.database.models.user import User
 
-from . import schemas
 from . import auth
-from .reset_password import router as reset_password_router
+from . import schemas
 from .profile import router as profile_router
+from .reset_password import router as reset_password_router
 
 
 app = FastAPI()
@@ -21,9 +22,19 @@ def signup(
     user: schemas.UserCreate,
     db: Session = Depends(get_db),
 ):
+normalized_email = user.email.strip().lower()
+    if user.password != user.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Passwords do not match.",
+        )
+    auth.validate_password(user.password)
+
     existing_user = (
         db.query(User)
-        .filter(User.email == user.email)
+        .filter(
+            func.lower(User.email) == normalized_email,
+        )
         .first()
     )
 
@@ -34,10 +45,12 @@ def signup(
         )
 
     new_user = User(
-        name=user.name,
-        email=user.email,
-        password_hash=auth.hash_password(user.password),
-        phone_number=user.phone_number,
+        name=user.name.strip(),
+        email=normalized_email,
+        password_hash=auth.hash_password(
+            user.password,
+        ),
+        phone_number=user.phone_number.strip(),
         age=user.age,
         gender=user.gender,
     )
@@ -54,9 +67,16 @@ def login(
     credentials: schemas.UserLogin,
     db: Session = Depends(get_db),
 ):
+    normalized_email = (
+        credentials.email.strip().lower()
+    )
+
     user = (
         db.query(User)
-        .filter(User.email == credentials.email)
+        .filter(
+            func.lower(User.email) ==
+            normalized_email,
+        )
         .first()
     )
 
@@ -70,7 +90,7 @@ def login(
         )
 
     token = auth.create_access_token(
-        {"sub": user.email}
+        {"sub": user.email},
     )
 
     return {

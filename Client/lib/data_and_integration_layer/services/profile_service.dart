@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'auth_storage.dart';
 
 class ProfileService {
-  static const String baseUrl = 'http://10.0.2.2:8000';
+  static const String baseUrl = 'http://10.0.2.2:8000/auth';
 
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
@@ -46,24 +46,17 @@ class ProfileService {
     final response = await http.post(
       Uri.parse('$baseUrl/profile/goals'),
       headers: await _headers(),
-      body: jsonEncode({
-        'goal': goal,
-      }),
+      body: jsonEncode({'goal': goal}),
     );
 
     return _decodeMap(response);
   }
 
-  Future<Map<String, dynamic>> updateGoal(
-    int goalId,
-    String goal,
-  ) async {
+  Future<Map<String, dynamic>> updateGoal(int goalId, String goal) async {
     final response = await http.put(
       Uri.parse('$baseUrl/profile/goals/$goalId'),
       headers: await _headers(),
-      body: jsonEncode({
-        'goal': goal,
-      }),
+      body: jsonEncode({'goal': goal}),
     );
 
     return _decodeMap(response);
@@ -96,18 +89,14 @@ class ProfileService {
     final response = await http.put(
       Uri.parse('$baseUrl/profile/reminder'),
       headers: await _headers(),
-      body: jsonEncode({
-        'enabled': enabled,
-        'reminder_time': reminderTime,
-      }),
+      body: jsonEncode({'enabled': enabled, 'reminder_time': reminderTime}),
     );
 
     return _decodeMap(response);
   }
 
   Map<String, dynamic> _decodeMap(http.Response response) {
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
 
@@ -119,8 +108,6 @@ class ProfileService {
       throw Exception('Unauthorized');
     }
 
-    throw Exception(
-      'Request failed: ${response.statusCode}',
-    );
+    throw Exception('Request failed: ${response.statusCode}');
   }
 }

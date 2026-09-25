@@ -1,12 +1,15 @@
 from pydantic import BaseModel, EmailStr
 
+
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
+    confirm_password: str
     phone_number: str
     age: int
     gender: str
+
 
 class UserOut(BaseModel):
     id: int
@@ -19,9 +22,11 @@ class UserOut(BaseModel):
     class Config:
         from_attributes = True
 
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
 
 class Token(BaseModel):
     access_token: str

@@ -18,17 +18,40 @@ class Assessment(Base):
     __tablename__ = "assessments"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
 
-    status = Column(String, nullable=False, default="PENDING")
+    # Connects each assessment to the user who completed it.
+    # It is not unique because one user can have multiple assessments.
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    user = relationship(
+        "User",
+        back_populates="assessments",
+    )
+
+    status = Column(
+        String,
+        nullable=False,
+        default="PENDING",
+    )
 
     overall_stuttering_percent = Column(Float, nullable=True)
     primary_pattern = Column(String, nullable=True)
     speaking_rate = Column(String, nullable=True)
     timing_pacing = Column(String, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    completed_at = Column(
+        DateTime,
+        nullable=True,
+    )
 
     tasks = relationship(
         "AssessmentTask",
@@ -42,6 +65,7 @@ class AssessmentTask(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Connects this task to its parent assessment.
     assessment_id = Column(
         Integer,
         ForeignKey("assessments.id"),
@@ -49,7 +73,6 @@ class AssessmentTask(Base):
     )
 
     task_type = Column(String, nullable=False)
-
     storage_url = Column(Text, nullable=False)
 
     status = Column(
@@ -59,7 +82,6 @@ class AssessmentTask(Base):
     )
 
     error_message = Column(Text, nullable=True)
-
     analyzed_at = Column(DateTime, nullable=True)
 
     assessment = relationship(
@@ -80,6 +102,7 @@ class TaskAnalysisResult(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Each assessment task has one analysis result.
     task_id = Column(
         Integer,
         ForeignKey("assessment_tasks.id"),
@@ -114,6 +137,7 @@ class SpeechEvent(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Connects the detected speech event to its analysis result.
     analysis_result_id = Column(
         Integer,
         ForeignKey("task_analysis_results.id"),
@@ -121,9 +145,7 @@ class SpeechEvent(Base):
     )
 
     event_type = Column(String, nullable=False)
-
     word_or_sound = Column(String, nullable=True)
-
     confidence = Column(Float, nullable=True)
 
     analysis_result = relationship(
@@ -137,14 +159,21 @@ class FluencyProfile(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # Connects the fluency profile to its user.
+    # It is unique because each user has only one fluency profile.
     user_id = Column(
         Integer,
+        ForeignKey("users.id"),
         nullable=False,
         unique=True,
     )
 
-    overall_stuttering_percent = Column(Float, nullable=True)
+    user = relationship(
+        "User",
+        back_populates="fluency_profile",
+    )
 
+    overall_stuttering_percent = Column(Float, nullable=True)
     primary_pattern = Column(String, nullable=True)
 
     repetition_percent = Column(Float, nullable=True)
