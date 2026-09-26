@@ -285,3 +285,38 @@ def get_task_results(
         })
 
     return results
+
+@router.post("/analyze-latest")
+def analyze_latest_assessment(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+
+    assessment = repository.get_latest_assessment(
+        current_user.id
+    )
+
+    if not assessment:
+        raise HTTPException(
+            status_code=404,
+            detail="No assessment found",
+        )
+
+    service = AssessmentAnalysisService(db)
+
+    try:
+        result = service.analyze_assessment(
+            assessment.id
+        )
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    return {
+        "assessment_id": assessment.id,
+        "result": result,
+    }

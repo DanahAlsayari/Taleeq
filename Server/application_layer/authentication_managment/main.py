@@ -21,8 +21,8 @@ app.include_router(profile_router)
 def signup(
     user: schemas.UserCreate,
     db: Session = Depends(get_db),
-):
-normalized_email = user.email.strip().lower()
+):      
+    normalized_email = user.email.strip().lower()
     if user.password != user.confirm_password:
         raise HTTPException(
             status_code=400,

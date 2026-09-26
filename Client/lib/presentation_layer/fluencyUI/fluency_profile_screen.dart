@@ -1,14 +1,14 @@
 import 'dart:math' as math;
 
-import 'package:client/models/fluency_profile_data.dart';
-import 'package:client/theme/taleeq_theme.dart';
+import '../../models/fluency_profile_data.dart';
+import '../../theme/taleeq_theme.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
-import 'package:client/data_and_integration_layer/services/fluency_profile_service.dart';
+import '../../services/fluency_profile_service.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -73,9 +73,10 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   }
 
   Future<void> _loadFluencyProfile() async {
-    await Future.delayed(const Duration(seconds: 15)); // مؤقت للتجربة
     try {
-      final data = await _fluencyProfileService.getFluencyProfile();
+      final data =
+          await _fluencyProfileService
+              .getFluencyProfile();
 
       if (!mounted) return;
 

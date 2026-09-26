@@ -1,12 +1,17 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
-
+import 'package:flutter/foundation.dart';
 import 'auth_storage.dart';
 
 class ProfileService {
-  static const String baseUrl = 'http://10.0.2.2:8000/auth';
+  static String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000';
+    }
 
+    return 'http://10.0.2.2:8000';
+  }
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
