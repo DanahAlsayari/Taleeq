@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../services/assessment_api_service.dart';
+import '../../../fluencyUI/fluency_profile_screen.dart';
 import 'speech_assesment_intro_screen.dart' ;
 
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
@@ -12,9 +14,52 @@ const SpeechAssesmentQuestionsScreen({super.key});
 
 class _SpeechAssesmentQuestionsScreen extends State<SpeechAssesmentQuestionsScreen> {
 
-int currentQuestionIndex = 0;
+  int currentQuestionIndex = 0;
 
-final Map<int, Set<String>> answers = {};
+  final Map<int, Set<String>> answers = {};
+
+  final AssessmentApiService _assessmentApiService = AssessmentApiService();
+
+  bool _isSubmitting = false;
+  Future<void> _submitAssessment() async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      await _assessmentApiService
+          .analyzeLatestAssessment();
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              const FluencyProfileScreen(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isSubmitting = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.toString().replaceFirst(
+                  'Exception: ',
+                  '',
+                ),
+          ),
+        ),
+      );
+    }
+  }
 
 // Questions list
   final List<Map<String, dynamic>> questions = [
@@ -42,7 +87,7 @@ final Map<int, Set<String>> answers = {};
     },
 
   ];
-
+  
 
   @override
   Widget build(BuildContext context) {
@@ -234,16 +279,18 @@ final Map<int, Set<String>> answers = {};
                   child: SizedBox(
                     height: 60.0,
                     child: ElevatedButton(
-                  onPressed: () {
-                    if (currentQuestionIndex < questions.length - 1) {
-                      setState(() {
-                        currentQuestionIndex++;
-                      });
-                    } else {
-                      // Handle submission of answers here
-                     
-                    } 
-                  } ,
+                  onPressed: _isSubmitting
+                      ? null
+                      : () async {
+                          if (currentQuestionIndex <
+                              questions.length - 1) {
+                            setState(() {
+                              currentQuestionIndex++;
+                            });
+                          } else {
+                            await _submitAssessment();
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6FA7A3),
                     shape: RoundedRectangleBorder(

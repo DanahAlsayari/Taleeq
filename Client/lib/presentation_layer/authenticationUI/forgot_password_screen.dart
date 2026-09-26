@@ -1,5 +1,5 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -48,7 +48,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/auth/forgot-password'),
+        Uri.parse(
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/forgot-password',
+        ),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );

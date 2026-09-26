@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../data_and_integration_layer/services/auth_storage.dart';
-import '../../data_and_integration_layer/services/profile_service.dart';
+import '../../services/auth_storage.dart';
+import '../../services/profile_service.dart';
 import 'widgets/account_card.dart';
 import 'widgets/assessment_card.dart';
 import 'widgets/logout_button.dart';

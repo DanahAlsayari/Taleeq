@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../data_and_integration_layer/services/pre_assessment_service.dart';
+import '../../../../services/pre_assessment_service.dart';
 import 'pre_assessment_intro_screen.dart';
 import 'pre_assesment_success_screen.dart';
 

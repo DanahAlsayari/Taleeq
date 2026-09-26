@@ -238,3 +238,18 @@ class AssessmentRepository:
             .filter(FluencyProfile.user_id == user_id)
             .first()
         )
+    def get_latest_assessment(
+    self,
+    user_id: int,
+    ) -> Assessment | None:
+
+        return (
+            self.db.query(Assessment)
+            .filter(
+                Assessment.user_id == user_id
+            )
+            .order_by(
+                Assessment.id.desc()
+            )
+            .first()
+        )

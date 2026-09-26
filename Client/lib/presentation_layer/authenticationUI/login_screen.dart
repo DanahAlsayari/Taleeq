@@ -3,12 +3,12 @@ import 'dart:convert';
 
 // Flutter interface components.
 import 'package:flutter/material.dart';
-
+import 'package:flutter/foundation.dart';
 // Sends HTTP requests to the FastAPI backend.
 import 'package:http/http.dart' as http;
 
 // Existing service that stores the access token securely.
-import '../../data_and_integration_layer/services/auth_storage.dart';
+import '../../services/auth_storage.dart';
 
 // Existing screens used by the Login screen.
 import '../profileUI/profile_screen.dart';
@@ -68,7 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Send the entered email and password to FastAPI.
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:8000/auth/login'),
+        Uri.parse(
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/login',
+        ),       
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
