@@ -56,7 +56,7 @@ class _SpeechAssesmentQuestionsScreen
       'instruction':
           'صف ماتراه في الصورة بكلماتك الخاصة، تحدث بشكل طبيعي ومريح',
       'type': 'image',
-      'content': 'assets/images/image.png',
+      'content': 'assets/images/Q2speechassesment.jpg',
     },
     {
       'title': 'المهمة ٣ من ٣',
