@@ -3,10 +3,20 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
 import 'presentation_layer/authenticationUI/welcome_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://vlpuloanqnelmnlypuea.supabase.co',
+    publishableKey: 'sb_publishable_oTcjgcxxEvZGjcolI8Ks3Q_jaYGufB2',
+  );
+
   runApp(const TaleeqApp());
 }
 
@@ -97,12 +107,15 @@ class _TaleeqAppState extends State<TaleeqApp> {
         ),
       ),
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox.shrink(),
-        );
+        return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
-      home: const WelcomeScreen(),
+
+      // إذا جاء المستخدم من رابط Reset Password
+      // نفتح صفحة تغيير كلمة المرور مباشرة.
+      home: _resetToken != null
+          ? ResetPasswordScreen(token: _resetToken!)
+          // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
+          : const ProfileScreen(),
     );
   }
 }
