@@ -2,11 +2,12 @@ from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from api.assessment import router as assessment_router
 from data_and_integration_layer.database.connection import get_db
+from data_and_integration_layer.database.models import assessment
 from data_and_integration_layer.database.models.user import User
 
-from . import auth
-from . import schemas
+from . import auth, schemas
 from .profile import router as profile_router
 from .reset_password import router as reset_password_router
 
@@ -15,6 +16,7 @@ app = FastAPI()
 
 app.include_router(reset_password_router)
 app.include_router(profile_router)
+app.include_router(assessment_router)
 
 
 @app.post("/signup", response_model=schemas.UserOut)
@@ -29,13 +31,12 @@ def signup(
             status_code=400,
             detail="Passwords do not match.",
         )
+
     auth.validate_password(user.password)
 
     existing_user = (
         db.query(User)
-        .filter(
-            func.lower(User.email) == normalized_email,
-        )
+        .filter(func.lower(User.email) == normalized_email)
         .first()
     )
 
@@ -48,9 +49,7 @@ def signup(
     new_user = User(
         name=user.name.strip(),
         email=normalized_email,
-        password_hash=auth.hash_password(
-            user.password,
-        ),
+        password_hash=auth.hash_password(user.password),
         phone_number=user.phone_number.strip(),
         age=user.age,
         gender=user.gender,
@@ -68,16 +67,11 @@ def login(
     credentials: schemas.UserLogin,
     db: Session = Depends(get_db),
 ):
-    normalized_email = (
-        credentials.email.strip().lower()
-    )
+    normalized_email = credentials.email.strip().lower()
 
     user = (
         db.query(User)
-        .filter(
-            func.lower(User.email) ==
-            normalized_email,
-        )
+        .filter(func.lower(User.email) == normalized_email)
         .first()
     )
 

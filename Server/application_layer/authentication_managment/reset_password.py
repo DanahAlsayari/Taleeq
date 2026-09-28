@@ -47,7 +47,7 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 # Temporary Cloudflare URL.
 # We will replace this with a new URL when testing.
 PUBLIC_BASE_URL = (
-    "https://cakes-vcr-fortune-frontpage.trycloudflare.com"
+    "https://canal-gis-best-algebra.trycloudflare.com"
 )
 
 
@@ -104,7 +104,7 @@ def send_reset_email(email: str, reset_token: str) -> None:
     encoded_token = quote(reset_token, safe="")
 
     reset_link = (
-        f"{PUBLIC_BASE_URL}/auth/open-reset"
+        f"{PUBLIC_BASE_URL}/open-reset"
         f"?token={encoded_token}"
     )
 
@@ -453,3 +453,4 @@ def reset_password(
     return {
         "message": "Password reset successfully."
     }
+

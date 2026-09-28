@@ -69,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
       // Send the entered email and password to FastAPI.
       final response = await http.post(
         Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/login',
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/login',
         ),       
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
