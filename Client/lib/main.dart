@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
@@ -99,23 +98,22 @@ class _TaleeqAppState extends State<TaleeqApp> {
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        scaffoldBackgroundColor:
-            const Color(0xFFFFFBF6),
+        scaffoldBackgroundColor: const Color(0xFFFFFBF6),
         fontFamily: 'Tajawal',
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1F5F5A),
         ),
       ),
       builder: (context, child) {
-        return Directionality(textDirection: TextDirection.rtl, child: child!);
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: child!,
+        );
       },
 
-      // إذا جاء المستخدم من رابط Reset Password
-      // نفتح صفحة تغيير كلمة المرور مباشرة.
-      home: _resetToken != null
-          ? ResetPasswordScreen(token: _resetToken!)
-          // مؤقتًا فقط حتى نشاهد تصميم الـ Profile.
-          : const ProfileScreen(),
+      // مؤقتًا نفتح Profile مباشرة.
+      // روابط Reset Password يتم التعامل معها داخل _handleLink().
+      home: const WelcomeScreen(),
     );
   }
 }

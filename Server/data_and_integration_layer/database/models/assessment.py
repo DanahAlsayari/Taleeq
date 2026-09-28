@@ -73,7 +73,7 @@ class AssessmentTask(Base):
     )
 
     task_type = Column(String, nullable=False)
-    storage_url = Column(Text, nullable=False)
+    storage_url = Column(Text, nullable=True)
 
     status = Column(
         String,

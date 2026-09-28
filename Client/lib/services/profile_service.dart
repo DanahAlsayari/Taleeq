@@ -5,13 +5,21 @@ import 'package:flutter/foundation.dart';
 import 'auth_storage.dart';
 
 class ProfileService {
-  static String get baseUrl {
-    if (kIsWeb) {
+  static  String get baseUrl {
+      if (kIsWeb) {
+        return 'http://127.0.0.1:8000';
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://10.0.2.2:8000';
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return 'http://127.0.0.1:8000';
+      }
+
       return 'http://127.0.0.1:8000';
     }
-
-    return 'http://10.0.2.2:8000';
-  }
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
@@ -27,7 +35,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getProfile() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/profile'),
+      Uri.parse('$baseUrl/auth/profile'),
       headers: await _headers(),
     );
 
@@ -36,7 +44,7 @@ class ProfileService {
 
   Future<List<dynamic>> getGoals() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/profile/goals'),
+      Uri.parse('$baseUrl/auth/profile/goals'),
       headers: await _headers(),
     );
 
@@ -49,7 +57,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> addGoal(String goal) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/profile/goals'),
+      Uri.parse('$baseUrl/auth/profile/goals'),
       headers: await _headers(),
       body: jsonEncode({'goal': goal}),
     );
@@ -59,7 +67,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> updateGoal(int goalId, String goal) async {
     final response = await http.put(
-      Uri.parse('$baseUrl/profile/goals/$goalId'),
+      Uri.parse('$baseUrl/auth/profile/goals/$goalId'),
       headers: await _headers(),
       body: jsonEncode({'goal': goal}),
     );
@@ -69,7 +77,7 @@ class ProfileService {
 
   Future<void> deleteGoal(int goalId) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/profile/goals/$goalId'),
+      Uri.parse('$baseUrl/auth/goals/$goalId'),
       headers: await _headers(),
     );
 
@@ -80,7 +88,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getReminder() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/profile/reminder'),
+      Uri.parse('$baseUrl/auth/profile/reminder'),
       headers: await _headers(),
     );
 
@@ -92,7 +100,7 @@ class ProfileService {
     required String reminderTime,
   }) async {
     final response = await http.put(
-      Uri.parse('$baseUrl/profile/reminder'),
+      Uri.parse('$baseUrl/auth/profile/reminder'),
       headers: await _headers(),
       body: jsonEncode({'enabled': enabled, 'reminder_time': reminderTime}),
     );

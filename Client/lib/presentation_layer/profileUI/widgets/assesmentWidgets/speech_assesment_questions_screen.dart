@@ -4,10 +4,9 @@ import '../../../../services/assessment_api_service.dart';
 import '../../../fluencyUI/fluency_profile_screen.dart';
 import 'speech_assesment_intro_screen.dart' ;
 
-import 'speech_assesment_intro_screen.dart';
-
+import 'dart:io';
 import 'package:client/services/recording_service.dart';
-import 'package:client/services/audio_storage_service.dart';
+//import 'package:client/services/audio_storage_service.dart';
 
 import "package:just_audio/just_audio.dart";
 import 'package:client/presentation_layer/profileUI/widgets/audio_waveform.dart';
@@ -27,21 +26,71 @@ class _SpeechAssesmentQuestionsScreen
   int currentQuestionIndex = 0;
 
 
-  final Map<int, Set<String>> answers = {};
 
   final AssessmentApiService _assessmentApiService = AssessmentApiService();
 
   bool _isSubmitting = false;
+  int? _assessmentId;
+  @override
+void initState() {
+  super.initState();
+  _createAssessment();
+}
+
+Future<void> _createAssessment() async {
+  try {
+    final assessmentId =
+        await _assessmentApiService.createAssessment();
+
+    if (!mounted) return;
+
+    setState(() {
+      _assessmentId = assessmentId;
+    });
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          e.toString().replaceFirst(
+            'Exception: ',
+            '',
+          ),
+        ),
+      ),
+    );
+  }
+}
   Future<void> _submitAssessment() async {
     if (_isSubmitting) return;
+
+    if (_assessmentId == null) {
+      throw Exception('لم يتم إنشاء التقييم.');
+    }
+
+    if (recordingPaths.length != questions.length) {
+      throw Exception('يجب تسجيل جميع المهام قبل إرسال التقييم.');
+    }
 
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      await _assessmentApiService
-          .analyzeLatestAssessment();
+      await _assessmentApiService.analyzeAssessmentAudio(
+        assessmentId: _assessmentId!,
+        recordingPaths: recordingPaths,
+      );
+
+      // Delete local recordings after successful analysis
+      for (final path in recordingPaths.values) {
+        final file = File(path);
+
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
 
       if (!mounted) return;
 
@@ -63,9 +112,9 @@ class _SpeechAssesmentQuestionsScreen
         SnackBar(
           content: Text(
             e.toString().replaceFirst(
-                  'Exception: ',
-                  '',
-                ),
+              'Exception: ',
+              '',
+            ),
           ),
         ),
       );
@@ -73,7 +122,7 @@ class _SpeechAssesmentQuestionsScreen
   }
   final recordingService = RecordingService();
   final player = AudioPlayer();
-  final storageService = StorageService();
+  //final storageService = StorageService();
 
   bool isRecording = false;
   //the answers are records not strings
@@ -683,35 +732,45 @@ class _SpeechAssesmentQuestionsScreen
         child: SizedBox(
           height: 60.0,
           child: ElevatedButton(
-            onPressed: () async {
-              final path = recordingPaths[currentQuestionIndex];
-              if (path == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("سجل إجابتك أولًا")),
-                );
-                return;
+          onPressed: () async {
+            final path = recordingPaths[currentQuestionIndex];
+
+            if (path == null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("سجل إجابتك أولًا"),
+                ),
+              );
+              return;
+            }
+
+            try {
+              if (_assessmentId == null) {
+                throw Exception('لم يتم إنشاء التقييم.');
               }
-              try {
-                await storageService.uploadAudio(
-                  path,
-                  "assesment_q${currentQuestionIndex + 1}.m4a",
-                );
 
-                if (currentQuestionIndex < questions.length - 1) {
-                  setState(() {
-                    currentQuestionIndex++;
-                  });
-                }
-              } catch (e) {
-                if (!mounted) return;
+              if (currentQuestionIndex < questions.length - 1) {
+                setState(() {
+                  currentQuestionIndex++;
+                });
+              } else {
+                await _submitAssessment();
+              }
+            } catch (e) {
+              if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("فشل رفع التسجيل، حاول مرة أخرى"),
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    e.toString().replaceFirst(
+                      'Exception: ',
+                      '',
+                    ),
                   ),
-                );
-              }
-            },
+                ),
+              );
+            }
+          },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6FA7A3),
               shape: RoundedRectangleBorder(

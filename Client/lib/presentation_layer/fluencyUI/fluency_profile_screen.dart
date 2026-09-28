@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-
+import '../profileUI/profile_screen.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../theme/taleeq_theme.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -312,8 +312,12 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                             height: 56,
                             child: ElevatedButton(
                               onPressed: () {
-                                // نربطه بصفحة الخطة لاحقاً
-                              },
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => const ProfileScreen(),
+                                  ),
+                                );
+                            },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: TaleeqTheme.primaryTeal,
                                 foregroundColor: Colors.white,

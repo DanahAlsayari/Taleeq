@@ -38,27 +38,51 @@ class AssessmentRepository:
             )
             .all()
         )
-
     def save_task_analysis(
         self,
         task: AssessmentTask,
         analysis: AudioAnalysisResult,
     ) -> TaskAnalysisResult:
 
-        result = TaskAnalysisResult(
-            task_id=task.id,
-            stuttering_percent=analysis.stuttering_percent,
-            repetition_percent=analysis.repetition_percent,
-            prolongation_percent=analysis.prolongation_percent,
-            block_percent=analysis.block_percent,
-            speaking_rate_wpm=analysis.speaking_rate_wpm,
-            speaking_rate=analysis.speaking_rate,
-            timing_pacing=analysis.timing_pacing,
+        # Check if this task already has an analysis result
+        result = (
+            self.db.query(TaskAnalysisResult)
+            .filter(TaskAnalysisResult.task_id == task.id)
+            .first()
         )
 
-        self.db.add(result)
-        self.db.flush()
+        if result:
+            # Update existing result
+            result.stuttering_percent = analysis.stuttering_percent
+            result.repetition_percent = analysis.repetition_percent
+            result.prolongation_percent = analysis.prolongation_percent
+            result.block_percent = analysis.block_percent
+            result.speaking_rate_wpm = analysis.speaking_rate_wpm
+            result.speaking_rate = analysis.speaking_rate
+            result.timing_pacing = analysis.timing_pacing
 
+            # Remove old speech events
+            self.db.query(SpeechEvent).filter(
+                SpeechEvent.analysis_result_id == result.id
+            ).delete(synchronize_session=False)
+
+        else:
+            # Create new result
+            result = TaskAnalysisResult(
+                task_id=task.id,
+                stuttering_percent=analysis.stuttering_percent,
+                repetition_percent=analysis.repetition_percent,
+                prolongation_percent=analysis.prolongation_percent,
+                block_percent=analysis.block_percent,
+                speaking_rate_wpm=analysis.speaking_rate_wpm,
+                speaking_rate=analysis.speaking_rate,
+                timing_pacing=analysis.timing_pacing,
+            )
+
+            self.db.add(result)
+            self.db.flush()
+
+        # Save new speech events
         for event in analysis.speech_events:
             speech_event = SpeechEvent(
                 analysis_result_id=result.id,
@@ -76,7 +100,6 @@ class AssessmentRepository:
         self.db.refresh(result)
 
         return result
-
     def mark_task_as_failed(
         self,
         task: AssessmentTask,
@@ -253,3 +276,35 @@ class AssessmentRepository:
             )
             .first()
         )
+    def get_or_create_task(
+        self,
+        assessment_id: int,
+        task_type: str,
+    ) -> AssessmentTask:
+
+        task = (
+            self.db.query(AssessmentTask)
+            .filter(
+                AssessmentTask.assessment_id == assessment_id,
+                AssessmentTask.task_type == task_type,
+            )
+            .first()
+        )
+
+        if task:
+            return task
+
+        task = AssessmentTask(
+            assessment_id=assessment_id,
+            task_type=task_type,
+            storage_url=None,
+            status="PENDING",
+        )
+
+        self.db.add(task)
+        self.db.flush()
+
+        return task
+    
+    
+    

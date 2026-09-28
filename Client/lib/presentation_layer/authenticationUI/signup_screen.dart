@@ -19,7 +19,15 @@ class _SignupScreenState extends State<SignupScreen> {
         return 'http://127.0.0.1:8000';
       }
 
-      return 'http://10.0.2.2:8000';
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://10.0.2.2:8000';
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return 'http://127.0.0.1:8000';
+      }
+
+      return 'http://127.0.0.1:8000';
     }
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);

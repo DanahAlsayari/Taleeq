@@ -7,14 +7,23 @@ import '../models/fluency_profile_data.dart';
 
 class FluencyProfileService {
   static String get baseUrl {
-    if (kIsWeb) {
+      if (kIsWeb) {
+        return 'http://127.0.0.1:8000';
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.android) {
+        return 'http://10.0.2.2:8000';
+      }
+
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        return 'http://127.0.0.1:8000';
+      }
+
       return 'http://127.0.0.1:8000';
     }
-
-    return 'http://10.0.2.2:8000';
-  }
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
+    
 
     if (token == null || token.isEmpty) {
       throw Exception('Not authenticated');

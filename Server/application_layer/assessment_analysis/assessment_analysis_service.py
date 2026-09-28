@@ -14,6 +14,10 @@ class AssessmentAnalysisService:
         self.repository = AssessmentRepository(db)
         self.task_analysis_service = TaskAnalysisService()
 
+    # ---------------------------------------------------------
+    # OLD FLOW
+    # ---------------------------------------------------------
+
     def analyze_assessment(self, assessment_id: int):
 
         assessment = self.repository.get_assessment(
@@ -50,6 +54,10 @@ class AssessmentAnalysisService:
                 results.append(saved_result)
 
             except Exception as error:
+                print(
+                    f"❌ Task {task.id} failed: {error}"
+                )
+
                 self.repository.mark_task_as_failed(
                     task,
                     str(error),
@@ -75,6 +83,91 @@ class AssessmentAnalysisService:
         )
 
         return overall_result
+
+    # ---------------------------------------------------------
+    # NEW FLOW - DIRECT AUDIO
+    # ---------------------------------------------------------
+
+    def analyze_audio_tasks(
+        self,
+        assessment_id: int,
+        audio_tasks: list[tuple[str, bytes, str]],
+    ):
+
+        assessment = self.repository.get_assessment(
+            assessment_id
+        )
+
+        if not assessment:
+            raise ValueError("Assessment not found.")
+
+        if not audio_tasks:
+            raise ValueError("No audio files were provided.")
+
+        results = []
+
+        for task_type, audio_bytes, audio_format in audio_tasks:
+
+            try:
+                print(
+                    f"🎙️ ANALYZING {task_type} "
+                    f"({audio_format})"
+                )
+
+                analysis = (
+                    self.task_analysis_service.analyze_audio_bytes(
+                        audio_bytes,
+                        audio_format,
+                    )
+                )
+
+                # Create/get the assessment task
+                task = self.repository.get_or_create_task(
+                    assessment_id=assessment_id,
+                    task_type=task_type,
+                )
+
+                saved_result = self.repository.save_task_analysis(
+                    task,
+                    analysis,
+                )
+
+                results.append(saved_result)
+
+            except Exception as error:
+
+                print(
+                    f"❌ {task_type} failed: {error}"
+                )
+
+                raise ValueError(
+                    f"Failed to analyze {task_type}: {error}"
+                )
+
+        if not results:
+            raise ValueError(
+                "No assessment tasks were successfully analyzed."
+            )
+
+        overall_result = self._calculate_overall_result(
+            results
+        )
+
+        self.repository.update_assessment_result(
+            assessment_id,
+            overall_result,
+        )
+
+        self.repository.update_fluency_profile(
+            assessment.user_id,
+            overall_result,
+        )
+
+        return overall_result
+
+    # ---------------------------------------------------------
+    # CALCULATE OVERALL RESULT
+    # ---------------------------------------------------------
 
     def _calculate_overall_result(self, results):
 
@@ -106,12 +199,6 @@ class AssessmentAnalysisService:
                 if speaking_rates
                 else None
             ),
-            "speaking_rate": mean(
-                result.speaking_rate
-                for result in results
-            ),
-            "timing_pacing": mean(
-                result.timing_pacing
-                for result in results
-            ),
+            "speaking_rate": results[0].speaking_rate,
+            "timing_pacing": results[0].timing_pacing,
         }

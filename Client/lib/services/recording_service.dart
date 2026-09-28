@@ -9,26 +9,41 @@ class RecordingService {
     try {
       if (await recorder.hasPermission()) {
         final directory = await getApplicationDocumentsDirectory();
-        String path = p.join(directory.path, "$fileName.m4a");
 
-        await recorder.start(RecordConfig(), path: path);
+        final path = p.join(
+          directory.path,
+          "$fileName.wav",
+        );
+
+        final config = RecordConfig(
+          encoder: AudioEncoder.wav,
+        );
+
+        await recorder.start(
+          config,
+          path: path,
+        );
+
         return true;
       }
     } catch (e) {
       print("Start Recording error: $e");
     }
+
     return false;
   }
 
   Future<String?> stopRecording() async {
     try {
       final recordPath = await recorder.stop();
+
       if (recordPath != null) {
         return recordPath;
       }
     } catch (e) {
       print("Stop Recording error: $e");
     }
+
     return null;
   }
 
