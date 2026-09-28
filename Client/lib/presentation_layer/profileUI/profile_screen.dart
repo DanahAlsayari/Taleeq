@@ -1,14 +1,17 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
+import '../../services/assessment_api_service.dart';
 import '../../services/auth_storage.dart';
 import '../../services/profile_service.dart';
 import 'widgets/account_card.dart';
 import 'widgets/assessment_card.dart';
+import 'widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 import 'widgets/logout_button.dart';
 import 'widgets/profile_header.dart';
 import 'widgets/reminder_card.dart';
 import 'widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,6 +20,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
+
 class _ProfileScreenState extends State<ProfileScreen> {
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color background = Color(0xFFFCFAF6);
@@ -24,18 +28,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const Color border = Color(0xFFE3EEEB);
 
   final ScrollController _scrollController = ScrollController();
+
   final ProfileService _profileService = ProfileService();
+  final AssessmentApiService _assessmentService =
+      AssessmentApiService();
 
   String _name = '';
   String _email = '';
 
   bool _reminderEnabled = true;
-  TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 0);
+  TimeOfDay _reminderTime =
+      const TimeOfDay(hour: 18, minute: 0);
 
   final List<Map<String, dynamic>> _goals = [];
 
+  bool _assessmentCompleted = false;
+  String? _lastAssessmentDate;
+
   bool _isLoading = true;
   String? _errorMessage;
+
 
   @override
   void initState() {
@@ -43,17 +55,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfileData();
   }
 
+
   @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
   }
 
+
   Future<void> _loadProfileData() async {
     try {
       final profile = await _profileService.getProfile();
       final goals = await _profileService.getGoals();
       final reminder = await _profileService.getReminder();
+
+      final assessmentStatus =
+          await _assessmentService.getLatestAssessmentStatus();
 
       if (!mounted) return;
 
@@ -63,11 +80,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         _goals
           ..clear()
-          ..addAll(goals.map((goal) => Map<String, dynamic>.from(goal as Map)));
+          ..addAll(
+            goals.map(
+              (goal) =>
+                  Map<String, dynamic>.from(goal as Map),
+            ),
+          );
 
-        _reminderEnabled = reminder['enabled'] as bool? ?? true;
+        _reminderEnabled =
+            reminder['enabled'] as bool? ?? true;
 
-        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
+        _reminderTime = _parseTime(
+          reminder['reminder_time']?.toString(),
+        );
+
+        _assessmentCompleted =
+            assessmentStatus['completed'] == true;
+
+        _lastAssessmentDate =
+            assessmentStatus['last_assessment_date']
+                ?.toString();
 
         _isLoading = false;
         _errorMessage = null;
@@ -77,20 +109,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         _isLoading = false;
-        _errorMessage = 'تعذر تحميل بيانات الملف الشخصي';
+        _errorMessage =
+            'تعذر تحميل بيانات الملف الشخصي';
       });
     }
   }
 
+
   TimeOfDay _parseTime(String? value) {
     if (value == null || value.isEmpty) {
-      return const TimeOfDay(hour: 18, minute: 0);
+      return const TimeOfDay(
+        hour: 18,
+        minute: 0,
+      );
     }
 
     final parts = value.split(':');
 
     if (parts.length < 2) {
-      return const TimeOfDay(hour: 18, minute: 0);
+      return const TimeOfDay(
+        hour: 18,
+        minute: 0,
+      );
     }
 
     return TimeOfDay(
@@ -99,18 +139,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+
   String _formatTimeForApi(TimeOfDay time) {
-    final hour = time.hour.toString().padLeft(2, '0');
-    final minute = time.minute.toString().padLeft(2, '0');
+    final hour =
+        time.hour.toString().padLeft(2, '0');
+
+    final minute =
+        time.minute.toString().padLeft(2, '0');
 
     return '$hour:$minute:00';
   }
+
 
   Future<String?> _showGoalDialog({
     required String title,
     String initialValue = '',
   }) async {
-    final controller = TextEditingController(text: initialValue);
+    final controller =
+        TextEditingController(text: initialValue);
 
     final result = await showDialog<String>(
       context: context,
@@ -120,7 +166,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: AlertDialog(
             backgroundColor: background,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius:
+                  BorderRadius.circular(22),
             ),
             title: Text(
               title,
@@ -138,12 +185,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 filled: true,
                 fillColor: Colors.white,
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: border),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  borderSide:
+                      const BorderSide(
+                    color: border,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: darkGreen, width: 1.5),
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  borderSide:
+                      const BorderSide(
+                    color: darkGreen,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -154,15 +210,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  final value = controller.text.trim();
+                  final value =
+                      controller.text.trim();
 
                   if (value.isNotEmpty) {
-                    Navigator.pop(dialogContext, value);
+                    Navigator.pop(
+                      dialogContext,
+                      value,
+                    );
                   }
                 },
                 style: ElevatedButton.styleFrom(
@@ -170,7 +232,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius:
+                        BorderRadius.circular(12),
                   ),
                 ),
                 child: const Text('حفظ'),
@@ -181,17 +244,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    controller.dispose();
     return result;
   }
 
+
   Future<void> _addGoal() async {
-    final goal = await _showGoalDialog(title: 'إضافة هدف جديد');
+    final goal = await _showGoalDialog(
+      title: 'إضافة هدف جديد',
+    );
 
     if (goal == null || !mounted) return;
 
     try {
-      final newGoal = await _profileService.addGoal(goal);
+      final newGoal =
+          await _profileService.addGoal(goal);
 
       if (!mounted) return;
 
@@ -199,12 +265,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _goals.add(newGoal);
       });
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) {
+        if (!_scrollController.hasClients) {
+          return;
+        }
 
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 350),
+          _scrollController
+              .position.maxScrollExtent,
+          duration:
+              const Duration(milliseconds: 350),
           curve: Curves.easeOut,
         );
       });
@@ -213,18 +284,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
   Future<void> _editGoal(int index) async {
     final currentGoal = _goals[index];
 
-    final updatedGoal = await _showGoalDialog(
+    final updatedGoal =
+        await _showGoalDialog(
       title: 'تعديل الهدف',
-      initialValue: currentGoal['goal']?.toString() ?? '',
+      initialValue:
+          currentGoal['goal']?.toString() ?? '',
     );
 
-    if (updatedGoal == null || !mounted) return;
+    if (updatedGoal == null || !mounted) {
+      return;
+    }
 
     try {
-      final updated = await _profileService.updateGoal(
+      final updated =
+          await _profileService.updateGoal(
         currentGoal['id'] as int,
         updatedGoal,
       );
@@ -239,8 +316,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
   Future<void> _deleteGoal(int index) async {
-    final shouldDelete = await showDialog<bool>(
+    final shouldDelete =
+        await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return Directionality(
@@ -248,28 +327,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: AlertDialog(
             backgroundColor: background,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius:
+                  BorderRadius.circular(22),
             ),
             title: const Text(
               'حذف الهدف',
-              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: darkText,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            content: const Text('هل أنتِ متأكدة من حذف هذا الهدف؟'),
+            content: const Text(
+              'هل أنتِ متأكدة من حذف هذا الهدف؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext, false);
+                  Navigator.pop(
+                    dialogContext,
+                    false,
+                  );
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext, true);
+                  Navigator.pop(
+                    dialogContext,
+                    true,
+                  );
                 },
-                style: ElevatedButton.styleFrom(
+                style:
+                    ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                   elevation: 0,
@@ -282,12 +376,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    if (shouldDelete != true || !mounted) return;
+    if (shouldDelete != true ||
+        !mounted) {
+      return;
+    }
 
-    final goalId = _goals[index]['id'] as int;
+    final goalId =
+        _goals[index]['id'] as int;
 
     try {
-      await _profileService.deleteGoal(goalId);
+      await _profileService
+          .deleteGoal(goalId);
 
       if (!mounted) return;
 
@@ -299,40 +398,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+
   Future<void> _updateReminder({
     required bool enabled,
     required TimeOfDay time,
   }) async {
     try {
-      final reminder = await _profileService.updateReminder(
+      final reminder =
+          await _profileService.updateReminder(
         enabled: enabled,
-        reminderTime: _formatTimeForApi(time),
+        reminderTime:
+            _formatTimeForApi(time),
       );
 
       if (!mounted) return;
 
       setState(() {
-        _reminderEnabled = reminder['enabled'] as bool? ?? enabled;
+        _reminderEnabled =
+            reminder['enabled'] as bool? ??
+                enabled;
 
-        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
+        _reminderTime = _parseTime(
+          reminder['reminder_time']
+              ?.toString(),
+        );
       });
     } catch (_) {
-      _showError('تعذر تحديث التذكير');
+      _showError(
+        'تعذر تحديث التذكير',
+      );
     }
   }
 
-  Future<void> _changeReminderStatus(bool value) async {
-    await _updateReminder(enabled: value, time: _reminderTime);
+
+  Future<void> _changeReminderStatus(
+    bool value,
+  ) async {
+    await _updateReminder(
+      enabled: value,
+      time: _reminderTime,
+    );
   }
 
+
   Future<void> _changeReminderTime() async {
-    final selectedTime = await showTimePicker(
+    final selectedTime =
+        await showTimePicker(
       context: context,
       initialTime: _reminderTime,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme:
+                const ColorScheme.light(
               primary: darkGreen,
               onPrimary: Colors.white,
               surface: background,
@@ -340,43 +458,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           child: Directionality(
-            textDirection: TextDirection.rtl,
+            textDirection:
+                TextDirection.rtl,
             child: child!,
           ),
         );
       },
     );
 
-    if (selectedTime == null || !mounted) return;
+    if (selectedTime == null ||
+        !mounted) {
+      return;
+    }
 
-    await _updateReminder(enabled: _reminderEnabled, time: selectedTime);
+    await _updateReminder(
+      enabled: _reminderEnabled,
+      time: selectedTime,
+    );
   }
+
 
   void _showError(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
       SnackBar(
-        content: Text(message, textAlign: TextAlign.center),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
         backgroundColor: Colors.red,
       ),
     );
   }
 
-  void _retakeAssessment() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'سيتم ربط إعادة التقييم بواجهة التقييم',
-          textAlign: TextAlign.center,
-        ),
-        backgroundColor: darkGreen,
+
+  Future<void> _retakeAssessment() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            const PreAssessmentIntroScreen(),
       ),
     );
+
+    if (!mounted) return;
+
+    await _refreshAssessmentStatus();
   }
 
+
+  Future<void> _refreshAssessmentStatus() async {
+    try {
+      final assessmentStatus =
+          await _assessmentService
+              .getLatestAssessmentStatus();
+
+      if (!mounted) return;
+
+      setState(() {
+        _assessmentCompleted =
+            assessmentStatus['completed'] == true;
+
+        _lastAssessmentDate =
+            assessmentStatus[
+                    'last_assessment_date']
+                ?.toString();
+      });
+    } catch (_) {
+      // لا نمنع المستخدم من استخدام الملف الشخصي
+      // إذا فشل تحديث حالة التقييم فقط.
+    }
+  }
+
+
   Future<void> _logout() async {
-    final shouldLogout = await showDialog<bool>(
+    final shouldLogout =
+        await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
         return Directionality(
@@ -384,33 +543,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: AlertDialog(
             backgroundColor: background,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(22),
+              borderRadius:
+                  BorderRadius.circular(22),
             ),
             title: const Text(
               'تسجيل الخروج',
-              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: darkText,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            content: const Text('هل تريدين تسجيل الخروج من حسابك؟'),
+            content: const Text(
+              'هل تريدين تسجيل الخروج من حسابك؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext, false);
+                  Navigator.pop(
+                    dialogContext,
+                    false,
+                  );
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pop(dialogContext, true);
+                  Navigator.pop(
+                    dialogContext,
+                    true,
+                  );
                 },
-                style: ElevatedButton.styleFrom(
+                style:
+                    ElevatedButton.styleFrom(
                   backgroundColor: Colors.red,
                   foregroundColor: Colors.white,
                   elevation: 0,
                 ),
-                child: const Text('تسجيل الخروج'),
+                child:
+                    const Text(
+                  'تسجيل الخروج',
+                ),
               ),
             ],
           ),
@@ -424,11 +601,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+    Navigator.of(context)
+        .pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (context) =>
+            const WelcomeScreen(),
+      ),
       (route) => false,
     );
   }
+
 
   Widget _sectionTitle(String title) {
     return Align(
@@ -444,23 +626,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+
   Widget _buildLoading() {
-    return const Center(child: CircularProgressIndicator(color: darkGreen));
+    return const Center(
+      child: CircularProgressIndicator(
+        color: darkGreen,
+      ),
+    );
   }
+
 
   Widget _buildError() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: darkGreen, size: 42),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: darkGreen,
+              size: 42,
+            ),
             const SizedBox(height: 12),
             Text(
-              _errorMessage ?? 'حدث خطأ',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: darkText, fontSize: 15),
+              _errorMessage ??
+                  'حدث خطأ',
+              textAlign:
+                  TextAlign.center,
+              style: const TextStyle(
+                color: darkText,
+                fontSize: 15,
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -472,17 +671,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                 _loadProfileData();
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: darkGreen,
-                foregroundColor: Colors.white,
+              style:
+                  ElevatedButton.styleFrom(
+                backgroundColor:
+                    darkGreen,
+                foregroundColor:
+                    Colors.white,
               ),
-              child: const Text('إعادة المحاولة'),
+              child:
+                  const Text(
+                'إعادة المحاولة',
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
 
   Widget _buildProfile() {
     return Directionality(
@@ -494,47 +700,99 @@ class _ProfileScreenState extends State<ProfileScreen> {
         thickness: 4,
         child: SingleChildScrollView(
           controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(18, 8, 18, 30),
+          physics:
+              const AlwaysScrollableScrollPhysics(),
+          padding:
+              const EdgeInsets.fromLTRB(
+            18,
+            8,
+            18,
+            30,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+            crossAxisAlignment:
+                CrossAxisAlignment.stretch,
             children: [
-              ProfileHeader(name: _name, email: _email),
+              ProfileHeader(
+                name: _name,
+                email: _email,
+              ),
+
               const SizedBox(height: 24),
-              _sectionTitle('معلومات الحساب'),
+
+              _sectionTitle(
+                'معلومات الحساب',
+              ),
               const SizedBox(height: 10),
-              AccountCard(name: _name, email: _email),
+              AccountCard(
+                name: _name,
+                email: _email,
+              ),
+
               const SizedBox(height: 24),
-              _sectionTitle('أهداف التدريب'),
+
+              _sectionTitle(
+                'أهداف التدريب',
+              ),
               const SizedBox(height: 10),
               TrainingGoalsSection(
                 goals: _goals
-                    .map((goal) => goal['goal']?.toString() ?? '')
+                    .map(
+                      (goal) =>
+                          goal['goal']
+                              ?.toString() ??
+                          '',
+                    )
                     .toList(),
                 onAddGoal: _addGoal,
                 onEditGoal: _editGoal,
                 onDeleteGoal: _deleteGoal,
               ),
+
               const SizedBox(height: 24),
-              _sectionTitle('التذكيرات'),
+
+              _sectionTitle(
+                'التذكيرات',
+              ),
               const SizedBox(height: 10),
               ReminderCard(
-                enabled: _reminderEnabled,
+                enabled:
+                    _reminderEnabled,
                 time: _reminderTime,
-                onChanged: _changeReminderStatus,
-                onChangeTime: _changeReminderTime,
+                onChanged:
+                    _changeReminderStatus,
+                onChangeTime:
+                    _changeReminderTime,
               ),
+
               const SizedBox(height: 24),
+
               _sectionTitle('التقييم'),
               const SizedBox(height: 10),
-              AssessmentCard(onTap: _retakeAssessment),
+              AssessmentCard(
+                completed:
+                    _assessmentCompleted,
+                lastAssessmentDate:
+                    _lastAssessmentDate,
+                onTap:
+                    _retakeAssessment,
+              ),
+
               const SizedBox(height: 28),
-              LogoutButton(onPressed: _logout),
+
+              LogoutButton(
+                onPressed: _logout,
+              ),
+
               const SizedBox(height: 25),
+
               const Center(
                 child: Text(
                   'طليق • الإصدار 1.0.0',
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -543,6 +801,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -565,8 +824,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: _isLoading
             ? _buildLoading()
             : _errorMessage != null
-            ? _buildError()
-            : _buildProfile(),
+                ? _buildError()
+                : _buildProfile(),
       ),
     );
   }

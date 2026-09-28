@@ -1,25 +1,16 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    File,
-    HTTPException,
-    UploadFile,
-)
-
-from data_and_integration_layer.database.Repositories.assessment_repository import (
-    AssessmentRepository,
-)
-
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+
 from application_layer.assessment_analysis.assessment_analysis_service import (
     AssessmentAnalysisService,
 )
 from application_layer.authentication_managment import auth
-from data_and_integration_layer.ai_integration.openai_audio import (
-    OpenAIAudioAnalyzer,
-)
+from data_and_integration_layer.ai_integration.openai_audio import OpenAIAudioAnalyzer
 from data_and_integration_layer.database.connection import get_db
+from data_and_integration_layer.database.Repositories.assessment_repository import (
+    AssessmentRepository,
+)
 from data_and_integration_layer.database.models.pre_assessment import (
     PreAssessmentSubmission,
 )
@@ -28,16 +19,11 @@ from data_and_integration_layer.database.models.user import User
 
 class PreAssessmentAnswer(BaseModel):
     question_id: int
-    selected_options: list[str] = Field(
-        min_length=1,
-    )
+    selected_options: list[str] = Field(min_length=1)
 
 
 class PreAssessmentSubmissionCreate(BaseModel):
-    answers: list[PreAssessmentAnswer] = Field(
-        min_length=6,
-        max_length=6,
-    )
+    answers: list[PreAssessmentAnswer] = Field(min_length=6, max_length=6)
 
 
 router = APIRouter(
@@ -52,11 +38,7 @@ def analyze_assessment(
     db: Session = Depends(get_db),
 ):
     service = AssessmentAnalysisService(db)
-
-    result = service.analyze_assessment(
-        assessment_id,
-    )
-
+    result = service.analyze_assessment(assessment_id)
     return result
 
 
@@ -65,11 +47,9 @@ async def test_analyze_audio(
     file: UploadFile = File(...),
 ):
     audio_bytes = await file.read()
-
     audio_format = file.filename.rsplit(".", 1)[-1].lower()
 
     analyzer = OpenAIAudioAnalyzer()
-
     result = analyzer.analyze_audio(
         audio_bytes,
         audio_format,
@@ -112,10 +92,7 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 3,
-                "question": (
-                    "هل سبق أن تلقيت جلسات علاج "
-                    "نطق/تخاطب للتأتأة؟"
-                ),
+                "question": "هل سبق أن تلقيت جلسات علاج نطق/تخاطب للتأتأة؟",
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
@@ -125,10 +102,7 @@ def get_pre_assessment_questions():
             },
             {
                 "id": 4,
-                "question": (
-                    "هل تتجنب أو تستبدل كلمات لأنك "
-                    "تتوقع أنك ستتأتئ فيها؟"
-                ),
+                "question": "هل تتجنب أو تستبدل كلمات لأنك تتوقع أنك ستتأتئ فيها؟",
                 "subtitle": "اختر إجابة واحدة",
                 "multiple": False,
                 "options": [
@@ -140,9 +114,7 @@ def get_pre_assessment_questions():
             {
                 "id": 5,
                 "question": "في أي مواقف تزداد التأتأة لديك؟",
-                "subtitle": (
-                    "اختر جميع الإجابات التي تنطبق عليك"
-                ),
+                "subtitle": "اختر جميع الإجابات التي تنطبق عليك",
                 "multiple": True,
                 "options": [
                     "التحدث مع أشخاص جدد",
@@ -156,9 +128,7 @@ def get_pre_assessment_questions():
             {
                 "id": 6,
                 "question": "ماذا تريد أن تحسن؟",
-                "subtitle": (
-                    "اختر جميع الإجابات التي تنطبق عليك"
-                ),
+                "subtitle": "اختر جميع الإجابات التي تنطبق عليك",
                 "multiple": True,
                 "options": [
                     "التحدث براحة أكبر",
@@ -174,19 +144,13 @@ def get_pre_assessment_questions():
     }
 
 
-@router.post(
-    "/pre-assessment/submissions",
-    status_code=201,
-)
+@router.post("/pre-assessment/submissions", status_code=201)
 def submit_pre_assessment(
     data: PreAssessmentSubmissionCreate,
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    question_ids = [
-        answer.question_id
-        for answer in data.answers
-    ]
+    question_ids = [answer.question_id for answer in data.answers]
 
     if sorted(question_ids) != [1, 2, 3, 4, 5, 6]:
         raise HTTPException(
@@ -196,10 +160,7 @@ def submit_pre_assessment(
 
     submission = PreAssessmentSubmission(
         user_id=current_user.id,
-        answers=[
-            answer.model_dump()
-            for answer in data.answers
-        ],
+        answers=[answer.model_dump() for answer in data.answers],
     )
 
     db.add(submission)
@@ -212,16 +173,14 @@ def submit_pre_assessment(
         "submitted_at": submission.submitted_at,
     }
 
+
 @router.get("/fluency-profile")
 def get_fluency_profile(
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     repository = AssessmentRepository(db)
-
-    profile = repository.get_fluency_profile(
-        current_user.id
-    )
+    profile = repository.get_fluency_profile(current_user.id)
 
     if not profile:
         raise HTTPException(
@@ -247,7 +206,6 @@ def get_task_results(
     db: Session = Depends(get_db),
 ):
     repository = AssessmentRepository(db)
-
     assessment = repository.get_assessment(assessment_id)
 
     if not assessment:
@@ -257,7 +215,6 @@ def get_task_results(
         return {"message": "Unauthorized"}
 
     tasks = repository.get_assessment_tasks(assessment_id)
-
     results = []
 
     for task in tasks:
@@ -272,10 +229,7 @@ def get_task_results(
             "block": analysis.block_percent,
         }
 
-        highest_pattern = max(
-            patterns,
-            key=patterns.get,
-        )
+        highest_pattern = max(patterns, key=patterns.get)
 
         results.append({
             "task_id": task.id,
@@ -286,16 +240,14 @@ def get_task_results(
 
     return results
 
+
 @router.post("/analyze-latest")
 def analyze_latest_assessment(
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
     repository = AssessmentRepository(db)
-
-    assessment = repository.get_latest_assessment(
-        current_user.id
-    )
+    assessment = repository.get_latest_assessment(current_user.id)
 
     if not assessment:
         raise HTTPException(
@@ -306,10 +258,7 @@ def analyze_latest_assessment(
     service = AssessmentAnalysisService(db)
 
     try:
-        result = service.analyze_assessment(
-            assessment.id
-        )
-
+        result = service.analyze_assessment(assessment.id)
     except ValueError as error:
         raise HTTPException(
             status_code=400,
@@ -319,4 +268,24 @@ def analyze_latest_assessment(
     return {
         "assessment_id": assessment.id,
         "result": result,
+    }
+
+
+@router.get("/status/latest")
+def get_latest_assessment_status(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+    assessment = repository.get_latest_assessment(current_user.id)
+
+    if not assessment or assessment.status != "completed":
+        return {
+            "completed": False,
+            "last_assessment_date": None,
+        }
+
+    return {
+        "completed": True,
+        "last_assessment_date": assessment.completed_at,
     }

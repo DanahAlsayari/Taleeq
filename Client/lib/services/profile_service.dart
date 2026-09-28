@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+
 import 'auth_storage.dart';
 
 class ProfileService {
@@ -12,6 +13,7 @@ class ProfileService {
 
     return 'http://10.0.2.2:8000';
   }
+
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
@@ -116,3 +118,4 @@ class ProfileService {
     throw Exception('Request failed: ${response.statusCode}');
   }
 }
+
