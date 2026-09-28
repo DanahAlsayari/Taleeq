@@ -4,14 +4,36 @@ class AssessmentCard extends StatelessWidget {
   const AssessmentCard({
     super.key,
     required this.onTap,
+    required this.completed,
+    this.lastAssessmentDate,
   });
 
   final VoidCallback onTap;
+  final bool completed;
+  final String? lastAssessmentDate;
 
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFFEAF4F2);
   static const Color border = Color(0xFFE3EEEB);
   static const Color darkText = Color(0xFF233330);
+
+  String? get formattedDate {
+    if (lastAssessmentDate == null ||
+        lastAssessmentDate!.isEmpty) {
+      return null;
+    }
+
+    try {
+      final date = DateTime.parse(lastAssessmentDate!).toLocal();
+
+      final day = date.day.toString().padLeft(2, '0');
+      final month = date.month.toString().padLeft(2, '0');
+
+      return '$day/$month/${date.year}';
+    } catch (_) {
+      return null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,22 +62,28 @@ class AssessmentCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 13),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'إعادة تقييم الكلام',
-                    style: TextStyle(
+                    completed
+                        ? 'مكتمل ✓'
+                        : 'غير مكتمل',
+                    style: const TextStyle(
                       color: darkText,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
-                    'أعد التقييم لتحديث خطة التدريب',
-                    style: TextStyle(
+                    completed
+                        ? formattedDate != null
+                            ? 'آخر تقييم: $formattedDate'
+                            : 'إعادة التقييم'
+                        : 'اذهب إلى التقييم',
+                    style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 12,
                     ),
