@@ -1,8 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+
 import '../../services/auth_storage.dart';
 import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 
@@ -14,13 +16,14 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-    String get baseUrl {
-      if (kIsWeb) {
-        return 'http://127.0.0.1:8000';
-      }
-
-      return 'http://10.0.2.2:8000';
+  String get baseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:8000';
     }
+
+    return 'http://10.0.2.2:8000';
+  }
+
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
   static const Color background = Color(0xFFFFFBF6);
@@ -132,7 +135,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final signupResponse = await http.post(
-        Uri.parse('$baseUrl/signup'),
+        Uri.parse('$baseUrl/auth/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
@@ -155,7 +158,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Log the new user in automatically.
       final loginResponse = await http.post(
-        Uri.parse('$baseUrl/login'),
+        Uri.parse('$baseUrl/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
@@ -192,7 +195,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (context) => const PreAssessmentIntroScreen(),
+          builder: (context) =>
+              const PreAssessmentIntroScreen(allowBack: false),
         ),
         (route) => false,
       );
@@ -218,11 +222,7 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       if (detail is List && detail.isNotEmpty) {
-        final firstError = detail.first;
-
-        if (firstError is Map<String, dynamic>) {
-          return firstError['msg']?.toString() ?? fallback;
-        }
+        return 'بيانات الحساب غير صالحة. يرجى مراجعتها والمحاولة مجددًا';
       }
     } catch (_) {
       // Use the fallback message if the server response is not JSON.
@@ -233,8 +233,9 @@ class _SignupScreenState extends State<SignupScreen> {
 
   String _translateBackendError(String message) {
     switch (message) {
+      case 'Account information cannot be used':
       case 'Email already registered':
-        return 'البريد الإلكتروني مسجل مسبقًا';
+        return 'تعذر استخدام بيانات الحساب. جرّب تسجيل الدخول أو استخدم بريدًا آخر';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
@@ -425,8 +426,22 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.person_outline_rounded,
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                      final name = value?.trim() ?? '';
+
+                      if (name.isEmpty) {
                         return 'يرجى إدخال الاسم';
+                      }
+
+                      if (name.length < 2 || name.length > 50) {
+                        return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
+                      }
+
+                      final nameIsValid = RegExp(
+                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
+                      ).hasMatch(name);
+
+                      if (!nameIsValid) {
+                        return 'يرجى استخدام الأحرف العربية أو الإنجليزية فقط';
                       }
 
                       return null;
@@ -467,6 +482,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    maxLength: 10,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
@@ -475,8 +495,14 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.phone_outlined,
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال رقم الهاتف';
+                      final phone = value?.trim() ?? '';
+
+                      if (phone.isEmpty) {
+                        return 'يرجى إدخال رقم الجوال';
+                      }
+
+                      if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
+                        return 'رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
                       return null;
@@ -487,6 +513,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   TextFormField(
                     controller: _ageController,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                    ],
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
@@ -501,8 +531,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال عمر صحيح';
                       }
 
-                      if (age <= 0 || age > 120) {
-                        return 'يرجى إدخال عمر صحيح';
+                      if (age < 13 || age > 100) {
+                        return 'يجب أن يكون العمر بين 13 و100 سنة';
                       }
 
                       return null;

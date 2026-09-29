@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -49,7 +50,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       final response = await http.post(
         Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/forgot-password',
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/forgot-password',
         ),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
@@ -174,7 +175,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     color: dark,
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
-                    fontFamily: 'Cairo',
+                    fontFamily: 'Tajawal',
                   ),
                 ),
 
@@ -188,7 +189,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     color: muted,
                     fontSize: 16,
                     height: 1.8,
-                    fontFamily: 'Cairo',
+                    fontFamily: 'Tajawal',
                   ),
                 ),
 
@@ -210,7 +211,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     hintText: 'البريد الإلكتروني',
                     hintStyle: const TextStyle(
                       color: muted,
-                      fontFamily: 'Cairo',
+                      fontFamily: 'Tajawal',
                     ),
                     prefixIcon: const Icon(Icons.email_outlined, color: muted),
                     filled: true,
@@ -245,7 +246,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: const TextStyle(
                       color: errorRed,
                       fontSize: 13,
-                      fontFamily: 'Cairo',
+                      fontFamily: 'Tajawal',
                     ),
                   ),
                 ],
@@ -268,7 +269,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             color: teal,
                             fontSize: 13,
                             height: 1.6,
-                            fontFamily: 'Cairo',
+                            fontFamily: 'Tajawal',
                           ),
                         ),
                       ),
@@ -313,7 +314,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              fontFamily: 'Cairo',
+                              fontFamily: 'Tajawal',
                             ),
                           ),
                   ),
@@ -333,7 +334,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       color: teal,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      fontFamily: 'Cairo',
+                      fontFamily: 'Tajawal',
                     ),
                   ),
                 ),

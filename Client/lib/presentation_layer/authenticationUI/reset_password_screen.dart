@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -109,8 +110,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     try {
       final response = await http.post(
         Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/reset-password',
-        ),    
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/reset-password',
+        ),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': widget.token,
