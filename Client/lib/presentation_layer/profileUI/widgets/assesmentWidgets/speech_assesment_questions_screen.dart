@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../services/assessment_api_service.dart';
 import '../../../fluencyUI/fluency_profile_screen.dart';
-import 'speech_assesment_intro_screen.dart' ;
+import 'speech_assesment_intro_screen.dart';
 
 import 'dart:io';
+
 import 'package:client/services/recording_service.dart';
 //import 'package:client/services/audio_storage_service.dart';
 
@@ -25,43 +26,51 @@ class _SpeechAssesmentQuestionsScreen
     extends State<SpeechAssesmentQuestionsScreen> {
   int currentQuestionIndex = 0;
 
-
-
   final AssessmentApiService _assessmentApiService = AssessmentApiService();
 
   bool _isSubmitting = false;
   int? _assessmentId;
   @override
-void initState() {
-  super.initState();
-  _createAssessment();
-}
+  void initState() {
+    super.initState();
+    _createAssessment();
 
-Future<void> _createAssessment() async {
-  try {
-    final assessmentId =
-        await _assessmentApiService.createAssessment();
+    player.positionStream.listen((position) {
+      if (!mounted) return;
 
-    if (!mounted) return;
-
-    setState(() {
-      _assessmentId = assessmentId;
+      setState(() {
+        playbackPosition = position;
+      });
     });
-  } catch (e) {
-    if (!mounted) return;
+    player.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          e.toString().replaceFirst(
-            'Exception: ',
-            '',
-          ),
-        ),
-      ),
-    );
+        setState(() {
+          isPlaying = false;
+        });
+      }
+    });
   }
-}
+
+  Future<void> _createAssessment() async {
+    try {
+      final assessmentId = await _assessmentApiService.createAssessment();
+
+      if (!mounted) return;
+
+      setState(() {
+        _assessmentId = assessmentId;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+
   Future<void> _submitAssessment() async {
     if (_isSubmitting) return;
 
@@ -96,10 +105,7 @@ Future<void> _createAssessment() async {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) =>
-              const FluencyProfileScreen(),
-        ),
+        MaterialPageRoute(builder: (context) => const FluencyProfileScreen()),
       );
     } catch (e) {
       if (!mounted) return;
@@ -109,20 +115,17 @@ Future<void> _createAssessment() async {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst(
-              'Exception: ',
-              '',
-            ),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
+
   final recordingService = RecordingService();
   final player = AudioPlayer();
-  //final storageService = StorageService();
+  bool isPlaying = false;
+  Duration playbackPosition = Duration.zero;
+  String? loadedAudioPath;
+  bool hasStartedPlaying = false;
 
   bool isRecording = false;
   //the answers are records not strings
@@ -164,7 +167,6 @@ Future<void> _createAssessment() async {
       'content': 'this is the text"',
     },
   ];
-
 
   void startAmplitudeTimer() {
     amplitudeTimer = Timer.periodic(const Duration(milliseconds: 150), (
@@ -228,7 +230,7 @@ Future<void> _createAssessment() async {
                       Align(
                         alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
-                          onPressed: () {
+                          onPressed: () async {
                             if (isRecording) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
@@ -241,8 +243,15 @@ Future<void> _createAssessment() async {
                             }
 
                             if (currentQuestionIndex > 0) {
+                              await player.stop();
+                              await player.seek(Duration.zero);
+
                               setState(() {
                                 currentQuestionIndex--;
+                                isPlaying = false;
+                                playbackPosition = Duration.zero;
+                                loadedAudioPath = null;
+                                hasStartedPlaying = false;
                               });
                             } else {
                               Navigator.push(
@@ -628,11 +637,37 @@ Future<void> _createAssessment() async {
                                     GestureDetector(
                                       //play record
                                       onTap: () async {
+                                        if (isPlaying) {
+                                          await player.pause();
+
+                                          setState(() {
+                                            isPlaying = false;
+                                          });
+
+                                          return;
+                                        }
                                         if (recordingPaths[currentQuestionIndex] !=
                                             null) {
-                                          await player.setFilePath(
-                                            recordingPaths[currentQuestionIndex]!,
-                                          );
+                                          final currentPath =
+                                              recordingPaths[currentQuestionIndex]!;
+
+                                          if (loadedAudioPath != currentPath) {
+                                            await player.setFilePath(
+                                              currentPath,
+                                            );
+                                            loadedAudioPath = currentPath;
+                                            playbackPosition = Duration.zero;
+                                          }
+                                          if (player.processingState ==
+                                              ProcessingState.completed) {
+                                            await player.seek(Duration.zero);
+                                          }
+
+                                          setState(() {
+                                            isPlaying = true;
+                                            hasStartedPlaying = true;
+                                          });
+
                                           await player.play();
                                         }
                                       },
@@ -643,9 +678,11 @@ Future<void> _createAssessment() async {
                                           color: Color(0xFFD7EBE8),
                                           shape: BoxShape.circle,
                                         ),
-                                        child: const Icon(
-                                          Icons.play_arrow,
-                                          color: Color(0xFF287D78),
+                                        child: Icon(
+                                          isPlaying
+                                              ? Icons.pause
+                                              : Icons.play_arrow,
+                                          color: const Color(0xFF287D78),
                                           size: 30,
                                         ),
                                       ),
@@ -655,8 +692,10 @@ Future<void> _createAssessment() async {
 
                                     Text(
                                       formatTime(
-                                        recordingDurations[currentQuestionIndex] ??
-                                            0,
+                                        hasStartedPlaying
+                                            ? playbackPosition.inSeconds
+                                            : recordingDurations[currentQuestionIndex] ??
+                                                  0,
                                       ),
                                       style: const TextStyle(
                                         fontSize: 14,
@@ -669,6 +708,7 @@ Future<void> _createAssessment() async {
                                   //re-record
                                   onTap: () async {
                                     await player.stop();
+                                    await player.seek(Duration.zero);
 
                                     if (await recordingService.startRecording(
                                       "assesment_q${currentQuestionIndex + 1}",
@@ -676,6 +716,10 @@ Future<void> _createAssessment() async {
                                       setState(() {
                                         amplitudes.clear();
                                         recordingSeconds = 0;
+                                        playbackPosition = Duration.zero;
+                                        loadedAudioPath = null;
+                                        hasStartedPlaying = false;
+                                        isPlaying = false;
                                         isRecording = true;
                                       });
                                       startAmplitudeTimer();
@@ -732,45 +776,55 @@ Future<void> _createAssessment() async {
         child: SizedBox(
           height: 60.0,
           child: ElevatedButton(
-          onPressed: () async {
-            final path = recordingPaths[currentQuestionIndex];
-
-            if (path == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text("سجل إجابتك أولًا"),
-                ),
-              );
-              return;
-            }
-
-            try {
-              if (_assessmentId == null) {
-                throw Exception('لم يتم إنشاء التقييم.');
-              }
-
-              if (currentQuestionIndex < questions.length - 1) {
-                setState(() {
-                  currentQuestionIndex++;
-                });
-              } else {
-                await _submitAssessment();
-              }
-            } catch (e) {
-              if (!mounted) return;
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    e.toString().replaceFirst(
-                      'Exception: ',
-                      '',
+            onPressed: () async {
+              if (isRecording) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'أوقف التسجيل أولًا قبل الانتقال الى السؤال التالي',
                     ),
                   ),
-                ),
-              );
-            }
-          },
+                );
+                return;
+              }
+              final path = recordingPaths[currentQuestionIndex];
+
+              if (path == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("سجل إجابتك أولًا")),
+                );
+                return;
+              }
+
+              try {
+                if (_assessmentId == null) {
+                  throw Exception('لم يتم إنشاء التقييم.');
+                }
+
+                if (currentQuestionIndex < questions.length - 1) {
+                  await player.stop();
+                  await player.seek(Duration.zero);
+
+                  setState(() {
+                    currentQuestionIndex++;
+                    isPlaying = false;
+                    playbackPosition = Duration.zero;
+                    loadedAudioPath = null;
+                    hasStartedPlaying = false;
+                  });
+                } else {
+                  await _submitAssessment();
+                }
+              } catch (e) {
+                if (!mounted) return;
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(e.toString().replaceFirst('Exception: ', '')),
+                  ),
+                );
+              }
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6FA7A3),
               shape: RoundedRectangleBorder(

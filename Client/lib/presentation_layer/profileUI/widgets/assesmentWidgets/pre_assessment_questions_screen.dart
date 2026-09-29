@@ -256,17 +256,19 @@ class _PreAssessmentQuestionsScreenState
                         ),
                         child: Row(
                           children: [
-                            isSelected
-                                ? const Icon(
-                                    Icons.check_circle,
-                                    size: 20.0,
-                                    color: Color(0xFF6FA7A3),
-                                  )
-                                : const Icon(
-                                    Icons.circle_outlined,
-                                    size: 20.0,
-                                    color: Color.fromARGB(255, 219, 230, 229),
-                                  ),
+                            Icon(
+                              currentQuestion['multiple'] == true
+                                  ? (isSelected
+                                        ? Icons.check_box
+                                        : Icons.check_box_outline_blank)
+                                  : (isSelected
+                                        ? Icons.check_circle
+                                        : Icons.circle_outlined),
+                              size: 20.0,
+                              color: isSelected
+                                  ? const Color(0xFF6FA7A3)
+                                  : const Color.fromARGB(255, 219, 230, 229),
+                            ),
                             const SizedBox(width: 8.0),
                             Expanded(
                               child: Text(
