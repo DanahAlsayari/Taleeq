@@ -50,7 +50,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final FocusNode _passwordFocusNode = FocusNode();
   final FocusNode _confirmPasswordFocusNode = FocusNode();
 
-  bool _clearConfirmPasswordOnNextFocus = false;
+  bool _clearPasswordsOnNextFocus = false;
 
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
@@ -120,12 +120,26 @@ class _SignupScreenState extends State<SignupScreen> {
     return _passwordController.text == _confirmPasswordController.text;
   }
 
+  void _clearPasswordsForRetry() {
+    if (!_clearPasswordsOnNextFocus) {
+      return;
+    }
+
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+
+    setState(() {
+      _clearPasswordsOnNextFocus = false;
+    });
+  }
+
   Future<void> _createAccount() async {
     FocusScope.of(context).unfocus();
 
     final formIsValid = _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
+      _clearPasswordsOnNextFocus = true;
       return;
     }
 
@@ -157,6 +171,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
+        _clearPasswordsOnNextFocus = true;
         _showMessage(
           _readErrorMessage(signupResponse, fallback: 'تعذر إنشاء الحساب'),
         );
@@ -175,6 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
+        _clearPasswordsOnNextFocus = true;
         _showMessage(
           _readErrorMessage(
             loginResponse,
@@ -190,6 +206,7 @@ class _SignupScreenState extends State<SignupScreen> {
       final token = loginData['access_token'] as String?;
 
       if (token == null || token.isEmpty) {
+        _clearPasswordsOnNextFocus = true;
         _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
 
         return;
@@ -203,11 +220,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (context) => const PreAssessmentIntroScreen(),
+          builder: (context) =>
+              const PreAssessmentIntroScreen(allowBack: false),
         ),
         (route) => false,
       );
     } catch (error) {
+      _clearPasswordsOnNextFocus = true;
       _showMessage('تعذر الاتصال بالخادم. تأكد من تشغيل الخادم .');
     } finally {
       if (mounted) {
@@ -277,14 +296,26 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message, textDirection: TextDirection.rtl),
-          backgroundColor: Colors.red.shade700,
+    const errorColor = Color(0xFFB55252);
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.rtl,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      );
+        backgroundColor: errorColor,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
   }
 
   InputDecoration _fieldDecoration({
@@ -459,8 +490,22 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.person_outline_rounded,
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                      final name = value?.trim() ?? '';
+
+                      if (name.isEmpty) {
                         return 'يرجى إدخال الاسم';
+                      }
+
+                      if (name.length < 2 || name.length > 50) {
+                        return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
+                      }
+
+                      final nameIsValid = RegExp(
+                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
+                      ).hasMatch(name);
+
+                      if (!nameIsValid) {
+                        return 'يرجى استخدام الأحرف العربية أو الإنجليزية فقط';
                       }
 
                       return null;
@@ -504,6 +549,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   TextFormField(
                     controller: _phoneController,
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    maxLength: 10,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
@@ -512,8 +562,14 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.phone_outlined,
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'يرجى إدخال رقم الهاتف';
+                      final phone = value?.trim() ?? '';
+
+                      if (phone.isEmpty) {
+                        return 'يرجى إدخال رقم الجوال';
+                      }
+
+                      if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
+                        return 'رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
                       return null;
@@ -524,6 +580,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   TextFormField(
                     controller: _ageController,
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(3),
+                    ],
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
@@ -538,8 +598,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال عمر صحيح';
                       }
 
-                      if (age <= 0 || age > 120) {
-                        return 'يرجى إدخال عمر صحيح';
+                      if (age < 13 || age > 100) {
+                        return 'يجب أن يكون العمر بين 13 و100 سنة';
                       }
 
                       return null;
@@ -564,6 +624,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     focusNode: _passwordFocusNode,
                     obscureText: _hidePassword,
+                    onTap: _clearPasswordsForRetry,
                     autocorrect: false,
                     enableSuggestions: false,
                     textDirection: TextDirection.ltr,
@@ -663,15 +724,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       LengthLimitingTextInputFormatter(20),
                     ],
 
-                    onTap: () {
-                      if (_clearConfirmPasswordOnNextFocus) {
-                        _confirmPasswordController.clear();
-
-                        setState(() {
-                          _clearConfirmPasswordOnNextFocus = false;
-                        });
-                      }
-                    },
+                    onTap: _clearPasswordsForRetry,
 
                     onChanged: (_) {
                       setState(() {});
@@ -707,12 +760,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
 
                       if (!_passwordsMatch) {
-                        _clearConfirmPasswordOnNextFocus = true;
+                        _clearPasswordsOnNextFocus = true;
 
                         return 'كلمتا المرور غير متطابقتين';
                       }
 
-                      _clearConfirmPasswordOnNextFocus = false;
+                      _clearPasswordsOnNextFocus = false;
 
                       return null;
                     },

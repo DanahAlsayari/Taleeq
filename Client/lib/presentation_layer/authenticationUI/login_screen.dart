@@ -34,6 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controls the loading indicator and password visibility.
   bool _isLoading = false;
   bool _hidePassword = true;
+  bool _clearPasswordOnNextFocus = false;
 
   // Reusable colors matching the Welcome and Signup screens.
   static const Color _teal = Color(0xFF1F5F5A);
@@ -112,19 +113,19 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         // Default message if FastAPI rejects the login.
-        String message = 'تعذر تسجيل الدخول';
+        String message;
 
-        try {
-          final responseData = jsonDecode(response.body);
-
-          // FastAPI normally returns its message inside "detail".
-          if (responseData is Map && responseData['detail'] != null) {
-            message = responseData['detail'].toString();
-          }
-        } catch (_) {
-          // Keep the default message if the response is not JSON.
+        if (response.statusCode == 401) {
+          // Use the same message for an unknown email and a wrong password
+          // so the application does not reveal registered accounts.
+          message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        } else if (response.statusCode == 422) {
+          message = 'يرجى التحقق من البيانات المدخلة';
+        } else {
+          message = 'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى';
         }
 
+        _clearPasswordOnNextFocus = true;
         _showMessage(message);
       }
     } catch (_) {
@@ -141,9 +142,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message) {
-    // Shows a temporary message at the bottom of the screen.
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message), backgroundColor: _teal));
+    const errorColor = Color(0xFFB55252);
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        backgroundColor: errorColor,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
   }
 
   InputDecoration _fieldDecoration({
@@ -275,6 +292,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _hidePassword,
+                  onTap: () {
+                    if (_clearPasswordOnNextFocus) {
+                      _passwordController.clear();
+
+                      setState(() {
+                        _clearPasswordOnNextFocus = false;
+                      });
+                    }
+                  },
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
                       RegExp(r'[A-Za-z0-9!@#$%^&*]'),
