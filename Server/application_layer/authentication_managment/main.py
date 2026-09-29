@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import func
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from data_and_integration_layer.database.connection import get_db
@@ -21,8 +22,10 @@ app.include_router(profile_router)
 def signup(
     user: schemas.UserCreate,
     db: Session = Depends(get_db),
-):      
+):
     normalized_email = user.email.strip().lower()
+    normalized_phone = user.phone_number.strip()
+
     if user.password != user.confirm_password:
         raise HTTPException(
             status_code=400,
@@ -33,7 +36,10 @@ def signup(
     existing_user = (
         db.query(User)
         .filter(
-            func.lower(User.email) == normalized_email,
+            or_(
+                func.lower(User.email) == normalized_email,
+                User.phone_number == normalized_phone,
+            )
         )
         .first()
     )
@@ -41,22 +47,29 @@ def signup(
     if existing_user:
         raise HTTPException(
             status_code=400,
-            detail="Email already registered",
+            detail="Account information cannot be used",
         )
 
     new_user = User(
         name=user.name.strip(),
         email=normalized_email,
-        password_hash=auth.hash_password(
-            user.password,
-        ),
-        phone_number=user.phone_number.strip(),
+        password_hash=auth.hash_password(user.password),
+        phone_number=normalized_phone,
         age=user.age,
         gender=user.gender,
     )
 
     db.add(new_user)
-    db.commit()
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Account information cannot be used",
+        ) from None
+
     db.refresh(new_user)
 
     return new_user

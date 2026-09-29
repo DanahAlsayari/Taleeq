@@ -2,12 +2,13 @@ from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from urllib.parse import quote
 import os
+import re
 import smtplib
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from jose import ExpiredSignatureError, JWTError, jwt
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,7 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 RESET_TOKEN_EXPIRE_MINUTES = 15
 SPECIAL_CHARACTERS = "!@#$%^&*"
+PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")
 
 
 # =========================================================
@@ -67,11 +69,27 @@ router = APIRouter(
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
 
+    @field_validator("email")
+    @classmethod
+    def validate_email_characters(cls, value: EmailStr) -> EmailStr:
+        if not str(value).isascii():
+            raise ValueError("Email contains invalid characters.")
+
+        return value
+
 
 class ResetPasswordRequest(BaseModel):
     token: str
-    new_password: str
-    confirm_password: str
+    new_password: str = Field(min_length=8, max_length=20)
+    confirm_password: str = Field(min_length=8, max_length=20)
+
+    @field_validator("new_password", "confirm_password")
+    @classmethod
+    def validate_password_characters(cls, value: str) -> str:
+        if not PASSWORD_PATTERN.fullmatch(value):
+            raise ValueError("Password contains invalid characters.")
+
+        return value
 
 
 # =========================================================

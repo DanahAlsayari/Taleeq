@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -86,6 +88,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   void dispose() {
     _emailController.dispose();
     super.dispose();
+  }
+
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(color: color),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
+    );
   }
 
   @override
@@ -197,6 +221,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                  ],
                   textDirection: TextDirection.rtl,
                   onChanged: (_) {
                     if (_errorMessage != null || _successMessage != null) {
@@ -207,11 +234,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'البريد الإلكتروني',
-                    hintStyle: const TextStyle(
-                      color: muted,
-                      fontFamily: 'Cairo',
-                    ),
+                    label: _requiredLabel('البريد الإلكتروني', color: muted),
+                    floatingLabelBehavior: FloatingLabelBehavior.never,
                     prefixIcon: const Icon(Icons.email_outlined, color: muted),
                     filled: true,
                     fillColor: aquaLight,

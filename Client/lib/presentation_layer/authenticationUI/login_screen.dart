@@ -4,6 +4,7 @@ import 'dart:convert';
 // Flutter interface components.
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 // Sends HTTP requests to the FastAPI backend.
 import 'package:http/http.dart' as http;
 
@@ -70,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final response = await http.post(
         Uri.parse(
           '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/login',
-        ),       
+        ),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
@@ -152,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     // This function gives both fields the same design.
     return InputDecoration(
-      labelText: label,
+      label: _requiredLabel(label),
       prefixIcon: Icon(icon, color: _teal),
       suffixIcon: suffixIcon,
       filled: true,
@@ -169,6 +170,28 @@ class _LoginScreenState extends State<LoginScreen> {
         borderRadius: BorderRadius.circular(18),
         borderSide: const BorderSide(color: _teal, width: 1.5),
       ),
+    );
+  }
+
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(color: color),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
     );
   }
 
@@ -225,6 +248,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                  ],
                   decoration: _fieldDecoration(
                     label: 'البريد الإلكتروني',
                     icon: Icons.email_outlined,
@@ -249,6 +275,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _hidePassword,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                    ),
+                    LengthLimitingTextInputFormatter(20),
+                  ],
                   decoration: _fieldDecoration(
                     label: 'كلمة المرور',
                     icon: Icons.lock_outline,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+
 import '../../services/auth_storage.dart';
 import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 
@@ -14,21 +15,22 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-    String get baseUrl {
-      if (kIsWeb) {
-        return 'http://127.0.0.1:8000';
-      }
-
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        return 'http://10.0.2.2:8000';
-      }
-
-      if (defaultTargetPlatform == TargetPlatform.iOS) {
-        return 'http://127.0.0.1:8000';
-      }
-
+  String get baseUrl {
+    if (kIsWeb) {
       return 'http://127.0.0.1:8000';
     }
+
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      return 'http://10.0.2.2:8000';
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return 'http://127.0.0.1:8000';
+    }
+
+    return 'http://127.0.0.1:8000';
+  }
+
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
   static const Color background = Color(0xFFFFFBF6);
@@ -242,7 +244,8 @@ class _SignupScreenState extends State<SignupScreen> {
   String _translateBackendError(String message) {
     switch (message) {
       case 'Email already registered':
-        return 'البريد الإلكتروني مسجل مسبقًا';
+      case 'Account information cannot be used':
+        return 'تعذر إنشاء الحساب باستخدام البيانات المدخلة';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
@@ -289,7 +292,7 @@ class _SignupScreenState extends State<SignupScreen> {
     Widget? suffixIcon,
   }) {
     return InputDecoration(
-      labelText: label,
+      label: _requiredLabel(label),
       prefixIcon: Icon(icon, color: lightGreen),
       suffixIcon: suffixIcon,
       filled: true,
@@ -376,6 +379,28 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(color: color),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -449,6 +474,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                    ],
                     decoration: _fieldDecoration(
                       label: 'البريد الإلكتروني',
                       icon: Icons.email_outlined,
@@ -518,14 +546,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 18),
 
-                  const Text(
-                    'الجنس',
-                    style: TextStyle(
-                      color: darkText,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  _requiredLabel('الجنس', color: darkText),
                   const SizedBox(height: 9),
 
                   Row(
@@ -546,6 +567,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     enableSuggestions: false,
                     textDirection: TextDirection.ltr,
                     textInputAction: TextInputAction.next,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                      ),
+                      LengthLimitingTextInputFormatter(20),
+                    ],
                     onChanged: (_) {
                       setState(() {});
                     },
@@ -628,6 +655,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.done,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                      ),
+                      LengthLimitingTextInputFormatter(20),
+                    ],
 
                     onTap: () {
                       if (_clearConfirmPasswordOnNextFocus) {
