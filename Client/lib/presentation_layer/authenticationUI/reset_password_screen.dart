@@ -236,8 +236,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: ivory,
-        body: SafeArea(
+backgroundColor: const Color(0xFFFFFBF6),        body: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
