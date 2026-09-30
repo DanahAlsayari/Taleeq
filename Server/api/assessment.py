@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -317,6 +319,38 @@ def get_fluency_profile(
 
 
 # =========================================================
+# Get Latest Completed Assessment Status
+# =========================================================
+
+@router.get("/status/latest")
+def get_latest_assessment_status(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    assessment = (
+        db.query(Assessment)
+        .filter(
+            Assessment.user_id == current_user.id,
+            Assessment.status == "COMPLETED",
+            Assessment.completed_at.isnot(None),
+        )
+        .order_by(Assessment.completed_at.desc())
+        .first()
+    )
+
+    if not assessment:
+        return {
+            "has_assessment": False,
+            "completed_at": None,
+        }
+
+    return {
+        "has_assessment": True,
+        "completed_at": assessment.completed_at,
+    }
+
+
+# =========================================================
 # Get Assessment Task Results
 # =========================================================
 
@@ -470,9 +504,11 @@ def create_assessment_task(
         "status": task.status,
     }
 
+
 # =========================================================
 # Analyze Assessment Audio Directly
 # =========================================================
+
 @router.post("/{assessment_id}/analyze-audio")
 async def analyze_assessment_audio(
     assessment_id: int,
@@ -496,8 +532,10 @@ async def analyze_assessment_audio(
             status_code=403,
             detail="Unauthorized"
         )
+
     print("📝 RAW TASK TYPES:", repr(task_types))
     print("📝 TASK TYPES TYPE:", type(task_types))
+
     try:
         task_types = json.loads(task_types)
     except json.JSONDecodeError:
@@ -511,10 +549,10 @@ async def analyze_assessment_audio(
             status_code=400,
             detail="Each audio file must have a task type."
         )
-        audio_tasks = []
+
+    audio_tasks = []
 
     for file, task_type in zip(files, task_types):
-
         audio_bytes = await file.read()
 
         if not audio_bytes:
@@ -548,7 +586,7 @@ async def analyze_assessment_audio(
             f"| SIZE: {len(audio_bytes)} "
             f"| FORMAT: {audio_format}"
         )
-        audio_tasks = []
+
         audio_tasks.append(
             (
                 task_type,
@@ -571,10 +609,20 @@ async def analyze_assessment_audio(
             detail=str(error),
         )
 
+    # Mark the assessment as completed only after
+    # all audio tasks are analyzed successfully.
+    assessment.status = "COMPLETED"
+    assessment.completed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(assessment)
+
     return {
         "assessment_id": assessment_id,
         "result": result,
     }
+
+
 # =========================================================
 # Analyze Latest Assessment
 # =========================================================
