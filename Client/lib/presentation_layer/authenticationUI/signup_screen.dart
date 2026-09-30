@@ -620,12 +620,12 @@ class _SignupScreenState extends State<SignupScreen> {
                       final phone = value?.trim() ?? '';
 
                       if (phone.isEmpty) {
-                        return 'يرجى إدخال رقم الجوال';
+                        return 'يرجى إدخال رقم الهاتف';
                       }
 
                       if (!RegExp(r'^05\d{8}$')
                           .hasMatch(phone)) {
-                        return 'رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
+                        return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
                       return null;
