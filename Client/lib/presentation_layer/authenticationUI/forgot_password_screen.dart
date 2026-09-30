@@ -24,8 +24,8 @@ class _ForgotPasswordScreenState
   String? _successMessage;
 
   // Taleeq Colors
-  static const Color ivory = Color(0xFFFCFAF6);
-  static const Color teal = Color(0xFF1F5F5A);
+static const Color ivory = Color(0xFFFFFBF6); 
+ static const Color teal = Color(0xFF1F5F5A);
   static const Color tealLight = Color(0xFF2A7A74);
   static const Color aquaLight = Color(0xFFEAF4F2);
   static const Color dark = Color(0xFF233330);
