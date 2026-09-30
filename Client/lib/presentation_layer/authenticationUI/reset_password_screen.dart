@@ -86,13 +86,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _successMessage = null;
     });
 
-    if (!_passwordIsValid) {
-      setState(() {
-        _errorMessage = 'يرجى التأكد من استيفاء جميع شروط كلمة المرور.';
-      });
-      return;
-    }
-
+   if (!_passwordIsValid) {
+  setState(() {
+    _errorMessage = 'كلمة المرور لا تستوفي جميع الشروط';
+  });
+  return;
+}
     if (!_passwordsMatch) {
       _confirmPasswordController.clear();
 
