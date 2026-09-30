@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../services/auth_storage.dart';
 import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
-
+import '../../services/api_config_service.dart';
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -16,21 +16,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000';
-    }
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'http://127.0.0.1:8000';
-    }
-
-    return 'http://127.0.0.1:8000';
-  }
 
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
@@ -157,7 +143,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final signupResponse = await http.post(
-        Uri.parse('$baseUrl/signup'),
+        Uri.parse('${ApiConfig.baseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
@@ -182,7 +168,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Log the new user in automatically.
       final loginResponse = await http.post(
-        Uri.parse('$baseUrl/login'),
+        Uri.parse('${ApiConfig.baseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,

@@ -245,7 +245,38 @@ class _SpeechAssesmentQuestionsScreen
   @override
   Widget build(BuildContext context) {
     final currentQuestion = questions[currentQuestionIndex];
-
+    if (_isSubmitting) {
+  return const Scaffold(
+    backgroundColor: Color(0xFFFCFAF6),
+    body: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(
+            color: Color(0xFF6FA7A3),
+          ),
+          SizedBox(height: 16),
+          Text(
+            'نجهّز لك تحليل طلاقتك...',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF2E3A38),
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'لحظات ونعرِض لك النتائج',
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFF8FA39F),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
     return Scaffold(
       backgroundColor: Color(0xFFFCFAF6),
       body: Directionality(

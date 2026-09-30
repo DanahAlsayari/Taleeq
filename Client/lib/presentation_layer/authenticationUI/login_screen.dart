@@ -16,6 +16,7 @@ import '../../services/auth_storage.dart';
 import '../profileUI/profile_screen.dart';
 import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
+import '../../services/api_config_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -65,9 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/login',
-        ),
+        Uri.parse('${ApiConfig.baseUrl}/login'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -260,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   CrossAxisAlignment.stretch,
               children: [
                 Image.asset(
-                  'assets/images/taleeq_logo.png',
+                  'assets/images/taleeq_logo1.png',
                   height: 145,
                 ),
 

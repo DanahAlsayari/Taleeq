@@ -3,26 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-
+import '../../services/api_config_service.dart';
 import 'auth_storage.dart';
 
 class AssessmentApiService {
-  String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:8000';
-    }
-
-    if (defaultTargetPlatform == TargetPlatform.iOS) {
-      return 'http://127.0.0.1:8000';
-    }
-
-    return 'http://127.0.0.1:8000';
-  }
-
+  
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
@@ -37,7 +22,7 @@ class AssessmentApiService {
 
   Future<Map<String, dynamic>> getLatestAssessmentStatus() async {
     final response = await http.get(
-      Uri.parse('$baseUrl/assessments/status/latest'),
+      Uri.parse('${ApiConfig.baseUrl}/assessments/status/latest'),
       headers: await _headers(),
     );
 
@@ -58,7 +43,7 @@ class AssessmentApiService {
 
   Future<int> createAssessment() async {
     final response = await http.post(
-      Uri.parse('$baseUrl/assessments/create'),
+      Uri.parse('${ApiConfig.baseUrl}/assessments/create'),
       headers: await _headers(),
     );
 
@@ -93,7 +78,7 @@ class AssessmentApiService {
     final request = http.MultipartRequest(
       'POST',
       Uri.parse(
-        '$baseUrl/assessments/$assessmentId/analyze-audio',
+        '${ApiConfig.baseUrl}/assessments/$assessmentId/analyze-audio',
       ),
     );
 
@@ -183,7 +168,7 @@ class AssessmentApiService {
     required String storageUrl,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/assessments/tasks'),
+      Uri.parse('${ApiConfig.baseUrl}/assessments/tasks'),
       headers: {
         ...(await _headers()),
         'Content-Type': 'application/json',
@@ -219,7 +204,7 @@ class AssessmentApiService {
   Future<void> analyzeLatestAssessment() async {
     final response = await http.post(
       Uri.parse(
-        '$baseUrl/assessments/analyze-latest',
+        '${ApiConfig.baseUrl}/assessments/analyze-latest',
       ),
       headers: await _headers(),
     );

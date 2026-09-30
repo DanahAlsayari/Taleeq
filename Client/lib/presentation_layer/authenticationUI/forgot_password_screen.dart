@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../../services/api_config_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -57,12 +58,9 @@ class _ForgotPasswordScreenState
     });
 
     try {
-      final baseUrl = kIsWeb
-          ? 'http://127.0.0.1:8000'
-          : 'http://10.0.2.2:8000';
 
       final response = await http.post(
-        Uri.parse('$baseUrl/forgot-password'),
+        Uri.parse('${ApiConfig.baseUrl}/forgot-password'),
         headers: {
           'Content-Type': 'application/json',
         },
