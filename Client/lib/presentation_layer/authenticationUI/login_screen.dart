@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    final formIsValid = _formKey.currentState?.validate() ?? false;
+    final formIsValid =
+        _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
       return;
@@ -59,14 +60,17 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final normalizedEmail = _emailController.text.trim().toLowerCase();
+    final normalizedEmail =
+        _emailController.text.trim().toLowerCase();
 
     try {
       final response = await http.post(
         Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/login',
+          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/login',
         ),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: jsonEncode({
           'email': normalizedEmail,
           'password': _passwordController.text,
@@ -78,12 +82,16 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
+        final responseData =
+            jsonDecode(response.body);
 
-        final String? token = responseData['access_token']?.toString();
+        final String? token =
+            responseData['access_token']?.toString();
 
         if (token == null || token.isEmpty) {
-          _showMessage('لم يُرجع الخادم رمز تسجيل الدخول');
+          _showMessage(
+            'لم يُرجع الخادم رمز تسجيل الدخول',
+          );
           return;
         }
 
@@ -95,25 +103,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const ProfileScreen()),
+          MaterialPageRoute(
+            builder: (context) =>
+                const ProfileScreen(),
+          ),
           (route) => false,
         );
       } else {
         String message;
 
         if (response.statusCode == 401) {
-          message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+          message =
+              'البريد الإلكتروني أو كلمة المرور غير صحيحة';
         } else if (response.statusCode == 422) {
-          message = 'يرجى التحقق من البيانات المدخلة';
+          message =
+              'يرجى التحقق من البيانات المدخلة';
         } else {
-          message = 'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى';
+          message =
+              'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى';
         }
 
         _clearPasswordOnNextFocus = true;
         _showMessage(message);
       }
     } catch (_) {
-      _showMessage('تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى');
+      _showMessage(
+        'تعذر الاتصال بالخادم. تأكدي من تشغيل الـ Backend.',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -124,13 +140,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showMessage(String message) {
-    if (!mounted) {
-      return;
-    }
-
     const errorColor = Color(0xFFB55252);
 
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context)
+        .hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -145,7 +158,9 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
@@ -157,7 +172,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       label: _requiredLabel(label),
-      prefixIcon: Icon(icon, color: _teal),
+      prefixIcon: Icon(
+        icon,
+        color: _teal,
+      ),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
@@ -167,22 +185,32 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: Color(0xFFE1EEEC)),
+        borderSide: const BorderSide(
+          color: Color(0xFFE1EEEC),
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: _teal, width: 1.5),
+        borderSide: const BorderSide(
+          color: _teal,
+          width: 1.5,
+        ),
       ),
     );
   }
 
-  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+  Widget _requiredLabel(
+    String text, {
+    Color color = Colors.grey,
+  }) {
     return Text.rich(
       TextSpan(
         children: [
           TextSpan(
             text: '$text ',
-            style: TextStyle(color: color),
+            style: TextStyle(
+              color: color,
+            ),
           ),
           const TextSpan(
             text: '*',
@@ -207,7 +235,10 @@ class _LoginScreenState extends State<LoginScreen> {
         backgroundColor: _background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: _teal),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: _teal,
+          ),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -216,13 +247,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 10, 24, 30),
+          padding: const EdgeInsets.fromLTRB(
+            24,
+            10,
+            24,
+            30,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
-                Image.asset('assets/images/taleeq_logo.png', height: 145),
+                Image.asset(
+                  'assets/images/taleeq_logo.png',
+                  height: 145,
+                ),
 
                 const SizedBox(height: 20),
 
@@ -241,23 +281,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text(
                   'مرحبًا بعودتك إلى طليق',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF86A7A2), fontSize: 16),
+                  style: TextStyle(
+                    color: Color(0xFF86A7A2),
+                    fontSize: 16,
+                  ),
                 ),
 
                 const SizedBox(height: 32),
 
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType:
+                      TextInputType.emailAddress,
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[\x21-\x7E]'),
+                    ),
                   ],
                   decoration: _fieldDecoration(
                     label: 'البريد الإلكتروني',
                     icon: Icons.email_outlined,
                   ),
                   validator: (value) {
-                    final email = value?.trim() ?? '';
+                    final email =
+                        value?.trim() ?? '';
 
                     if (email.isEmpty) {
                       return 'يرجى إدخال البريد الإلكتروني';
@@ -281,15 +328,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       _passwordController.clear();
 
                       setState(() {
-                        _clearPasswordOnNextFocus = false;
+                        _clearPasswordOnNextFocus =
+                            false;
                       });
                     }
                   },
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
-                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                      RegExp(
+                        r'[A-Za-z0-9!@#$%^&*]',
+                      ),
                     ),
-                    LengthLimitingTextInputFormatter(20),
+                    LengthLimitingTextInputFormatter(
+                      20,
+                    ),
                   ],
                   decoration: _fieldDecoration(
                     label: 'كلمة المرور',
@@ -297,19 +349,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _hidePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                            ? Icons
+                                .visibility_off_outlined
+                            : Icons
+                                .visibility_outlined,
                         color: _teal,
                       ),
                       onPressed: () {
                         setState(() {
-                          _hidePassword = !_hidePassword;
+                          _hidePassword =
+                              !_hidePassword;
                         });
                       },
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
+                    if (value == null ||
+                        value.isEmpty) {
                       return 'يرجى إدخال كلمة المرور';
                     }
 
@@ -324,13 +380,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
+                          builder: (context) =>
+                              const ForgotPasswordScreen(),
                         ),
                       );
                     },
                     child: const Text(
                       'نسيت كلمة المرور؟',
-                      style: TextStyle(color: _teal),
+                      style: TextStyle(
+                        color: _teal,
+                      ),
                     ),
                   ),
                 ),
@@ -340,19 +399,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   height: 58,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _login,
-                    style: ElevatedButton.styleFrom(
+                    onPressed:
+                        _isLoading ? null : _login,
+                    style:
+                        ElevatedButton.styleFrom(
                       backgroundColor: _teal,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                      foregroundColor:
+                          Colors.white,
+                      shape:
+                          RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(
+                          18,
+                        ),
                       ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child: CircularProgressIndicator(
+                            child:
+                                CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2.5,
                             ),
@@ -361,7 +428,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             'تسجيل الدخول',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontWeight:
+                                  FontWeight.bold,
                             ),
                           ),
                   ),
@@ -370,15 +438,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment:
+                      MainAxisAlignment.center,
                   children: [
-                    const Text('ليس لديك حساب؟'),
+                    const Text(
+                      'ليس لديك حساب؟',
+                    ),
                     TextButton(
                       onPressed: () {
-                        Navigator.pushReplacement(
+                        Navigator
+                            .pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const SignupScreen(),
+                            builder: (context) =>
+                                const SignupScreen(),
                           ),
                         );
                       },
@@ -386,7 +459,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         'إنشاء حساب',
                         style: TextStyle(
                           color: _teal,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
                     ),
