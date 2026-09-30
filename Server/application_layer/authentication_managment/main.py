@@ -42,21 +42,38 @@ def signup(
 
     auth.validate_password(user.password)
 
-    existing_user = (
-        db.query(User)
-        .filter(
-            or_(
-                func.lower(User.email) == normalized_email,
-                User.phone_number == normalized_phone,
+    def registered_account_detail():
+        existing_users = (
+            db.query(User)
+            .filter(
+                or_(
+                    func.lower(User.email) == normalized_email,
+                    User.phone_number == normalized_phone,
+                )
             )
+            .all()
         )
-        .first()
-    )
+        email_used = any(
+            existing.email.lower() == normalized_email
+            for existing in existing_users
+        )
+        phone_used = any(
+            existing.phone_number == normalized_phone
+            for existing in existing_users
+        )
+        if email_used and phone_used:
+            return "Email and phone number already registered"
+        if email_used:
+            return "Email already registered"
+        if phone_used:
+            return "Phone number already registered"
+        return None
 
-    if existing_user:
+    duplicate_detail = registered_account_detail()
+    if duplicate_detail:
         raise HTTPException(
             status_code=400,
-            detail="Account information cannot be used",
+            detail=duplicate_detail,
         )
 
     new_user = User(
@@ -76,7 +93,7 @@ def signup(
         db.rollback()
         raise HTTPException(
             status_code=400,
-            detail="Account information cannot be used",
+            detail=(registered_account_detail() or "Account information cannot be used"),
         ) from None
 
     db.refresh(new_user)

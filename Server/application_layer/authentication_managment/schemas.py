@@ -6,7 +6,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 NAME_PATTERN = re.compile(
     r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+"
-    r"(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$"
+    r"(?: [A-Za-z\u0621-\u063A\u0641-\u064A]+)*$"
 )
 PHONE_PATTERN = re.compile(r"^05[0-9]{8}$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")

@@ -153,8 +153,7 @@ class _SignupScreenState extends State<SignupScreen> {
       _isLoading = true;
     });
 
-    final normalizedEmail =
-        _emailController.text.trim().toLowerCase();
+    final normalizedEmail = _emailController.text.trim().toLowerCase();
 
     try {
       final signupResponse = await http.post(
@@ -171,15 +170,11 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (signupResponse.statusCode < 200 ||
-          signupResponse.statusCode >= 300) {
+      if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
         _clearPasswordsOnNextFocus = true;
 
         _showMessage(
-          _readErrorMessage(
-            signupResponse,
-            fallback: 'تعذر إنشاء الحساب',
-          ),
+          _readErrorMessage(signupResponse, fallback: 'تعذر إنشاء الحساب'),
         );
 
         return;
@@ -195,8 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (loginResponse.statusCode < 200 ||
-          loginResponse.statusCode >= 300) {
+      if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
         _clearPasswordsOnNextFocus = true;
 
         _showMessage(
@@ -209,8 +203,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      final loginData =
-          jsonDecode(loginResponse.body) as Map<String, dynamic>;
+      final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
 
       final token = loginData['access_token'] as String?;
 
@@ -245,13 +238,9 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  String _readErrorMessage(
-    http.Response response, {
-    required String fallback,
-  }) {
+  String _readErrorMessage(http.Response response, {required String fallback}) {
     try {
-      final decoded =
-          jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
 
       final detail = decoded['detail'];
 
@@ -276,8 +265,16 @@ class _SignupScreenState extends State<SignupScreen> {
   String _translateBackendError(String message) {
     switch (message) {
       case 'Email already registered':
+        return 'البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول ';
+
+      case 'Phone number already registered':
+        return 'رقم الهاتف مستخدم بالفعل. جرّب تسجيل الدخول إلى حسابك السابق';
+
+      case 'Email and phone number already registered':
+        return 'البريد الإلكتروني ورقم الهاتف مستخدمان بالفعل. جرّب تسجيل الدخول ';
+
       case 'Account information cannot be used':
-        return 'تعذر إنشاء الحساب باستخدام البيانات المدخلة';
+        return 'تعذر إنشاء الحساب. إذا كان لديك حساب سابق، جرّب تسجيل الدخول ';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
@@ -326,9 +323,7 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -344,20 +339,14 @@ class _SignupScreenState extends State<SignupScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 17,
-      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: darkGreen,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: darkGreen, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -365,10 +354,7 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(
-          color: Colors.red,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
     );
   }
@@ -379,9 +365,7 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Row(
         children: [
           Icon(
-            isSatisfied
-                ? Icons.check_circle
-                : Icons.radio_button_unchecked,
+            isSatisfied ? Icons.check_circle : Icons.radio_button_unchecked,
             color: isSatisfied ? darkGreen : Colors.grey,
             size: 19,
           ),
@@ -390,13 +374,9 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Text(
               text,
               style: TextStyle(
-                color: isSatisfied
-                    ? darkGreen
-                    : Colors.grey.shade700,
+                color: isSatisfied ? darkGreen : Colors.grey.shade700,
                 fontSize: 14,
-                fontWeight: isSatisfied
-                    ? FontWeight.w600
-                    : FontWeight.normal,
+                fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,
               ),
             ),
           ),
@@ -405,10 +385,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _genderChoice({
-    required String label,
-    required String value,
-  }) {
+  Widget _genderChoice({required String label, required String value}) {
     final isSelected = _selectedGender == value;
 
     return Expanded(
@@ -444,10 +421,7 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _requiredLabel(
-    String text, {
-    Color color = Colors.grey,
-  }) {
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
     return Text.rich(
       TextSpan(
         children: [
@@ -481,27 +455,18 @@ class _SignupScreenState extends State<SignupScreen> {
           foregroundColor: darkText,
           title: const Text(
             'إنشاء حساب',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           centerTitle: true,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            keyboardDismissBehavior:
-                ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(
-              24,
-              16,
-              24,
-              35,
-            ),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 35),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
                     'مرحبًا بك في طليق',
@@ -544,13 +509,12 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال الاسم';
                       }
 
-                      if (name.length < 2 ||
-                          name.length > 50) {
+                      if (name.length < 2 || name.length > 50) {
                         return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
                       }
 
                       final nameIsValid = RegExp(
-                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
+                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?: [A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
                       ).hasMatch(name);
 
                       if (!nameIsValid) {
@@ -565,16 +529,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   TextFormField(
                     controller: _emailController,
-                    keyboardType:
-                        TextInputType.emailAddress,
+                    keyboardType: TextInputType.emailAddress,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'[\x21-\x7E]'),
-                      ),
+                      FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
                     ],
                     decoration: _fieldDecoration(
                       label: 'البريد الإلكتروني',
@@ -587,9 +548,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال البريد الإلكتروني';
                       }
 
-                      final emailIsValid = RegExp(
-                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
-                      ).hasMatch(email);
+                      final emailIsValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                          .hasMatch(email);
 
                       if (!emailIsValid) {
                         return 'البريد الإلكتروني غير صحيح';
@@ -623,8 +583,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال رقم الهاتف';
                       }
 
-                      if (!RegExp(r'^05\d{8}$')
-                          .hasMatch(phone)) {
+                      if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
                         return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
@@ -649,9 +608,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.cake_outlined,
                     ),
                     validator: (value) {
-                      final age = int.tryParse(
-                        value?.trim() ?? '',
-                      );
+                      final ageText = value?.trim() ?? '';
+
+                      if (ageText.isEmpty) {
+                        return 'يرجى إدخال العمر';
+                      }
+
+                      final age = int.tryParse(ageText);
 
                       if (age == null) {
                         return 'يرجى إدخال عمر صحيح';
@@ -667,24 +630,15 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 18),
 
-                  _requiredLabel(
-                    'الجنس',
-                    color: darkText,
-                  ),
+                  _requiredLabel('الجنس', color: darkText),
 
                   const SizedBox(height: 9),
 
                   Row(
                     children: [
-                      _genderChoice(
-                        label: 'أنثى',
-                        value: 'female',
-                      ),
+                      _genderChoice(label: 'أنثى', value: 'female'),
                       const SizedBox(width: 12),
-                      _genderChoice(
-                        label: 'ذكر',
-                        value: 'male',
-                      ),
+                      _genderChoice(label: 'ذكر', value: 'male'),
                     ],
                   ),
 
@@ -715,8 +669,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            _hidePassword =
-                                !_hidePassword;
+                            _hidePassword = !_hidePassword;
                           });
                         },
                         icon: Icon(
@@ -727,7 +680,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ),
-                    validator: (_) {
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'يرجى إدخال كلمة المرور';
+                      }
+
                       if (!_passwordIsValid) {
                         return 'كلمة المرور لا تستوفي جميع الشروط';
                       }
@@ -742,30 +699,22 @@ class _SignupScreenState extends State<SignupScreen> {
                       padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F7F6),
-                        borderRadius:
-                            BorderRadius.circular(14),
-                        border: Border.all(
-                          color: borderColor,
-                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: borderColor),
                       ),
                       child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.stretch,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
                             'متطلبات كلمة المرور',
                             style: TextStyle(
                               color: darkText,
                               fontSize: 15,
-                              fontWeight:
-                                  FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 7),
-                          _requirement(
-                            '8 أحرف على الأقل',
-                            _hasEightCharacters,
-                          ),
+                          _requirement('8 أحرف على الأقل', _hasEightCharacters),
                           _requirement(
                             'حرف كبير واحد على الأقل (A-Z)',
                             _hasUppercase,
@@ -774,10 +723,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             'حرف صغير واحد على الأقل (a-z)',
                             _hasLowercase,
                           ),
-                          _requirement(
-                            'رقم واحد على الأقل (0-9)',
-                            _hasNumber,
-                          ),
+                          _requirement('رقم واحد على الأقل (0-9)', _hasNumber),
                           _requirement(
                             'رمز خاص واحد (! @ # \$ % ^ & *)',
                             _hasSpecialCharacter,
@@ -790,18 +736,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 14),
 
                   TextFormField(
-                    controller:
-                        _confirmPasswordController,
-                    focusNode:
-                        _confirmPasswordFocusNode,
-                    obscureText:
-                        _hideConfirmPassword,
+                    controller: _confirmPasswordController,
+                    focusNode: _confirmPasswordFocusNode,
+                    obscureText: _hideConfirmPassword,
                     autocorrect: false,
                     enableSuggestions: false,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
-                    textInputAction:
-                        TextInputAction.done,
+                    textInputAction: TextInputAction.done,
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                         RegExp(r'[A-Za-z0-9!@#$%^&*]'),
@@ -823,8 +765,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            _hideConfirmPassword =
-                                !_hideConfirmPassword;
+                            _hideConfirmPassword = !_hideConfirmPassword;
                           });
                         },
                         icon: Icon(
@@ -836,20 +777,17 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null ||
-                          value.isEmpty) {
+                      if (value == null || value.isEmpty) {
                         return 'يرجى تأكيد كلمة المرور';
                       }
 
                       if (!_passwordsMatch) {
-                        _clearPasswordsOnNextFocus =
-                            true;
+                        _clearPasswordsOnNextFocus = true;
 
                         return 'كلمتا المرور غير متطابقتين';
                       }
 
-                      _clearPasswordsOnNextFocus =
-                          false;
+                      _clearPasswordsOnNextFocus = false;
 
                       return null;
                     },
@@ -860,35 +798,24 @@ class _SignupScreenState extends State<SignupScreen> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _isLoading
-                          ? null
-                          : _createAccount,
-                      style:
-                          ElevatedButton.styleFrom(
+                      onPressed: _isLoading ? null : _createAccount,
+                      style: ElevatedButton.styleFrom(
                         backgroundColor: darkGreen,
-                        foregroundColor:
-                            Colors.white,
-                        disabledBackgroundColor:
-                            darkGreen.withValues(
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: darkGreen.withValues(
                           alpha: 0.55,
                         ),
                         elevation: 0,
-                        shape:
-                            RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(
-                            16,
-                          ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
-                              child:
-                                  CircularProgressIndicator(
-                                color:
-                                    Colors.white,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
                                 strokeWidth: 2.5,
                               ),
                             )
@@ -896,8 +823,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               'إنشاء الحساب',
                               style: TextStyle(
                                 fontSize: 18,
-                                fontWeight:
-                                    FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                     ),
