@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import 'auth_storage.dart';
 
@@ -35,6 +35,27 @@ class AssessmentApiService {
     };
   }
 
+  Future<Map<String, dynamic>> getLatestAssessmentStatus() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/assessments/status/latest'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(
+        jsonDecode(response.body) as Map,
+      );
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('انتهت جلسة تسجيل الدخول.');
+    }
+
+    throw Exception(
+      'فشل تحميل حالة التقييم (${response.statusCode})',
+    );
+  }
+
   Future<int> createAssessment() async {
     final response = await http.post(
       Uri.parse('$baseUrl/assessments/create'),
@@ -43,7 +64,6 @@ class AssessmentApiService {
 
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
-
       return body['assessment_id'] as int;
     }
 
@@ -56,11 +76,7 @@ class AssessmentApiService {
     );
   }
 
-  // =========================================================
-  // NEW: Analyze local audio files directly
-  // =========================================================
-
-  Future<void> analyzeAssessmentAudio({
+  Future<Map<String, dynamic>> analyzeAssessmentAudio({
     required int assessmentId,
     required Map<int, String> recordingPaths,
   }) async {
@@ -84,11 +100,8 @@ class AssessmentApiService {
     request.headers['Authorization'] = 'Bearer $token';
 
     final sortedEntries = recordingPaths.entries.toList()
-      ..sort(
-        (a, b) => a.key.compareTo(b.key),
-      );
+      ..sort((a, b) => a.key.compareTo(b.key));
 
-    // Add audio files
     for (final entry in sortedEntries) {
       final questionIndex = entry.key;
       final filePath = entry.value;
@@ -110,20 +123,15 @@ class AssessmentApiService {
       );
     }
 
-    // Add all task types as one JSON field
     final taskTypes = sortedEntries
-        .map(
-          (entry) => 'task_${entry.key + 1}',
-        )
+        .map((entry) => 'task_${entry.key + 1}')
         .toList();
 
     request.fields['task_types'] = jsonEncode(taskTypes);
 
     print('🎙️ SENDING AUDIO FILES');
     print('📁 FILE COUNT: ${request.files.length}');
-    print(
-      '📝 TASK TYPES SENT: ${request.fields['task_types']}',
-    );
+    print('📝 TASK TYPES SENT: ${request.fields['task_types']}');
 
     final streamedResponse = await request.send();
 
@@ -131,48 +139,35 @@ class AssessmentApiService {
       streamedResponse,
     );
 
-    print(
-      '📡 ANALYSIS STATUS: ${response.statusCode}',
-    );
-
-    print(
-      '📦 ANALYSIS RESPONSE: ${response.body}',
-    );
+    print('📡 ANALYSIS STATUS: ${response.statusCode}');
+    print('📦 ANALYSIS RESPONSE: ${response.body}');
 
     if (response.statusCode == 200) {
-      return;
+      return Map<String, dynamic>.from(
+        jsonDecode(response.body) as Map,
+      );
     }
 
     if (response.statusCode == 401) {
-      throw Exception(
-        'انتهت جلسة تسجيل الدخول.',
-      );
+      throw Exception('انتهت جلسة تسجيل الدخول.');
     }
 
     if (response.statusCode == 403) {
-      throw Exception(
-        'غير مصرح بهذا التقييم.',
-      );
+      throw Exception('غير مصرح بهذا التقييم.');
     }
 
     if (response.statusCode == 404) {
-      throw Exception(
-        'التقييم غير موجود.',
-      );
+      throw Exception('التقييم غير موجود.');
     }
 
     if (response.statusCode == 400) {
       try {
         final body = jsonDecode(response.body);
-
         throw Exception(
-          body['detail'] ??
-              'فشل تحليل التسجيلات.',
+          body['detail'] ?? 'فشل تحليل التسجيلات.',
         );
       } catch (_) {
-        throw Exception(
-          'فشل تحليل التسجيلات.',
-        );
+        throw Exception('فشل تحليل التسجيلات.');
       }
     }
 
@@ -181,10 +176,6 @@ class AssessmentApiService {
       '(${response.statusCode})',
     );
   }
-
-  // =========================================================
-  // OLD FLOW - Keep temporarily
-  // =========================================================
 
   Future<void> createAssessmentTask({
     required int assessmentId,
@@ -238,24 +229,19 @@ class AssessmentApiService {
     }
 
     if (response.statusCode == 404) {
-      throw Exception(
-        'لم يتم العثور على تقييم.',
-      );
+      throw Exception('لم يتم العثور على تقييم.');
     }
 
     if (response.statusCode == 400) {
       final body = jsonDecode(response.body);
 
       throw Exception(
-        body['detail'] ??
-            'فشل تحليل التقييم.',
+        body['detail'] ?? 'فشل تحليل التقييم.',
       );
     }
 
     if (response.statusCode == 401) {
-      throw Exception(
-        'انتهت جلسة تسجيل الدخول.',
-      );
+      throw Exception('انتهت جلسة تسجيل الدخول.');
     }
 
     throw Exception(

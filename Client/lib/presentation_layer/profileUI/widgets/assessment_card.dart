@@ -4,9 +4,13 @@ class AssessmentCard extends StatelessWidget {
   const AssessmentCard({
     super.key,
     required this.onTap,
+    required this.hasAssessment,
+    this.lastAssessmentDate,
   });
 
   final VoidCallback onTap;
+  final bool hasAssessment;
+  final String? lastAssessmentDate;
 
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFFEAF4F2);
@@ -40,24 +44,37 @@ class AssessmentCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 13),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'إعادة تقييم الكلام',
-                    style: TextStyle(
+                    hasAssessment ? 'إعادة تقييم الكلام' : 'التقييم',
+                    style: const TextStyle(
                       color: darkText,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Text(
-                    'أعد التقييم لتحديث خطة التدريب',
-                    style: TextStyle(
+                    hasAssessment
+                        ? 'آخر تقييم: ${lastAssessmentDate ?? '-'}'
+                        : 'لم يتم إجراء التقييم بعد',
+                    style: const TextStyle(
                       color: Colors.grey,
                       fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    hasAssessment
+                        ? 'اضغط لإعادة التقييم'
+                        : 'اضغط لبدء التقييم',
+                    style: const TextStyle(
+                      color: darkGreen,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
