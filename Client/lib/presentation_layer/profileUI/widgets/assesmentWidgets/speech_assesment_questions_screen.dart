@@ -5,7 +5,9 @@ import '../../../fluencyUI/fluency_profile_screen.dart';
 import 'speech_assesment_intro_screen.dart';
 
 import 'dart:io';
+
 import '../../../../models/fluency_profile_data.dart';
+
 import 'package:client/services/recording_service.dart';
 //import 'package:client/services/audio_storage_service.dart';
 
@@ -68,11 +70,7 @@ class _SpeechAssesmentQuestionsScreen
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
@@ -93,18 +91,17 @@ class _SpeechAssesmentQuestionsScreen
     });
 
     try {
-      final analysisResponse =
-          await _assessmentApiService.analyzeAssessmentAudio(
-        assessmentId: _assessmentId!,
-        recordingPaths: recordingPaths,
-      );
+      final analysisResponse = await _assessmentApiService
+          .analyzeAssessmentAudio(
+            assessmentId: _assessmentId!,
+            recordingPaths: recordingPaths,
+          );
 
       final result = Map<String, dynamic>.from(
         analysisResponse['result'] as Map,
       );
 
-      result['overall_stuttering_percent'] =
-          result['stuttering_percent'];
+      result['overall_stuttering_percent'] = result['stuttering_percent'];
 
       final profileData = FluencyProfileData.fromJson(result);
 
@@ -122,9 +119,7 @@ class _SpeechAssesmentQuestionsScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => FluencyProfileScreen(
-            profileData: profileData,
-          ),
+          builder: (context) => FluencyProfileScreen(profileData: profileData),
         ),
       );
     } catch (e) {
@@ -135,11 +130,7 @@ class _SpeechAssesmentQuestionsScreen
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
-        ),
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
       );
     }
   }
@@ -171,11 +162,9 @@ class _SpeechAssesmentQuestionsScreen
     {
       'title': 'المهمة ١ من ٣',
       'category': 'القراءة',
-      'instruction':
-          'اقرأ الفقرة بصوت عال بإيقاعك الطبيعي، خذ وقتك ولاتتسرع',
+      'instruction': 'اقرأ الفقرة بصوت عال بإيقاعك الطبيعي، خذ وقتك ولاتتسرع',
       'type': 'text',
-      'content':
-          'يمكن للبيئة من حولنا أن تؤثر في تركيزنا أكثر مما نتوقع. فعندما يمتلئ المكان بالأشياء والمشتتات، يستقبل الدماغ معلومات بصرية أكثر ويحاول باستمرار تحديد ما يستحق الانتباه. لذلك، قد يساعد ترتيب مساحة العمل وتقليل العناصر غير الضرورية على تخفيف التشتت وتسهيل التركيز.',
+      'content': 'يمكن للبيئة من حولنا أن تؤثر في تركيزنا أكثر مما نتوقع. فعندما يمتلئ المكان بالأشياء والمشتتات، يستقبل الدماغ معلومات بصرية أكثر ويحاول باستمرار تحديد ما يستحق الانتباه. لذلك، قد يساعد ترتيب مساحة العمل وتقليل العناصر غير الضرورية على تخفيف التشتت وتسهيل التركيز.',
     },
     {
       'title': 'المهمة ٢ من ٣',
@@ -196,22 +185,21 @@ class _SpeechAssesmentQuestionsScreen
   ];
 
   void startAmplitudeTimer() {
-    amplitudeTimer = Timer.periodic(
-      const Duration(milliseconds: 150),
-      (timer) async {
-        final amplitude = await recordingService.getAmplitude();
+    amplitudeTimer = Timer.periodic(const Duration(milliseconds: 150), (
+      timer,
+    ) async {
+      final amplitude = await recordingService.getAmplitude();
 
-        if (!mounted || !isRecording) return;
+      if (!mounted || !isRecording) return;
 
-        setState(() {
-          amplitudes.add(amplitude.current);
+      setState(() {
+        amplitudes.add(amplitude.current);
 
-          if (amplitudes.length > 35) {
-            amplitudes.removeAt(0);
-          }
-        });
-      },
-    );
+        if (amplitudes.length > 35) {
+          amplitudes.removeAt(0);
+        }
+      });
+    });
   }
 
   void stopAmplitudeTimer() {
@@ -220,14 +208,11 @@ class _SpeechAssesmentQuestionsScreen
   }
 
   void startRecordingTimer() {
-    recordingTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        setState(() {
-          recordingSeconds++;
-        });
-      },
-    );
+    recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        recordingSeconds++;
+      });
+    });
   }
 
   void stopRecordingTimer() {
@@ -246,37 +231,32 @@ class _SpeechAssesmentQuestionsScreen
   Widget build(BuildContext context) {
     final currentQuestion = questions[currentQuestionIndex];
     if (_isSubmitting) {
-  return const Scaffold(
-    backgroundColor: Color(0xFFFCFAF6),
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            color: Color(0xFF6FA7A3),
+      return const Scaffold(
+        backgroundColor: Color(0xFFFCFAF6),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Color(0xFF6FA7A3)),
+              SizedBox(height: 16),
+              Text(
+                'نجهّز لك تحليل طلاقتك...',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E3A38),
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'لحظات ونعرِض لك النتائج',
+                style: TextStyle(fontSize: 12, color: Color(0xFF8FA39F)),
+              ),
+            ],
           ),
-          SizedBox(height: 16),
-          Text(
-            'نجهّز لك تحليل طلاقتك...',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF2E3A38),
-            ),
-          ),
-          SizedBox(height: 6),
-          Text(
-            'لحظات ونعرِض لك النتائج',
-            style: TextStyle(
-              fontSize: 12,
-              color: Color(0xFF8FA39F),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Color(0xFFFCFAF6),
       body: Directionality(
@@ -284,21 +264,17 @@ class _SpeechAssesmentQuestionsScreen
         child: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24.0,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
                   Stack(
                     children: [
                       Align(
-                        alignment:
-                            AlignmentDirectional.centerStart,
+                        alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
                           onPressed: () async {
                             if (isRecording) {
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content: Text(
                                     "أوقف التسجيل أولًا قبل الرجوع",
@@ -315,12 +291,16 @@ class _SpeechAssesmentQuestionsScreen
                               setState(() {
                                 currentQuestionIndex--;
                                 isPlaying = false;
-                                playbackPosition =
-                                    Duration.zero;
+                                playbackPosition = Duration.zero;
                                 loadedAudioPath = null;
                                 hasStartedPlaying = false;
                               });
                             } else {
+                              await player.stop();
+                              await player.seek(Duration.zero);
+
+                              if (!mounted) return;
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
@@ -330,9 +310,7 @@ class _SpeechAssesmentQuestionsScreen
                               );
                             }
                           },
-                          icon: const Icon(
-                            Icons.arrow_back,
-                          ),
+                          icon: const Icon(Icons.arrow_back),
                         ),
                       ),
                       const SizedBox(width: 120.0),
@@ -347,35 +325,22 @@ class _SpeechAssesmentQuestionsScreen
                           ),
                           const SizedBox(height: 12.0),
                           Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.center,
-                            children: List.generate(
-                              questions.length,
-                              (index) {
-                                return Container(
-                                  width: 20.0,
-                                  height: 8.0,
-                                  margin:
-                                      const EdgeInsets.symmetric(
-                                    horizontal: 4.0,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: index <=
-                                            currentQuestionIndex
-                                        ? const Color(
-                                            0xFF6FA7A3,
-                                          )
-                                        : const Color(
-                                            0xFFE0E0E0,
-                                          ),
-                                    borderRadius:
-                                        BorderRadius.circular(
-                                      4.0,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(questions.length, (index) {
+                              return Container(
+                                width: 20.0,
+                                height: 8.0,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4.0,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: index <= currentQuestionIndex
+                                      ? const Color(0xFF6FA7A3)
+                                      : const Color(0xFFE0E0E0),
+                                  borderRadius: BorderRadius.circular(4.0),
+                                ),
+                              );
+                            }),
                           ),
                         ],
                       ),
@@ -385,33 +350,22 @@ class _SpeechAssesmentQuestionsScreen
                   Row(
                     children: [
                       Align(
-                        alignment:
-                            AlignmentDirectional.centerStart,
+                        alignment: AlignmentDirectional.centerStart,
                         child: Container(
-                          width:
-                              MediaQuery.of(context).size.width /
-                                  4,
+                          width: MediaQuery.of(context).size.width / 4,
                           height: 30,
-                          padding:
-                              const EdgeInsets.symmetric(
-                            horizontal: 8.0,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           decoration: BoxDecoration(
-                            color:
-                                const Color(0xFFCFE4E1),
-                            borderRadius:
-                                BorderRadius.circular(18),
+                            color: const Color(0xFFCFE4E1),
+                            borderRadius: BorderRadius.circular(18),
                           ),
                           child: Align(
-                            alignment:
-                                AlignmentDirectional.center,
+                            alignment: AlignmentDirectional.center,
                             child: Text(
                               currentQuestion['title'],
                               style: const TextStyle(
-                                color:
-                                    Color(0xFF1F5F5A),
-                                fontWeight:
-                                    FontWeight.bold,
+                                color: Color(0xFF1F5F5A),
+                                fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
@@ -420,22 +374,15 @@ class _SpeechAssesmentQuestionsScreen
                       ),
                       const SizedBox(width: 6.0),
                       Container(
-                        width:
-                            MediaQuery.of(context).size.width /
-                                4,
+                        width: MediaQuery.of(context).size.width / 4,
                         height: 30,
-                        padding:
-                            const EdgeInsets.symmetric(
-                          horizontal: 8.0,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEAF4F2),
-                          borderRadius:
-                              BorderRadius.circular(18),
+                          borderRadius: BorderRadius.circular(18),
                         ),
                         child: Align(
-                          alignment:
-                              AlignmentDirectional.center,
+                          alignment: AlignmentDirectional.center,
                           child: Text(
                             currentQuestion['category'],
                             style: const TextStyle(
@@ -450,13 +397,11 @@ class _SpeechAssesmentQuestionsScreen
                   ),
                   const SizedBox(height: 20.0),
                   Align(
-                    alignment:
-                        AlignmentDirectional.centerStart,
+                    alignment: AlignmentDirectional.centerStart,
                     child: Text(
                       currentQuestion['instruction'],
                       style: const TextStyle(
-                        color:
-                            Color.fromARGB(255, 8, 8, 8),
+                        color: Color.fromARGB(255, 8, 8, 8),
                         fontWeight: FontWeight.bold,
                         fontSize: 22,
                       ),
@@ -467,126 +412,75 @@ class _SpeechAssesmentQuestionsScreen
                     width: double.infinity,
                     height: 250,
                     padding: const EdgeInsets.all(20.0),
-                    margin:
-                        const EdgeInsets.symmetric(
-                      vertical: 3,
-                    ),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF7EAD7),
-                      borderRadius:
-                          BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Color.fromARGB(
-                          255,
-                          220,
-                          197,
-                          162,
-                        ),
+                        color: Color.fromARGB(255, 220, 197, 162),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              Colors.grey.withOpacity(0.1),
+                          color: Colors.grey.withOpacity(0.1),
                           spreadRadius: 1,
                           blurRadius: 5,
-                          offset: const Offset(
-                            0,
-                            1,
-                          ),
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
                     child: Align(
-                      child:
-                          currentQuestion['type'] == 'text'
-                              ? Text(
-                                  currentQuestion[
-                                      'content'],
-                                  style:
-                                      const TextStyle(
-                                    color: Color(
-                                      0xFF2E3A38,
+                      child: currentQuestion['type'] == 'text'
+                          ? Text(
+                              currentQuestion['content'],
+                              style: const TextStyle(
+                                color: Color(0xFF2E3A38),
+                                fontWeight: FontWeight.normal,
+                                fontSize: 18,
+                                height: 1.8,
+                              ),
+                            )
+                          : currentQuestion['type'] == 'image'
+                          ? Image.asset(
+                              currentQuestion['content'],
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : currentQuestion['type'] == 'self'
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.chat_bubble_outline,
+                                      color: Color(0xFF6FA7A3),
                                     ),
-                                    fontWeight:
-                                        FontWeight
-                                            .normal,
-                                    fontSize: 18,
-                                    height: 1.8,
-                                  ),
-                                )
-                              : currentQuestion[
-                                      'type'] ==
-                                  'image'
-                              ? Image.asset(
-                                  currentQuestion[
-                                      'content'],
-                                  width:
-                                      double.infinity,
-                                  height:
-                                      double.infinity,
-                                  fit: BoxFit.cover,
-                                )
-                              : currentQuestion[
-                                      'type'] ==
-                                  'self'
-                              ? Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment
-                                          .start,
-                                  mainAxisAlignment:
-                                      MainAxisAlignment
-                                          .center,
-                                  children: const [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons
-                                              .chat_bubble_outline,
-                                          color: Color(
-                                            0xFF6FA7A3,
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 10,
-                                        ),
-                                        Text(
-                                          "يمكنك التحدث عن: ",
-                                          style:
-                                              TextStyle(
-                                            color:
-                                                Color(
-                                              0xFF1F5F5A,
-                                            ),
-                                            fontWeight:
-                                                FontWeight
-                                                    .bold,
-                                            fontSize:
-                                                18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(
-                                      height: 20,
-                                    ),
+                                    SizedBox(width: 10),
                                     Text(
-                                      "دراستك ، عملك ، هواياتك ، اهتماماتك، او اي شيء تود مشاركته",
-                                      style:
-                                          TextStyle(
-                                        color: Color(
-                                          0xFF23E3A38,
-                                        ),
-                                        fontWeight:
-                                            FontWeight
-                                                .bold,
-                                        fontSize: 17,
-                                        height: 1.7,
+                                      "يمكنك التحدث عن: ",
+                                      style: TextStyle(
+                                        color: Color(0xFF1F5F5A),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
                                       ),
                                     ),
                                   ],
-                                )
-                              : const SizedBox
-                                  .shrink(),
+                                ),
+                                SizedBox(height: 20),
+                                Text(
+                                  "دراستك ، عملك ، هواياتك ، اهتماماتك، او اي شيء تود مشاركته",
+                                  style: TextStyle(
+                                    color: Color(0xFF23E3A38),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 17,
+                                    height: 1.7,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const SizedBox.shrink(),
                     ),
                   ),
                   const SizedBox(height: 16.0),
@@ -594,16 +488,13 @@ class _SpeechAssesmentQuestionsScreen
                   // Recording Ui
                   Column(
                     children: [
-                      if (!recordingPaths.containsKey(
-                            currentQuestionIndex,
-                          ) &&
+                      if (!recordingPaths.containsKey(currentQuestionIndex) &&
                           !isRecording)
                         Column(
                           children: [
                             GestureDetector(
                               onTap: () async {
-                                if (await recordingService
-                                    .startRecording(
+                                if (await recordingService.startRecording(
                                   "assesment_q${currentQuestionIndex + 1}",
                                 )) {
                                   setState(() {
@@ -619,58 +510,44 @@ class _SpeechAssesmentQuestionsScreen
                               child: Container(
                                 width: 140,
                                 height: 140,
-                                decoration:
-                                    const BoxDecoration(
-                                  color:
-                                      Color(0xFFEAF4F2),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEAF4F2),
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: Container(
                                     width: 100,
                                     height: 100,
-                                    decoration:
-                                        const BoxDecoration(
-                                      color: Color(
-                                        0xFF6FA7A3,
-                                      ),
-                                      shape:
-                                          BoxShape.circle,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF6FA7A3),
+                                      shape: BoxShape.circle,
                                     ),
                                     child: const Icon(
                                       Icons.mic,
-                                      color:
-                                          Colors.white,
+                                      color: Colors.white,
                                       size: 38,
                                     ),
                                   ),
                                 ),
                               ),
                             ),
-                            const SizedBox(
-                              height: 16.0,
-                            ),
+                            const SizedBox(height: 16.0),
                             const Text(
                               "اضغط للبدء في التسجيل",
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
                                 fontSize: 18,
-                                fontWeight:
-                                    FontWeight.bold,
-                                color:
-                                    Color(0xFF2E3A38),
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF2E3A38),
                               ),
                             ),
-                            const SizedBox(
-                              height: 4.0,
-                            ),
+                            const SizedBox(height: 4.0),
                             const Text(
                               "يبدأ التسجيل فقط عند ضغطك",
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
                                 fontSize: 14,
-                                color:
-                                    Color(0xFF8FA39F),
+                                color: Color(0xFF8FA39F),
                               ),
                             ),
                           ],
@@ -684,78 +561,47 @@ class _SpeechAssesmentQuestionsScreen
                               width: 225,
                               height: 70,
                               decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFFFBE9E7,
-                                ),
-                                borderRadius:
-                                    BorderRadius.circular(
-                                  35,
-                                ),
+                                color: const Color(0xFFFBE9E7),
+                                borderRadius: BorderRadius.circular(35),
                               ),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment
-                                        .center,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   const Icon(
                                     Icons.circle,
-                                    color: Color(
-                                      0xFFE57373,
-                                    ),
+                                    color: Color(0xFFE57373),
                                     size: 12,
                                   ),
-                                  const SizedBox(
-                                    width: 8,
-                                  ),
+                                  const SizedBox(width: 8),
                                   const Text(
                                     "التسجيل جار",
                                     style: TextStyle(
                                       fontSize: 17,
-                                      fontWeight:
-                                          FontWeight
-                                              .bold,
-                                      color: Color(
-                                        0xFF2E3A38,
-                                      ),
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF2E3A38),
                                     ),
                                   ),
-                                  const SizedBox(
-                                    width: 20,
-                                  ),
+                                  const SizedBox(width: 20),
                                   Text(
-                                    formatTime(
-                                      recordingSeconds,
-                                    ),
-                                    style:
-                                        const TextStyle(
+                                    formatTime(recordingSeconds),
+                                    style: const TextStyle(
                                       fontSize: 17,
-                                      fontWeight:
-                                          FontWeight
-                                              .w500,
-                                      color: Color(
-                                        0xFF2E3A38,
-                                      ),
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF2E3A38),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(
-                              height: 28,
-                            ),
-                            AudioWaveform(
-                              amplitudes: amplitudes,
-                            ),
-                            const SizedBox(
-                              height: 24,
-                            ),
+                            const SizedBox(height: 28),
+                            AudioWaveform(amplitudes: amplitudes),
+                            const SizedBox(height: 24),
 
                             // stop recording
                             GestureDetector(
                               onTap: () async {
-                                final path =
-                                    await recordingService
-                                        .stopRecording();
+                                final path = await recordingService
+                                    .stopRecording();
 
                                 stopAmplitudeTimer();
                                 stopRecordingTimer();
@@ -764,29 +610,21 @@ class _SpeechAssesmentQuestionsScreen
                                   isRecording = false;
 
                                   if (path != null) {
-                                    recordingPaths[
-                                            currentQuestionIndex] =
-                                        path;
+                                    recordingPaths[currentQuestionIndex] = path;
 
-                                    recordingDurations[
-                                            currentQuestionIndex] =
+                                    recordingDurations[currentQuestionIndex] =
                                         recordingSeconds;
 
-                                    recordingAmplitudes[
-                                            currentQuestionIndex] =
-                                        List.from(
-                                      amplitudes,
-                                    );
+                                    recordingAmplitudes[currentQuestionIndex] =
+                                        List.from(amplitudes);
                                   }
                                 });
                               },
                               child: Container(
                                 width: 100,
                                 height: 100,
-                                decoration:
-                                    const BoxDecoration(
-                                  color:
-                                      Color(0xFF287D78),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF287D78),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(
@@ -796,41 +634,31 @@ class _SpeechAssesmentQuestionsScreen
                                 ),
                               ),
                             ),
-                            const SizedBox(
-                              height: 12,
-                            ),
+                            const SizedBox(height: 12),
                             const Text(
                               "اضغط للإيقاف",
                               style: TextStyle(
                                 fontFamily: 'Tajawal',
                                 fontSize: 14,
-                                color:
-                                    Color(0xFF8FA39F),
+                                color: Color(0xFF8FA39F),
                               ),
                             ),
                           ],
                         ),
 
                       // after recording Ui
-                      if (recordingPaths.containsKey(
-                            currentQuestionIndex,
-                          ) &&
+                      if (recordingPaths.containsKey(currentQuestionIndex) &&
                           !isRecording)
                         Column(
                           children: [
                             AudioWaveform(
                               amplitudes:
-                                  recordingAmplitudes[
-                                          currentQuestionIndex] ??
-                                      [],
+                                  recordingAmplitudes[currentQuestionIndex] ??
+                                  [],
                             ),
-                            const SizedBox(
-                              height: 20,
-                            ),
+                            const SizedBox(height: 20),
                             Row(
-                              mainAxisAlignment:
-                                  MainAxisAlignment
-                                      .spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Row(
                                   children: [
@@ -838,104 +666,70 @@ class _SpeechAssesmentQuestionsScreen
                                       // play record
                                       onTap: () async {
                                         if (isPlaying) {
-                                          await player
-                                              .pause();
+                                          await player.pause();
 
                                           setState(() {
-                                            isPlaying =
-                                                false;
+                                            isPlaying = false;
                                           });
 
                                           return;
                                         }
 
-                                        if (recordingPaths[
-                                                currentQuestionIndex] !=
+                                        if (recordingPaths[currentQuestionIndex] !=
                                             null) {
                                           final currentPath =
-                                              recordingPaths[
-                                                  currentQuestionIndex]!;
+                                              recordingPaths[currentQuestionIndex]!;
 
-                                          if (loadedAudioPath !=
-                                              currentPath) {
-                                            await player
-                                                .setFilePath(
+                                          if (loadedAudioPath != currentPath) {
+                                            await player.setFilePath(
                                               currentPath,
                                             );
 
-                                            loadedAudioPath =
-                                                currentPath;
+                                            loadedAudioPath = currentPath;
 
-                                            playbackPosition =
-                                                Duration
-                                                    .zero;
+                                            playbackPosition = Duration.zero;
                                           }
 
-                                          if (player
-                                                  .processingState ==
-                                              ProcessingState
-                                                  .completed) {
-                                            await player
-                                                .seek(
-                                              Duration
-                                                  .zero,
-                                            );
+                                          if (player.processingState ==
+                                              ProcessingState.completed) {
+                                            await player.seek(Duration.zero);
                                           }
 
                                           setState(() {
-                                            isPlaying =
-                                                true;
-                                            hasStartedPlaying =
-                                                true;
+                                            isPlaying = true;
+                                            hasStartedPlaying = true;
                                           });
 
-                                          await player
-                                              .play();
+                                          await player.play();
                                         }
                                       },
                                       child: Container(
                                         width: 58,
                                         height: 58,
-                                        decoration:
-                                            const BoxDecoration(
-                                          color: Color(
-                                            0xFFD7EBE8,
-                                          ),
-                                          shape: BoxShape
-                                              .circle,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFD7EBE8),
+                                          shape: BoxShape.circle,
                                         ),
                                         child: Icon(
                                           isPlaying
-                                              ? Icons
-                                                  .pause
-                                              : Icons
-                                                  .play_arrow,
-                                          color:
-                                              const Color(
-                                            0xFF287D78,
-                                          ),
+                                              ? Icons.pause
+                                              : Icons.play_arrow,
+                                          color: const Color(0xFF287D78),
                                           size: 30,
                                         ),
                                       ),
                                     ),
-                                    const SizedBox(
-                                      width: 10,
-                                    ),
+                                    const SizedBox(width: 10),
                                     Text(
                                       formatTime(
                                         hasStartedPlaying
-                                            ? playbackPosition
-                                                .inSeconds
-                                            : recordingDurations[
-                                                    currentQuestionIndex] ??
-                                                0,
+                                            ? playbackPosition.inSeconds
+                                            : recordingDurations[currentQuestionIndex] ??
+                                                  0,
                                       ),
-                                      style:
-                                          const TextStyle(
+                                      style: const TextStyle(
                                         fontSize: 14,
-                                        color: Color(
-                                          0xFF8FA39F,
-                                        ),
+                                        color: Color(0xFF8FA39F),
                                       ),
                                     ),
                                   ],
@@ -944,29 +738,21 @@ class _SpeechAssesmentQuestionsScreen
                                   // re-record
                                   onTap: () async {
                                     await player.stop();
-                                    await player.seek(
-                                      Duration.zero,
-                                    );
+                                    await player.seek(Duration.zero);
 
-                                    if (await recordingService
-                                        .startRecording(
+                                    if (await recordingService.startRecording(
                                       "assesment_q${currentQuestionIndex + 1}",
                                     )) {
                                       setState(() {
-                                        amplitudes
-                                            .clear();
+                                        amplitudes.clear();
 
-                                        recordingSeconds =
-                                            0;
+                                        recordingSeconds = 0;
 
-                                        playbackPosition =
-                                            Duration.zero;
+                                        playbackPosition = Duration.zero;
 
-                                        loadedAudioPath =
-                                            null;
+                                        loadedAudioPath = null;
 
-                                        hasStartedPlaying =
-                                            false;
+                                        hasStartedPlaying = false;
 
                                         isPlaying = false;
                                         isRecording = true;
@@ -978,51 +764,30 @@ class _SpeechAssesmentQuestionsScreen
                                   },
                                   child: Container(
                                     height: 54,
-                                    padding:
-                                        const EdgeInsets
-                                            .symmetric(
+                                    padding: const EdgeInsets.symmetric(
                                       horizontal: 18,
                                     ),
-                                    decoration:
-                                        BoxDecoration(
+                                    decoration: BoxDecoration(
                                       color: Colors.white,
-                                      border:
-                                          Border.all(
-                                        color:
-                                            const Color(
-                                          0xFFD7EBE8,
-                                        ),
+                                      border: Border.all(
+                                        color: const Color(0xFFD7EBE8),
                                       ),
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                        18,
-                                      ),
+                                      borderRadius: BorderRadius.circular(18),
                                     ),
                                     child: const Row(
                                       children: [
                                         Icon(
                                           Icons.refresh,
-                                          color: Color(
-                                            0xFF6FA7A3,
-                                          ),
+                                          color: Color(0xFF6FA7A3),
                                           size: 22,
                                         ),
-                                        SizedBox(
-                                          width: 8,
-                                        ),
+                                        SizedBox(width: 8),
                                         Text(
                                           "إعادة التسجيل",
-                                          style:
-                                              TextStyle(
-                                            fontFamily:
-                                                'Tajawal',
-                                            fontSize:
-                                                14,
-                                            color:
-                                                Color(
-                                              0xFF6FA7A3,
-                                            ),
+                                          style: TextStyle(
+                                            fontFamily: 'Tajawal',
+                                            fontSize: 14,
+                                            color: Color(0xFF6FA7A3),
                                           ),
                                         ),
                                       ],
@@ -1048,8 +813,7 @@ class _SpeechAssesmentQuestionsScreen
           child: ElevatedButton(
             onPressed: () async {
               if (isRecording) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
                       'أوقف التسجيل أولًا قبل الانتقال الى السؤال التالي',
@@ -1059,80 +823,55 @@ class _SpeechAssesmentQuestionsScreen
                 return;
               }
 
-              final path =
-                  recordingPaths[currentQuestionIndex];
+              final path = recordingPaths[currentQuestionIndex];
 
               if (path == null) {
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text("سجل إجابتك أولًا"),
-                  ),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("سجل إجابتك أولًا")),
                 );
                 return;
               }
 
               try {
                 if (_assessmentId == null) {
-                  throw Exception(
-                    'لم يتم إنشاء التقييم.',
-                  );
+                  throw Exception('لم يتم إنشاء التقييم.');
                 }
 
-                if (currentQuestionIndex <
-                    questions.length - 1) {
+                if (currentQuestionIndex < questions.length - 1) {
                   await player.stop();
-                  await player.seek(
-                    Duration.zero,
-                  );
+                  await player.seek(Duration.zero);
 
                   setState(() {
                     currentQuestionIndex++;
                     isPlaying = false;
-                    playbackPosition =
-                        Duration.zero;
+                    playbackPosition = Duration.zero;
                     loadedAudioPath = null;
                     hasStartedPlaying = false;
                   });
                 } else {
+                  await player.stop();
+                  await player.seek(Duration.zero);
                   await _submitAssessment();
                 }
               } catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      e
-                          .toString()
-                          .replaceFirst(
-                            'Exception: ',
-                            '',
-                          ),
-                    ),
+                    content: Text(e.toString().replaceFirst('Exception: ', '')),
                   ),
                 );
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  const Color(0xFF6FA7A3),
+              backgroundColor: const Color(0xFF6FA7A3),
               shape: RoundedRectangleBorder(
-                borderRadius:
-                    BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(8.0),
               ),
             ),
             child: Text(
-              currentQuestionIndex ==
-                      questions.length - 1
-                  ? "إرسال"
-                  : "التالي",
-              style: const TextStyle(
-                fontSize: 16.0,
-                color: Colors.white,
-              ),
+              currentQuestionIndex == questions.length - 1 ? "إرسال" : "التالي",
+              style: const TextStyle(fontSize: 16.0, color: Colors.white),
             ),
           ),
         ),
