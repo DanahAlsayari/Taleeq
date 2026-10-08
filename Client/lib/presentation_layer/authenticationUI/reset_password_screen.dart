@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-
+import '../../services/api_config_service.dart';
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -85,13 +86,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       _successMessage = null;
     });
 
-    if (!_passwordIsValid) {
-      setState(() {
-        _errorMessage = 'يرجى التأكد من استيفاء جميع شروط كلمة المرور.';
-      });
-      return;
-    }
-
+   if (!_passwordIsValid) {
+  setState(() {
+    _errorMessage = 'كلمة المرور لا تستوفي جميع الشروط';
+  });
+  return;
+}
     if (!_passwordsMatch) {
       _confirmPasswordController.clear();
 
@@ -109,9 +109,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/reset-password',
-        ),
+        Uri.parse('${ApiConfig.baseUrl}/reset-password'), 
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': widget.token,
@@ -205,6 +203,28 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(color: color),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bool confirmError =
@@ -215,8 +235,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: ivory,
-        body: SafeArea(
+backgroundColor: const Color(0xFFFFFBF6),        body: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
@@ -287,6 +306,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   enableSuggestions: false,
                   textDirection: TextDirection.ltr,
                   textAlign: TextAlign.right,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                    ),
+                    LengthLimitingTextInputFormatter(20),
+                  ],
                   onChanged: (_) {
                     setState(() {
                       _showValidation = false;
@@ -295,9 +320,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText: 'كلمة المرور الجديدة',
-                    hintTextDirection: TextDirection.rtl,
-                    hintStyle: const TextStyle(color: muted),
+                    label: _requiredLabel('كلمة المرور الجديدة', color: muted),
+                    floatingLabelBehavior: FloatingLabelBehavior.never,
                     filled: true,
                     fillColor: aquaLight,
                     suffixIcon: IconButton(
@@ -384,6 +408,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   enableSuggestions: false,
                   textDirection: TextDirection.ltr,
                   textAlign: TextAlign.right,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                    ),
+                    LengthLimitingTextInputFormatter(20),
+                  ],
                   onChanged: (_) {
                     setState(() {
                       _errorMessage = null;
@@ -391,9 +421,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     });
                   },
                   decoration: InputDecoration(
-                    hintText: 'تأكيد كلمة المرور',
-                    hintTextDirection: TextDirection.rtl,
-                    hintStyle: const TextStyle(color: muted),
+                    label: _requiredLabel('تأكيد كلمة المرور', color: muted),
+                    floatingLabelBehavior: FloatingLabelBehavior.never,
                     filled: true,
                     fillColor: aquaLight,
                     suffixIcon: IconButton(

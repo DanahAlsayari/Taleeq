@@ -6,19 +6,28 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 NAME_PATTERN = re.compile(
     r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+"
-    r"(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$"
+    r"(?: [A-Za-z\u0621-\u063A\u0641-\u064A]+)*$"
 )
-PHONE_PATTERN = re.compile(r"^05\d{8}$")
+PHONE_PATTERN = re.compile(r"^05[0-9]{8}$")
+PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")
 
 
 class UserCreate(BaseModel):
-    name: str = Field(min_length=2, max_length=50)
+    name: str
     email: EmailStr
-    password: str = Field(min_length=8, max_length=72)
-    confirm_password: str = Field(min_length=8, max_length=72)
+    password: str = Field(min_length=8, max_length=20)
+    confirm_password: str = Field(min_length=8, max_length=20)
     phone_number: str
     age: int = Field(ge=13, le=100)
     gender: Literal["female", "male"]
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_characters(cls, value: EmailStr) -> EmailStr:
+        if not str(value).isascii():
+            raise ValueError("Email contains invalid characters.")
+
+        return value
 
     @field_validator("name")
     @classmethod
@@ -42,9 +51,9 @@ class UserCreate(BaseModel):
 
     @field_validator("password", "confirm_password")
     @classmethod
-    def validate_password_byte_length(cls, value: str) -> str:
-        if len(value.encode("utf-8")) > 72:
-            raise ValueError("Password is too long.")
+    def validate_password_characters(cls, value: str) -> str:
+        if not PASSWORD_PATTERN.fullmatch(value):
+            raise ValueError("Password contains invalid characters.")
 
         return value
 
@@ -63,7 +72,15 @@ class UserOut(BaseModel):
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(max_length=20)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_characters(cls, value: EmailStr) -> EmailStr:
+        if not str(value).isascii():
+            raise ValueError("Email contains invalid characters.")
+
+        return value
 
 
 class Token(BaseModel):

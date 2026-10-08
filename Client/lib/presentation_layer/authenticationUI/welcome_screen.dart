@@ -20,7 +20,7 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 35),
 
                 Image.asset(
-                  'assets/images/taleeq_logo.png',
+                  'assets/images/taleeq_logo1.png',
                   height: 190,
                   fit: BoxFit.contain,
                 ),

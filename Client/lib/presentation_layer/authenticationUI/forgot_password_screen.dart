@@ -1,26 +1,31 @@
 import 'dart:convert';
-
+import '../../services/api_config_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../../services/api_config_service.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final TextEditingController _emailController = TextEditingController();
+class _ForgotPasswordScreenState
+    extends State<ForgotPasswordScreen> {
+  final TextEditingController _emailController =
+      TextEditingController();
 
   bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
 
-  // Taleeq Design Colors
-  static const Color ivory = Color(0xFFFCFAF6);
-  static const Color teal = Color(0xFF1F5F5A);
+  // Taleeq Colors
+static const Color ivory = Color(0xFFFFFBF6); 
+ static const Color teal = Color(0xFF1F5F5A);
   static const Color tealLight = Color(0xFF2A7A74);
   static const Color aquaLight = Color(0xFFEAF4F2);
   static const Color dark = Color(0xFF233330);
@@ -29,16 +34,21 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   static const Color errorRed = Color(0xFFD9534F);
 
   Future<void> _sendResetLink() async {
-    final email = _emailController.text.trim().toLowerCase();
+    final email =
+        _emailController.text.trim().toLowerCase();
+
     setState(() {
       _errorMessage = null;
       _successMessage = null;
     });
 
     if (email.isEmpty ||
-        !RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email)) {
+        !RegExp(
+          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+        ).hasMatch(email)) {
       setState(() {
-        _errorMessage = 'يرجى إدخال بريد إلكتروني صحيح.';
+        _errorMessage =
+            'يرجى إدخال بريد إلكتروني صحيح.';
       });
       return;
     }
@@ -48,12 +58,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     });
 
     try {
+
       final response = await http.post(
-        Uri.parse(
-          '${kIsWeb ? 'http://127.0.0.1:8000' : 'http://10.0.2.2:8000'}/auth/forgot-password',
-        ),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': email}),
+        Uri.parse('${ApiConfig.baseUrl}/forgot-password'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'email': email,
+        }),
       );
 
       if (!mounted) return;
@@ -65,14 +78,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         });
       } else {
         setState(() {
-          _errorMessage = 'تعذر إرسال الرابط. يرجى المحاولة مرة أخرى.';
+          _errorMessage =
+              'تعذر إرسال الرابط. يرجى المحاولة مرة أخرى.';
         });
       }
     } catch (_) {
       if (!mounted) return;
 
       setState(() {
-        _errorMessage = 'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
+        _errorMessage =
+            'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
       });
     } finally {
       if (mounted) {
@@ -89,6 +104,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
+  Widget _requiredLabel(
+    String text, {
+    Color color = Colors.grey,
+  }) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(
+              color: color,
+              fontFamily: 'Tajawal',
+            ),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'Tajawal',
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -97,9 +141,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         backgroundColor: ivory,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 28,
+              vertical: 24,
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment:
+                  CrossAxisAlignment.stretch,
               children: [
                 Align(
                   alignment: Alignment.centerRight,
@@ -108,7 +156,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     height: 52,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: border, width: 2),
+                      border: Border.all(
+                        color: border,
+                        width: 2,
+                      ),
                     ),
                     child: IconButton(
                       onPressed: () {
@@ -127,14 +178,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 const SizedBox(height: 80),
 
-                // Email + Lock Illustration
+                // Email + Lock
                 Center(
                   child: Container(
                     width: 130,
                     height: 110,
                     decoration: BoxDecoration(
                       color: aquaLight,
-                      borderRadius: BorderRadius.circular(45),
+                      borderRadius:
+                          BorderRadius.circular(45),
                     ),
                     child: Stack(
                       alignment: Alignment.center,
@@ -150,7 +202,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           child: Container(
                             width: 42,
                             height: 42,
-                            decoration: const BoxDecoration(
+                            decoration:
+                                const BoxDecoration(
                               color: teal,
                               shape: BoxShape.circle,
                             ),
@@ -197,10 +250,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 TextField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  keyboardType:
+                      TextInputType.emailAddress,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'[\x21-\x7E]'),
+                    ),
+                  ],
                   textDirection: TextDirection.rtl,
+                  style: const TextStyle(
+                    color: dark,
+                    fontFamily: 'Tajawal',
+                    fontSize: 15,
+                  ),
                   onChanged: (_) {
-                    if (_errorMessage != null || _successMessage != null) {
+                    if (_errorMessage != null ||
+                        _successMessage != null) {
                       setState(() {
                         _errorMessage = null;
                         _successMessage = null;
@@ -208,20 +273,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     }
                   },
                   decoration: InputDecoration(
-                    hintText: 'البريد الإلكتروني',
-                    hintStyle: const TextStyle(
+                    label: _requiredLabel(
+                      'البريد الإلكتروني',
                       color: muted,
-                      fontFamily: 'Tajawal',
                     ),
-                    prefixIcon: const Icon(Icons.email_outlined, color: muted),
+                    floatingLabelBehavior:
+                        FloatingLabelBehavior.never,
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: muted,
+                    ),
                     filled: true,
                     fillColor: aquaLight,
-                    contentPadding: const EdgeInsets.symmetric(
+                    contentPadding:
+                        const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 21,
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
+                    enabledBorder:
+                        OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(22),
                       borderSide: BorderSide(
                         color: _errorMessage != null
                             ? errorRed
@@ -229,10 +301,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         width: 1.5,
                       ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
+                    focusedBorder:
+                        OutlineInputBorder(
+                      borderRadius:
+                          BorderRadius.circular(22),
                       borderSide: BorderSide(
-                        color: _errorMessage != null ? errorRed : teal,
+                        color: _errorMessage != null
+                            ? errorRed
+                            : teal,
                         width: 1.5,
                       ),
                     ),
@@ -254,7 +330,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 if (_successMessage != null) ...[
                   const SizedBox(height: 12),
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       const Icon(
                         Icons.check_circle_outline_rounded,
@@ -279,31 +356,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                 const SizedBox(height: 32),
 
-                Container(
+                SizedBox(
                   height: 62,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                      colors: [teal, tealLight],
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _sendResetLink,
+                    onPressed: _isLoading
+                        ? null
+                        : _sendResetLink,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      disabledBackgroundColor: Colors.transparent,
+                      backgroundColor: teal,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor:
+                          teal.withValues(alpha: 0.55),
+                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
+                        borderRadius:
+                            BorderRadius.circular(22),
                       ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child: CircularProgressIndicator(
+                            child:
+                                CircularProgressIndicator(
                               strokeWidth: 2.5,
                               color: Colors.white,
                             ),
@@ -313,7 +388,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
-                              fontWeight: FontWeight.w700,
+                              fontWeight:
+                                  FontWeight.w700,
                               fontFamily: 'Tajawal',
                             ),
                           ),

@@ -1,13 +1,13 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 import '../../services/auth_storage.dart';
 import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
-
+import '../../services/api_config_service.dart';
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -16,13 +16,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  String get baseUrl {
-    if (kIsWeb) {
-      return 'http://127.0.0.1:8000';
-    }
 
-    return 'http://10.0.2.2:8000';
-  }
 
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
@@ -39,10 +33,11 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+
   final FocusNode _passwordFocusNode = FocusNode();
   final FocusNode _confirmPasswordFocusNode = FocusNode();
 
-  bool _clearConfirmPasswordOnNextFocus = false;
+  bool _clearPasswordsOnNextFocus = false;
 
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
@@ -112,18 +107,31 @@ class _SignupScreenState extends State<SignupScreen> {
     return _passwordController.text == _confirmPasswordController.text;
   }
 
+  void _clearPasswordsForRetry() {
+    if (!_clearPasswordsOnNextFocus) {
+      return;
+    }
+
+    _passwordController.clear();
+    _confirmPasswordController.clear();
+
+    setState(() {
+      _clearPasswordsOnNextFocus = false;
+    });
+  }
+
   Future<void> _createAccount() async {
     FocusScope.of(context).unfocus();
 
     final formIsValid = _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
+      _clearPasswordsOnNextFocus = true;
       return;
     }
 
     if (_selectedGender == null) {
       _showMessage('يرجى اختيار الجنس');
-
       return;
     }
 
@@ -135,7 +143,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final signupResponse = await http.post(
-        Uri.parse('$baseUrl/auth/signup'),
+        Uri.parse('${ApiConfig.baseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
@@ -149,6 +157,8 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
+        _clearPasswordsOnNextFocus = true;
+
         _showMessage(
           _readErrorMessage(signupResponse, fallback: 'تعذر إنشاء الحساب'),
         );
@@ -158,7 +168,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Log the new user in automatically.
       final loginResponse = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse('${ApiConfig.baseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
@@ -167,6 +177,8 @@ class _SignupScreenState extends State<SignupScreen> {
       );
 
       if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
+        _clearPasswordsOnNextFocus = true;
+
         _showMessage(
           _readErrorMessage(
             loginResponse,
@@ -182,8 +194,8 @@ class _SignupScreenState extends State<SignupScreen> {
       final token = loginData['access_token'] as String?;
 
       if (token == null || token.isEmpty) {
+        _clearPasswordsOnNextFocus = true;
         _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
-
         return;
       }
 
@@ -201,6 +213,7 @@ class _SignupScreenState extends State<SignupScreen> {
         (route) => false,
       );
     } catch (error) {
+      _clearPasswordsOnNextFocus = true;
       _showMessage('تعذر الاتصال بالخادم. تأكد من تشغيل الخادم .');
     } finally {
       if (mounted) {
@@ -222,7 +235,11 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       if (detail is List && detail.isNotEmpty) {
-        return 'بيانات الحساب غير صالحة. يرجى مراجعتها والمحاولة مجددًا';
+        final firstError = detail.first;
+
+        if (firstError is Map<String, dynamic>) {
+          return firstError['msg']?.toString() ?? fallback;
+        }
       }
     } catch (_) {
       // Use the fallback message if the server response is not JSON.
@@ -233,9 +250,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
   String _translateBackendError(String message) {
     switch (message) {
-      case 'Account information cannot be used':
       case 'Email already registered':
-        return 'تعذر استخدام بيانات الحساب. جرّب تسجيل الدخول أو استخدم بريدًا آخر';
+        return 'البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول ';
+
+      case 'Phone number already registered':
+        return 'رقم الهاتف مستخدم بالفعل. جرّب تسجيل الدخول إلى حسابك السابق';
+
+      case 'Email and phone number already registered':
+        return 'البريد الإلكتروني ورقم الهاتف مستخدمان بالفعل. جرّب تسجيل الدخول ';
+
+      case 'Account information cannot be used':
+        return 'تعذر إنشاء الحساب. إذا كان لديك حساب سابق، جرّب تسجيل الدخول ';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
@@ -266,14 +291,27 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message, textDirection: TextDirection.rtl),
-          backgroundColor: Colors.red.shade700,
+    const errorColor = Color(0xFFB55252);
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          textDirection: TextDirection.rtl,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      );
+        backgroundColor: errorColor,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
   }
 
   InputDecoration _fieldDecoration({
@@ -282,7 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
     Widget? suffixIcon,
   }) {
     return InputDecoration(
-      labelText: label,
+      label: _requiredLabel(label),
       prefixIcon: Icon(icon, color: lightGreen),
       suffixIcon: suffixIcon,
       filled: true,
@@ -369,6 +407,28 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: '$text ',
+            style: TextStyle(color: color),
+          ),
+          const TextSpan(
+            text: '*',
+            style: TextStyle(
+              color: Color(0xFF6FA7A3),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+      textDirection: TextDirection.rtl,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -403,7 +463,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 8),
+
                   const Text(
                     'أنشئ حسابك للبدء في رحلة تحسين طلاقة الكلام',
                     textAlign: TextAlign.center,
@@ -413,6 +475,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       height: 1.5,
                     ),
                   ),
+
                   const SizedBox(height: 28),
 
                   TextFormField(
@@ -437,7 +500,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
 
                       final nameIsValid = RegExp(
-                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?:[ '\-][A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
+                        r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+(?: [A-Za-z\u0621-\u063A\u0641-\u064A]+)*$",
                       ).hasMatch(name);
 
                       if (!nameIsValid) {
@@ -447,6 +510,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 14),
 
                   TextFormField(
@@ -456,6 +520,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                    ],
                     decoration: _fieldDecoration(
                       label: 'البريد الإلكتروني',
                       icon: Icons.email_outlined,
@@ -477,6 +544,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 14),
 
                   TextFormField(
@@ -498,16 +566,17 @@ class _SignupScreenState extends State<SignupScreen> {
                       final phone = value?.trim() ?? '';
 
                       if (phone.isEmpty) {
-                        return 'يرجى إدخال رقم الجوال';
+                        return 'يرجى إدخال رقم الهاتف';
                       }
 
                       if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
-                        return 'رقم الجوال يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
+                        return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 14),
 
                   TextFormField(
@@ -525,7 +594,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.cake_outlined,
                     ),
                     validator: (value) {
-                      final age = int.tryParse(value?.trim() ?? '');
+                      final ageText = value?.trim() ?? '';
+
+                      if (ageText.isEmpty) {
+                        return 'يرجى إدخال العمر';
+                      }
+
+                      final age = int.tryParse(ageText);
 
                       if (age == null) {
                         return 'يرجى إدخال عمر صحيح';
@@ -538,16 +613,11 @@ class _SignupScreenState extends State<SignupScreen> {
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 18),
 
-                  const Text(
-                    'الجنس',
-                    style: TextStyle(
-                      color: darkText,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  _requiredLabel('الجنس', color: darkText),
+
                   const SizedBox(height: 9),
 
                   Row(
@@ -557,6 +627,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       _genderChoice(label: 'ذكر', value: 'male'),
                     ],
                   ),
+
                   const SizedBox(height: 18),
 
                   TextFormField(
@@ -564,10 +635,17 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     focusNode: _passwordFocusNode,
                     obscureText: _hidePassword,
+                    onTap: _clearPasswordsForRetry,
                     autocorrect: false,
                     enableSuggestions: false,
                     textDirection: TextDirection.ltr,
                     textInputAction: TextInputAction.next,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                      ),
+                      LengthLimitingTextInputFormatter(20),
+                    ],
                     onChanged: (_) {
                       setState(() {});
                     },
@@ -588,7 +666,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ),
-                    validator: (_) {
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'يرجى إدخال كلمة المرور';
+                      }
+
                       if (!_passwordIsValid) {
                         return 'كلمة المرور لا تستوفي جميع الشروط';
                       }
@@ -597,8 +679,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                   ),
 
-                  // This card is visible only while the password
-                  // field has focus.
                   if (_showPasswordRequirements) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -650,27 +730,21 @@ class _SignupScreenState extends State<SignupScreen> {
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.done,
-
-                    onTap: () {
-                      if (_clearConfirmPasswordOnNextFocus) {
-                        _confirmPasswordController.clear();
-
-                        setState(() {
-                          _clearConfirmPasswordOnNextFocus = false;
-                        });
-                      }
-                    },
-
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[A-Za-z0-9!@#$%^&*]'),
+                      ),
+                      LengthLimitingTextInputFormatter(20),
+                    ],
+                    onTap: _clearPasswordsForRetry,
                     onChanged: (_) {
                       setState(() {});
                     },
-
                     onFieldSubmitted: (_) {
                       if (!_isLoading) {
                         _createAccount();
                       }
                     },
-
                     decoration: _fieldDecoration(
                       label: 'تأكيد كلمة المرور',
                       icon: Icons.lock_reset_rounded,
@@ -688,23 +762,23 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                       ),
                     ),
-
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'يرجى تأكيد كلمة المرور';
                       }
 
                       if (!_passwordsMatch) {
-                        _clearConfirmPasswordOnNextFocus = true;
+                        _clearPasswordsOnNextFocus = true;
 
                         return 'كلمتا المرور غير متطابقتين';
                       }
 
-                      _clearConfirmPasswordOnNextFocus = false;
+                      _clearPasswordsOnNextFocus = false;
 
                       return null;
                     },
                   ),
+
                   const SizedBox(height: 27),
 
                   SizedBox(

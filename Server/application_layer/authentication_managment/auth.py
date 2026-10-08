@@ -15,6 +15,7 @@ from data_and_integration_layer.database.models.user import User
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+print("🔐 SECRET_KEY EXISTS:", bool(SECRET_KEY))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 SPECIAL_CHARACTERS = "!@#$%^&*"
@@ -111,7 +112,6 @@ def create_access_token(data: dict) -> str:
         algorithm=ALGORITHM,
     )
 
-
 def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(
         security,
@@ -124,18 +124,25 @@ def get_current_user(
     )
 
     try:
+        print("🔑 TOKEN RECEIVED:", bool(credentials.credentials))
+
         payload = jwt.decode(
             credentials.credentials,
             SECRET_KEY,
             algorithms=[ALGORITHM],
         )
 
+        print("✅ JWT DECODED:", payload)
+
         email = payload.get("sub")
+
+        print("📧 TOKEN EMAIL:", email)
 
         if not email:
             raise credentials_exception
 
-    except JWTError:
+    except JWTError as error:
+        print("❌ JWT ERROR:", error)
         raise credentials_exception
 
     user = (
@@ -143,6 +150,8 @@ def get_current_user(
         .filter(User.email == email)
         .first()
     )
+
+    print("👤 USER FOUND:", user is not None)
 
     if not user:
         raise credentials_exception

@@ -13,12 +13,6 @@ app = FastAPI(
     description="Backend API for Taleeq",
     version="1.0.0",
 )
-#temprory until correct the path of the test audio files in the client side
-app.mount(
-    "/test-audio",
-    StaticFiles(directory="test_audio"),
-    name="test-audio",
-)
 
 
 app.add_middleware(

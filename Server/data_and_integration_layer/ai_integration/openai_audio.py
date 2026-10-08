@@ -49,79 +49,59 @@ class OpenAIAudioAnalyzer:
     ) -> AudioAnalysisResult:
 
         encoded_audio = base64.b64encode(audio_bytes).decode("utf-8")
+        print("🎧 AUDIO FORMAT SENT TO OPENAI:", audio_format)
+        print("🎧 AUDIO BYTES FIRST 20:", audio_bytes[:20])
+        print("🎧 BASE64 LENGTH:", len(encoded_audio))
+        prompt =   """
+Listen carefully to the entire attached Arabic speech recording.
 
-        prompt = """
-Analyze the entire Arabic speech recording for stuttering.
+Your task is to analyze the speaker's speech for stuttering.
 
-Detect EVERY genuine stuttering event throughout the full recording.
-Do not return only the most obvious events.
+Detect:
+1. Repetition: repeated sounds, syllables, or words.
+2. Prolongation: unusually prolonged speech sounds.
+3. Block: interruption or inability to initiate or continue speech.
 
-Stuttering types:
-- repetition: involuntary repetition of a sound, syllable, or word
-- prolongation: abnormally prolonged speech sound
-- block: clear inability or interruption when initiating or continuing speech
+Analyze the actual audio you can hear.
+Do not ask for the audio again.
+Do not say that you cannot access the recording.
 
-For every detected event, provide:
-- event_type
-- word_or_sound in Arabic when identifiable
-- confidence
-
-Also provide:
-- stuttering_percent: estimated percentage of the overall speech affected
-  by stuttering compare to fluent speech
-- repetition_percent: estimated percentage of the overall speech affected
-  by repetition
-- prolongation_percent: estimated percentage of the overall speech
-  affected by prolongation
-- block_percent: estimated percentage of the overall speech affected
-  by blocks
-- speaking_rate_wpm
-
-- speaking_rate: 0-100 score representing how appropriate and stable
-  the speaking rate is.
-  80-100 = appropriate and stable speaking rate
-  60-79 = moderately appropriate, with some noticeable variation
-  0-59 = noticeably irregular or inappropriate speaking rate
-
-- timing_pacing: 0-100 score representing the overall stability and
-  naturalness of speech timing and pacing, considering pauses,
-  interruptions, and rhythm.
-  80-100 = stable and natural timing and pacing
-  60-79 = moderately stable, with some noticeable disruptions
-  0-59 = noticeably disrupted or irregular timing and pacing
-
-The four stuttering percentages must describe the overall speech, not the
-distribution of stuttering events. They do not need to add up to 100%.
-The three type percentages should generally be consistent with the overall
-stuttering percentage.
-
-Analyze the recording from beginning to end and check again for missed
-events before returning the result.
-
-Return ONLY valid JSON:
+Return ONLY valid JSON in exactly this structure:
 
 {
-  "stuttering_percent": number,
-  "repetition_percent": number,
-  "prolongation_percent": number,
-  "block_percent": number,
-  "speaking_rate_wpm": number or null,
-  "speaking_rate": number,
-  "timing_pacing": number,
-  "speech_events": [
-    {
-      "event_type": "repetition | prolongation | block",
-      "word_or_sound": "Arabic sound, syllable, or word",
-      "confidence": number
-    }
-  ]
+  "stuttering_percent": 0,
+  "repetition_percent": 0,
+  "prolongation_percent": 0,
+  "block_percent": 0,
+  "speaking_rate_wpm": 0,
+  "speaking_rate": 0,
+  "timing_pacing": 0,
+  "speech_events": []
 }
 
+For speech_events, use:
+
+{
+  "event_type": "repetition | prolongation | block",
+  "word_or_sound": "Arabic sound, syllable, or word",
+  "confidence": 0.0
+}
+
+Rules:
+- Analyze the recording from beginning to end.
+- Detect every genuine stuttering event you can hear.
+- Do not invent events.
+- stuttering_percent represents the estimated percentage of speech affected by stuttering.
+- repetition_percent, prolongation_percent, and block_percent represent the percentage of overall speech affected by each type.
+- speaking_rate_wpm is the estimated words per minute.
+- speaking_rate is a 0-100 score for appropriateness and stability of speaking rate.
+- timing_pacing is a 0-100 score for stability and naturalness of speech timing and pacing.
+- confidence must be between 0 and 1.
 """
+
 
         response = self.client.chat.completions.create(
             model=self.model,
-            modalities=["text"],
             messages=[
                 {
                     "role": "user",
