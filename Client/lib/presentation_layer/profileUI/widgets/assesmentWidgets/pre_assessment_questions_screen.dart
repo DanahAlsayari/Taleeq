@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../services/pre_assessment_service.dart';
-import 'pre_assessment_intro_screen.dart';
 import 'pre_assesment_success_screen.dart';
 
 class PreAssessmentQuestionsScreen extends StatefulWidget {
@@ -145,13 +144,7 @@ class _PreAssessmentQuestionsScreenState
                                       currentQuestionIndex--;
                                     });
                                   } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PreAssessmentIntroScreen(),
-                                      ),
-                                    );
+                                    Navigator.pop(context);
                                   }
                                 },
                           icon: const Icon(Icons.arrow_back),
@@ -326,7 +319,10 @@ class _PreAssessmentQuestionsScreenState
                     currentQuestionIndex == questions.length - 1
                         ? 'إرسال'
                         : 'التالي',
-                    style: const TextStyle(fontSize: 16.0, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.white,
+                    ),
                   ),
           ),
         ),

@@ -18,24 +18,24 @@ class TaleeqTheme {
   static const Color textMuted = Color(0xFF6B7E7B);
 
   static List<BoxShadow> get cardShadow => [
-        BoxShadow(
-          color: darkSlate.withValues(alpha: 0.04),
-          offset: const Offset(0, 4),
-          blurRadius: 16,
-        ),
-        BoxShadow(
-          color: primaryTeal.withValues(alpha: 0.03),
-          offset: const Offset(0, 1),
-          blurRadius: 4,
-        ),
-      ];
+    BoxShadow(
+      color: darkSlate.withValues(alpha: 0.04),
+      offset: const Offset(0, 4),
+      blurRadius: 16,
+    ),
+    BoxShadow(
+      color: primaryTeal.withValues(alpha: 0.03),
+      offset: const Offset(0, 1),
+      blurRadius: 4,
+    ),
+  ];
 
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: warmBackground,
       primaryColor: primaryTeal,
-      textTheme: GoogleFonts.cairoTextTheme().apply(
+      textTheme: GoogleFonts.tajawalTextTheme().apply(
         bodyColor: darkSlate,
         displayColor: darkSlate,
       ),
