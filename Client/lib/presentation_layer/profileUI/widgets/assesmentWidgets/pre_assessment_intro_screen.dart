@@ -13,6 +13,44 @@ class PreAssessmentIntroScreen extends StatelessWidget {
       canPop: allowBack,
       child: Scaffold(
         backgroundColor: const Color(0xFFFCFAF6),
+
+
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
+        child :
+
+                  // Start button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56.0,
+                    child: ElevatedButton(
+
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const PreAssessmentQuestionsScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6FA7A3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18.0),
+                     
+                      
+                      ),
+                    ),
+                    child: const Text(
+                      "ابدأ التقييم المسبق",
+                      style: TextStyle(fontSize: 16.0, color: Colors.white),
+                    ),
+                    ),
+                  ),
+
+      ),
+
         body: Directionality(
           textDirection: TextDirection.rtl,
           child: SafeArea(
@@ -20,17 +58,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  if (allowBack)
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                      ),
-                    )
-                  else
+                  
                     const SizedBox(height: 48.0),
 
                   const SizedBox(height: 60.0),
@@ -98,63 +126,28 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   const SizedBox(height: 32.0),
 
                   // Information card
+               
+  
                   Container(
                     width: double.infinity,
-                    height: 230,
                     padding: const EdgeInsets.all(20.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFFFFF),
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.2),
-                          spreadRadius: 1,
-                          blurRadius: 5,
-                          offset: const Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                    child: const Column(
+                    
+                    child: 
+                    
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _InfoRow(text: "يستغرق حوالي ٣ دقائق"),
-                        SizedBox(height: 18.0),
-                        _InfoRow(text: "بضعة اسئلة قصيرة"),
-                        SizedBox(height: 18.0),
-                        _InfoRow(text: "لا توجد اجابات صحيحة او خاطئة"),
-                        SizedBox(height: 18.0),
-                        _InfoRow(text: "سري تماما"),
+                        _InfoRow( text :"يستغرق حوالي ٣ دقائق" , icon: Icons.access_time_outlined),Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( text :"بضعة اسئلة قصيرة" , icon: Icons.question_answer_outlined), Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( text :"لا توجد اجابات صحيحة او خاطئة" , icon: Icons.waving_hand_outlined), Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( text :"سري تماما" , icon: Icons.lock_outlined),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 70.0),
+        
 
-                  // Start button
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const PreAssessmentQuestionsScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6FA7A3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18.0),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24.0,
-                        vertical: 12.0,
-                      ),
-                    ),
-                    child: const Text(
-                      "ابدأ التقييم المسبق",
-                      style: TextStyle(fontSize: 16.0, color: Colors.white),
-                    ),
-                  ),
+
                 ],
               ),
             ),
@@ -167,26 +160,28 @@ class PreAssessmentIntroScreen extends StatelessWidget {
 
 // Reusable information row
 class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.text});
+  const _InfoRow({required this.text, required this.icon});
 
   final String text;
+
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(
-          Icons.check_circle,
+        Icon(
+          icon,
           size: 25.0,
-          color: Color.fromARGB(255, 182, 201, 197),
+          color: const Color.fromARGB(255, 114, 183, 168),
         ),
         const SizedBox(width: 12.0),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 15.0,
-            color: Color.fromARGB(255, 101, 101, 101),
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 15.0,
+            ),
           ),
         ),
       ],

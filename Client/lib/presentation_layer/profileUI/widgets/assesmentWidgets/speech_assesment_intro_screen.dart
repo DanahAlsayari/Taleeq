@@ -16,46 +16,35 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
       child:SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-        child: Column(
-          children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-            child: IconButton(
-              onPressed: (){
-                 Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PreAssessmentSuccessScreen()), );
-
-                      },
-              icon: const Icon (Icons.arrow_back,),
-            ),
-            ),
-            const SizedBox(height: 30.0,),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              
+              const SizedBox(height: 30.0,),
 
             Align(
             alignment: AlignmentDirectional.centerStart,
             child:Container(
-              width: MediaQuery.of(context).size.width/2.4,
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+
+              padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 8.0),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7EAD7),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child :Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text ("الخطوة ٢ من ٢ : تقييم الكلام" ,style: const TextStyle(color: const Color(0xFF6FA7A3), fontWeight: FontWeight.bold , fontSize: 13) , ),
-                )
+              child :
+                 Text ("الخطوة ٢ من ٢ : تقييم الكلام" ,style: const TextStyle(color: const Color(0xFF6FA7A3), fontWeight: FontWeight.bold , fontSize: 13) , ),
+                
               ),
             ),
-            const SizedBox(height: 10.0,),
+            const SizedBox(height: 28.0,),
             Align(
             alignment: AlignmentDirectional.centerStart,
+            
             child: Text  ("قبل أن تبدأ" , style: const TextStyle(color: Color.fromARGB(255, 11, 11, 11), fontWeight: FontWeight.bold , fontSize: 30) ),
             ),
-            const SizedBox(height: 10.0,),
+            const SizedBox(height: 20.0,),
             Text( 'ستكمل ٣ مهام قصيرة في الكلام، تسجل كل منهم للتحليل.',textAlign : TextAlign.center ,style: TextStyle(color: const Color.fromARGB(255, 158, 158, 158) , fontWeight : FontWeight.w100 , fontSize : 17 ,  ), ),
-            const SizedBox(height: 10.0,),
+            const SizedBox(height: 20.0,),
 
             Container(
               width: double.infinity,
@@ -99,50 +88,41 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
 
             ),
 
-            const SizedBox(height: 20),
-            
-            
-            Container(
-              width: double.infinity,
-              height: 60,
-              padding: const EdgeInsets.all(20.0),
-              margin: const EdgeInsets.symmetric(vertical : 3),
-
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 1), // changes position of shadow
-                  ),
-                ],
-                
-              ),
-    
-                    child: Row(
-                      children: [
-                      const Icon(
-                        Icons.volume_off_outlined,
-                        size: 25.0,
-                        color: Color.fromARGB(255, 182, 201, 197),),
-                        
-                      const SizedBox(width: 12.0,),
-
-                      const Text(
-                        "ابحث عن مكان هادئ ومريح",
-                         style: TextStyle(fontSize: 15.0, color: Color.fromARGB(255, 101, 101, 101), fontWeight: FontWeight.bold),
-                        
-                  ),
-                  ],
+            const SizedBox(height: 30),
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: Align(
+                alignment: Alignment.topRight,
+                child: const Text(
+                'نصائح قبل أن تبدأ',
+                style: const TextStyle(
+                  color: Color.fromARGB(255, 11, 11, 11),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
-          
+                ),
+              ),
             ),
+            const SizedBox(height: 10),
+           
+             Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8.0),
+                    
+                    child: 
+                    
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _InfoRow( icon: Icons.volume_off_outlined , text:"ابحث عن مكان هادئ ومريح"),Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( icon: Icons.description_outlined , text:"اقرأ كل مهمة بعناية قبل التسجيل" ),Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( icon: Icons.replay_outlined , text:"يمكنك الاستماع واعادة التسجيل"),Divider(height: 32.0, thickness: 1, color: Color.fromARGB(255, 223, 223, 223)),
+                        _InfoRow( icon: Icons.phone_iphone , text:"ابق جهازك قريبا لصوت واضح")
+                      ],
+                    ),
+                  ),
 
-
-          
+          /*
 
              Container(
               width: double.infinity,
@@ -220,6 +200,10 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                   ],
                 ),
             ),
+
+
+
+            
              Container(
               width: double.infinity,
               height: 60,
@@ -260,7 +244,7 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
 
 
 
-
+*/
                   
 
 
@@ -270,13 +254,13 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
 
       ]),
         )
-      )
+      ))
         )
     ,bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
  
                   child: SizedBox(
-                    height: 60.0,
+                    height: 56.0,
                     child: ElevatedButton(
                   onPressed: () {
 
@@ -291,10 +275,10 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
 
                     backgroundColor: const Color(0xFF6FA7A3),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.0),
+                      borderRadius: BorderRadius.circular(18.0),
                       
                     ),
-                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 20.0, color: Colors.white),),
+                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 18.0, color: Colors.white),),
                   ),
                   ),
     ));
@@ -302,4 +286,35 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
 }
 
 
+}
+
+
+// Reusable information row
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.text, required this.icon});
+
+  final String text;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 25.0,
+          color: const Color.fromARGB(255, 114, 183, 168),
+        ),
+        const SizedBox(width: 12.0),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              fontSize: 15.0,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }

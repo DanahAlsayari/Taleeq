@@ -37,6 +37,7 @@ class _SpeechAssesmentQuestionsScreen
   void initState() {
     super.initState();
     _createAssessment();
+    _loadTasks();
 
     player.positionStream.listen((position) {
       if (!mounted) return;
@@ -158,6 +159,7 @@ class _SpeechAssesmentQuestionsScreen
   Timer? recordingTimer;
 
   // Questions list
+  /*
   final List<Map<String, dynamic>> questions = [
     {
       'title': 'المهمة ١ من ٣',
@@ -183,6 +185,30 @@ class _SpeechAssesmentQuestionsScreen
       'content': 'this is the text"',
     },
   ];
+*/
+List<Map<String, dynamic>> questions = [];
+  bool _isLoadingTasks = true;
+  String? _tasksError;
+
+  Future<void> _loadTasks() async {
+    try {
+      final tasks = await _assessmentApiService.getSpeechTasks();
+
+      if (!mounted) return;
+
+      setState(() {
+        questions = tasks;
+        _isLoadingTasks = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _tasksError = 'تعذر تحميل مهام التقييم';
+        _isLoadingTasks = false;
+      });
+    }
+  }
 
   void startAmplitudeTimer() {
     amplitudeTimer = Timer.periodic(const Duration(milliseconds: 150), (
@@ -229,6 +255,28 @@ class _SpeechAssesmentQuestionsScreen
 
   @override
   Widget build(BuildContext context) {
+        if (_isLoadingTasks) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFCFAF6),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF6FA7A3)),
+        ),
+      );
+    }
+
+    if (_tasksError != null || questions.isEmpty) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFFCFAF6),
+        body: Center(
+          child: Text(
+            _tasksError ?? 'لا توجد مهام متاحة',
+            textDirection: TextDirection.rtl,
+            style: const TextStyle(fontSize: 16.0),
+          ),
+        ),
+      );
+    }
+
     final currentQuestion = questions[currentQuestionIndex];
     if (_isSubmitting) {
       return const Scaffold(
@@ -349,12 +397,10 @@ class _SpeechAssesmentQuestionsScreen
                   const SizedBox(height: 20.0),
                   Row(
                     children: [
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Container(
-                          width: MediaQuery.of(context).size.width / 4,
-                          height: 30,
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      
+                        Container(
+                         
+                          padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
                           decoration: BoxDecoration(
                             color: const Color(0xFFCFE4E1),
                             borderRadius: BorderRadius.circular(18),
@@ -362,15 +408,14 @@ class _SpeechAssesmentQuestionsScreen
                           child: Align(
                             alignment: AlignmentDirectional.center,
                             child: Text(
-                              currentQuestion['title'],
-                              style: const TextStyle(
+                              'المهمة ${currentQuestionIndex + 1} من ${questions.length}',                              style: const TextStyle(
                                 color: Color(0xFF1F5F5A),
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
                             ),
                           ),
-                        ),
+                        
                       ),
                       const SizedBox(width: 6.0),
                       Container(
@@ -435,7 +480,7 @@ class _SpeechAssesmentQuestionsScreen
                               style: const TextStyle(
                                 color: Color(0xFF2E3A38),
                                 fontWeight: FontWeight.normal,
-                                fontSize: 18,
+                                fontSize: 16,
                                 height: 1.8,
                               ),
                             )
@@ -450,7 +495,7 @@ class _SpeechAssesmentQuestionsScreen
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children: const [
+                              children:  [
                                 Row(
                                   children: [
                                     Icon(
@@ -469,8 +514,7 @@ class _SpeechAssesmentQuestionsScreen
                                   ],
                                 ),
                                 SizedBox(height: 20),
-                                Text(
-                                  "دراستك ، عملك ، هواياتك ، اهتماماتك، او اي شيء تود مشاركته",
+                                  Text(currentQuestion['content'],
                                   style: TextStyle(
                                     color: Color(0xFF23E3A38),
                                     fontWeight: FontWeight.bold,
@@ -807,9 +851,9 @@ class _SpeechAssesmentQuestionsScreen
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
         child: SizedBox(
-          height: 60.0,
+          height: 56.0,
           child: ElevatedButton(
             onPressed: () async {
               if (isRecording) {
@@ -866,12 +910,12 @@ class _SpeechAssesmentQuestionsScreen
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6FA7A3),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(18.0),
               ),
             ),
             child: Text(
               currentQuestionIndex == questions.length - 1 ? "إرسال" : "التالي",
-              style: const TextStyle(fontSize: 16.0, color: Colors.white),
+              style: const TextStyle(fontSize: 18.0, color: Colors.white),
             ),
           ),
         ),

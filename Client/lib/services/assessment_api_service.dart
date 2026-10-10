@@ -60,6 +60,25 @@ class AssessmentApiService {
       'فشل إنشاء التقييم (${response.statusCode})',
     );
   }
+   Future<List<Map<String, dynamic>>> getSpeechTasks() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/assessments/speech/tasks'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final tasks = body['tasks'] as List<dynamic>;
+
+      return tasks
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+    }
+
+    throw Exception(
+      'فشل تحميل مهام التقييم (${response.statusCode})',
+    );
+  }
 
   Future<Map<String, dynamic>> analyzeAssessmentAudio({
     required int assessmentId,

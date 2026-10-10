@@ -446,7 +446,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextButton(
                       onPressed: () {
                         Navigator
-                            .pushReplacement(
+                            .push(
                           context,
                           MaterialPageRoute(
                             builder: (context) =>

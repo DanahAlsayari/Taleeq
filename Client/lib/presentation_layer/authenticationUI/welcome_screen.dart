@@ -51,6 +51,57 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
+              Container (
+                padding: const EdgeInsets.symmetric(vertical: 20.0),
+                decoration: BoxDecoration(
+                  border: Border(
+                  top : BorderSide(color: Color(0xFFEEE6D9)),
+                  bottom : BorderSide(color: Color(0xFFEEE6D9)),
+                  ),
+                ),
+                child: const IntrinsicHeight(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FeatureCard(
+                          icon: Icons.mic_rounded,
+                          text: 'تقييم ذكي \n لكلامك',
+                        ),
+                      ),
+                      VerticalDivider(
+                        color: Color(0xFFEEE6D9),
+                        width: 1,
+                      ),
+                      Expanded(
+                        child: FeatureCard(
+                          icon: Icons.psychology_rounded,
+                          text: 'خطة تدريب \n مخصصة لك',
+                        ),
+                      ),
+                      VerticalDivider(
+                        color: Color(0xFFEEE6D9),
+                        width: 1,
+                      ),
+                      Expanded(
+                        child: FeatureCard(
+                          icon: Icons.trending_up_rounded,
+                          text: 'تابع تقدمك \n وتطورك', 
+                        ),
+                      ),
+
+                    ]
+                    
+                          ),
+                        ),
+                      ),
+                   
+
+
+
+/*
+
+
+
                 const FeatureCard(
                   icon: Icons.mic_rounded,
                   text: 'تقييم كلام شخصي بالذكاء الاصطناعي',
@@ -69,7 +120,7 @@ class WelcomeScreen extends StatelessWidget {
                   icon: Icons.trending_up_rounded,
                   text: 'تابع تقدمك وتطورك',
                 ),
-
+*/
                 const SizedBox(height: 40),
 
                 SizedBox(
@@ -151,36 +202,32 @@ class FeatureCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return Column(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color:const Color(0xFFE4EFED),
+            borderRadius: BorderRadius.circular(14),
+       
+      ),
+
+      child: Icon(icon, color: const Color(0xFF1F5F5A), size: 22),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Color(0xFF2E3A38),
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            height: 1.5,
+          ),
+          
           ),
         ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: const Color(0xFF1F5F5A), size: 27),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Color(0xFF2E3A38),
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+      );
   }
 }

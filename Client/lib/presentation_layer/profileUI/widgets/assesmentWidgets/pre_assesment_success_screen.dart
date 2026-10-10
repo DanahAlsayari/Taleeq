@@ -17,7 +17,7 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
             children: [
               const Icon(Icons.check_circle, size: 80.0, color: Color(0xFF6FA7A3)),
               const SizedBox(height:17),
-                Text( ' ! شكرا لك  ', style: TextStyle(color: Colors.black , fontWeight : FontWeight.bold , fontSize : 35),),
+                Text( ' شكرا لك  ', style: TextStyle(color: Colors.black , fontWeight : FontWeight.bold , fontSize : 35),),
                 Text( ' تم حفظ اجاباتك', style: TextStyle(color: const Color.fromARGB(255, 10, 10, 10) , fontWeight : FontWeight.w100 , fontSize : 17),),
                 const SizedBox(height:17),
                 Text( '  اتممت التقييم القبلي بنجاح ! الخطوة التالية هي تقييم صوتي للكلام يتضمن مهام لتساعدنا على تخصيص تجربتك',textAlign : TextAlign.center ,style: TextStyle(color: const Color.fromARGB(255, 158, 158, 158) , fontWeight : FontWeight.w100 , fontSize : 17 ,  ), ),
