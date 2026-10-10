@@ -114,7 +114,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
           child: child!,
         );
       },
-      home: const  PreAssessmentIntroScreen(),
+      home: const  WelcomeScreen(),
       routes: {
         '/signup': (context) => const SignupScreen(),
         '/home': (context) => const HomeScreen(),

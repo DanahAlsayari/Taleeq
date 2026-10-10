@@ -48,9 +48,11 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 16.0, color: Colors.white),
                     ),
                     ),
+                    
                   ),
 
       ),
+      
 
         body: Directionality(
           textDirection: TextDirection.rtl,
@@ -159,7 +161,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   */
 
 
-                  
+
                   SkipAssessmentButton(
                     onPressed: () {
                       Navigator.pushNamedAndRemoveUntil(

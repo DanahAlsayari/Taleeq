@@ -20,7 +20,6 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
           child: Column(
             children: [
               
-              const SizedBox(height: 30.0,),
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: IconButton(
