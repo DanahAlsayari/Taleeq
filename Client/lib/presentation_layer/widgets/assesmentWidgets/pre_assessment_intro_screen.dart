@@ -14,46 +14,58 @@ class PreAssessmentIntroScreen extends StatelessWidget {
       canPop: allowBack,
       child: Scaffold(
         backgroundColor: const Color(0xFFFCFAF6),
-
-
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
-        child :
-
-                  // Start button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56.0,
-                    child: ElevatedButton(
-
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              const PreAssessmentQuestionsScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6FA7A3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18.0),
-                     
-                      
-                      ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Start button
+            SizedBox(
+              width: double.infinity,
+              height: 56.0,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const PreAssessmentQuestionsScreen(),
                     ),
-                    child: const Text(
-                      "ابدأ التقييم المسبق",
-                      style: TextStyle(fontSize: 16.0, color: Colors.white),
-                    ),
-                    ),
-                    
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6FA7A3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18.0),
                   ),
+                ),
+                child: const Text(
+                  "ابدأ التقييم المسبق",
+                  style: TextStyle(
+                    fontSize: 16.0,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
 
+
+
+            // Skip assessment button
+            SkipAssessmentButton(
+              onPressed: () {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  '/home',
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+        ),
       ),
-      
 
+      
         body: Directionality(
           textDirection: TextDirection.rtl,
           child: SafeArea(
@@ -162,15 +174,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
 
 
 
-                  SkipAssessmentButton(
-                    onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        '/home',
-                        (route) => false,
-                      );
-                    },
-                  ),
+                 
                 ],
               ),
             ),

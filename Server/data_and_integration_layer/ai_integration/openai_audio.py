@@ -126,7 +126,7 @@ class OpenAIAudioAnalyzer:
         print("🔍 ACTIVE WINDOWS:", active_windows, "/", len(rms_values))
 
         # حد مبدئي لمستوى الصوت المنخفض جدًا
-        MIN_MEDIAN_RMS = 0.01
+        MIN_MEDIAN_RMS = 0.015
 
         if median_rms < MIN_MEDIAN_RMS:
             print("🔇 AUDIO REJECTED: VOLUME TOO LOW")
