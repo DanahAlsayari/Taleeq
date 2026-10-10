@@ -8,6 +8,9 @@ import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
 import 'presentation_layer/authenticationUI/welcome_screen.dart';
 import 'presentation_layer/authenticationUI/signup_screen.dart';
+import 'presentation_layer/HomepageUI/home_screen.dart';
+import 'presentation_layer/widgets/assesmentWidgets/pre_assesment_success_screen.dart';
+import 'presentation_layer/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -111,10 +114,11 @@ class _TaleeqAppState extends State<TaleeqApp> {
           child: child!,
         );
       },
-
-      // مؤقتًا نفتح Profile مباشرة.
-      // روابط Reset Password يتم التعامل معها داخل _handleLink().
-      home: const SignupScreen(),
+      home: const  PreAssessmentIntroScreen(),
+      routes: {
+        '/signup': (context) => const SignupScreen(),
+        '/home': (context) => const HomeScreen(),
+      },
     );
   }
 }

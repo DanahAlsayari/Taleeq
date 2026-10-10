@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'speech_assesment_intro_screen.dart';
 import '../../widgets/journey_stepper.dart';
+import '../../widgets/skip_assessment_button.dart';
+import '../../HomepageUI/home_screen.dart';
 class PreAssessmentSuccessScreen extends StatelessWidget {
  const PreAssessmentSuccessScreen({super.key});
                           
@@ -46,12 +48,22 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF6FA7A3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
-                      
-                    ),
-                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 20.0, color: Colors.white),),
-                  ),
-                  ),
 
+                    ),
+        
+                
+                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 18.0, color: Colors.white),),
+                  ),
+                  ),
+                    SkipAssessmentButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    },
+                  ),
 
             ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/journey_stepper.dart';
 import 'pre_assessment_questions_screen.dart';
+import '../../widgets/skip_assessment_button.dart';
 
 class PreAssessmentIntroScreen extends StatelessWidget {
   const PreAssessmentIntroScreen({super.key, this.allowBack = true});
@@ -20,20 +21,8 @@ class PreAssessmentIntroScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  if (allowBack)
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: IconButton(
-                        onPressed: () {
-                          Navigator.maybePop(context);
-                        },
-                        icon: const Icon(Icons.arrow_back),
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 48.0),
-
-
+                  
+                 const SizedBox(height: 12.0),
                   // Journey stepper
                   const JourneyStepper(currentStep: 2),
 
@@ -136,6 +125,15 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                       "ابدأ التقييم المسبق",
                       style: TextStyle(fontSize: 16.0, color: Colors.white),
                     ),
+                  ),
+                  SkipAssessmentButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    },
                   ),
                 ],
               ),
