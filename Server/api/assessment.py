@@ -647,7 +647,8 @@ async def analyze_assessment_audio(
         raise HTTPException(
             status_code=400,
             detail=str(error),
-        )
+        ) from error
+
 
     # Mark the assessment as completed only after
     # all audio tasks are analyzed successfully.
@@ -698,3 +699,66 @@ def analyze_latest_assessment(
         "assessment_id": assessment.id,
         "result": result,
     }
+
+# =========================================================
+# Validate Single Assessment Audio
+# =========================================================
+
+@router.post("/{assessment_id}/validate-audio")
+async def validate_assessment_audio(
+    assessment_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+    assessment = repository.get_assessment(assessment_id)
+    print("🚨 FASTAPI VALIDATE ENDPOINT CALLED")
+    if not assessment:
+        raise HTTPException(
+            status_code=404,
+            detail="لم يتم العثور على التقييم.",
+        )
+
+    if assessment.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح لك بالوصول إلى هذا التقييم.",
+        )
+
+    audio_bytes = await file.read()
+
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="التسجيل فارغ. أعيدي التسجيل وحاول مرة أخرى.",
+        )
+
+    audio_format = (
+        file.filename.rsplit(".", 1)[-1].lower()
+        if file.filename and "." in file.filename
+        else ""
+    )
+
+    try:
+        analyzer = OpenAIAudioAnalyzer()
+        analyzer.analyze_audio(audio_bytes, audio_format)
+
+        return {
+            "valid": True,
+            "message": "التسجيل قابل للتحليل.",
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(f"Audio validation failed: {error}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="تعذر التحقق من التسجيل حاليًا. حاول مرة أخرى.",
+        ) from error

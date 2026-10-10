@@ -898,13 +898,22 @@ List<Map<String, dynamic>> questions = [];
                 return;
               }
               try {
-                if (_assessmentId == null) {
-                  throw Exception('لم يتم إنشاء التقييم.');
-                }
-
                 if (currentQuestionIndex < questions.length - 1) {
+                  print('1. بدأ التحقق من التسجيل');
+
                   await recordingService.stopAudio();
                   await player.seek(Duration.zero);
+
+                  print('2. إرسال التسجيل للتحقق');
+
+                  await _assessmentApiService.validateAssessmentAudio(
+                    assessmentId: _assessmentId!,
+                    recordingPath: path,
+                  );
+
+                  print('3. التسجيل اجتاز التحقق');
+
+                  if (!mounted) return;
 
                   setState(() {
                     currentQuestionIndex++;

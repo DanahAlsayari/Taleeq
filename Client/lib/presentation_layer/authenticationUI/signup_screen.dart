@@ -460,7 +460,22 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                 JourneyStepper(currentStep: 1),
+
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: IconButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context).popUntil(
+                                (route) => route.isFirst,
+                              );
+                            },
+                      icon: const Icon(Icons.arrow_back_ios_new ),
+                    ),
+                  ),
+                  const JourneyStepper(currentStep: 1),
+
                   const Text(
                     'مرحبًا بك في طليق',
                     textAlign: TextAlign.center,
