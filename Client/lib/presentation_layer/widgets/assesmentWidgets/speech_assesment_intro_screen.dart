@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pre_assesment_success_screen.dart';
 import 'speech_assesment_questions_screen.dart';
-
+import '../../widgets/journey_stepper.dart';
 class SpeechAssesmentIntroScreen extends StatelessWidget {
      const SpeechAssesmentIntroScreen({super.key});
 
@@ -30,24 +30,11 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
               icon: const Icon (Icons.arrow_back,),
             ),
             ),
-            const SizedBox(height: 30.0,),
+           
 
-            Align(
-            alignment: AlignmentDirectional.centerStart,
-            child:Container(
-              width: MediaQuery.of(context).size.width/2.4,
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7EAD7),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child :Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text ("الخطوة ٢ من ٢ : تقييم الكلام" ,style: const TextStyle(color: const Color(0xFF6FA7A3), fontWeight: FontWeight.bold , fontSize: 13) , ),
-                )
-              ),
-            ),
+              JourneyStepper(currentStep: 3),
+            
+            
             const SizedBox(height: 10.0,),
             Align(
             alignment: AlignmentDirectional.centerStart,

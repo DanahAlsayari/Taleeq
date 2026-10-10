@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
-
+import '../widgets/journey_stepper.dart';
 import '../../services/auth_storage.dart';
-import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 import '../../services/api_config_service.dart';
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -435,16 +435,7 @@ class _SignupScreenState extends State<SignupScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: background,
-        appBar: AppBar(
-          backgroundColor: background,
-          elevation: 0,
-          foregroundColor: darkText,
-          title: const Text(
-            'إنشاء حساب',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          centerTitle: true,
-        ),
+     
         body: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -454,6 +445,7 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                 JourneyStepper(currentStep: 1),
                   const Text(
                     'مرحبًا بك في طليق',
                     textAlign: TextAlign.center,

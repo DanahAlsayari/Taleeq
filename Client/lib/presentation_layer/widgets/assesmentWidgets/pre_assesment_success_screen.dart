@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'speech_assesment_intro_screen.dart';
+import '../../widgets/journey_stepper.dart';
 class PreAssessmentSuccessScreen extends StatelessWidget {
  const PreAssessmentSuccessScreen({super.key});
-
+                          
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,10 +12,13 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             
             
             children: [
+               const SizedBox(height:110),
+              JourneyStepper(currentStep: 2),
+               const SizedBox(height:120),
               const Icon(Icons.check_circle, size: 80.0, color: Color(0xFF6FA7A3)),
               const SizedBox(height:17),
                 Text( ' ! شكرا لك  ', style: TextStyle(color: Colors.black , fontWeight : FontWeight.bold , fontSize : 35),),

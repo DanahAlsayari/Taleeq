@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
 import 'presentation_layer/authenticationUI/welcome_screen.dart';
-
+import 'presentation_layer/authenticationUI/signup_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -94,6 +94,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
 
   @override
   Widget build(BuildContext context) {
+
     return MaterialApp(
       navigatorKey: _navigatorKey,
       debugShowCheckedModeBanner: false,
@@ -113,7 +114,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
 
       // مؤقتًا نفتح Profile مباشرة.
       // روابط Reset Password يتم التعامل معها داخل _handleLink().
-      home: const WelcomeScreen(),
+      home: const SignupScreen(),
     );
   }
 }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import '../../widgets/journey_stepper.dart';
 import 'pre_assessment_questions_screen.dart';
 
 class PreAssessmentIntroScreen extends StatelessWidget {
@@ -33,8 +33,11 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   else
                     const SizedBox(height: 48.0),
 
-                  const SizedBox(height: 60.0),
 
+                  // Journey stepper
+                  const JourneyStepper(currentStep: 2),
+
+                 const SizedBox(height: 28.0),
                   // Document icon
                   Container(
                     width: 74,
@@ -50,28 +53,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 28.0),
 
-                  // Step indicator
-                  Container(
-                    width: double.infinity,
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7EAD7),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        "الخطوة ١ من ٢ : التقييم المسبق",
-                        style: TextStyle(
-                          color: Color(0xFF6FA7A3),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 35.0),
 

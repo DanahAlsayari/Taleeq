@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/assessment_api_service.dart';
-import '../../../fluencyUI/fluency_profile_screen.dart';
+import '../../../services/assessment_api_service.dart';
+import '../../fluencyUI/fluency_profile_screen.dart';
 import 'speech_assesment_intro_screen.dart';
 
 import 'dart:io';
 
-import '../../../../models/fluency_profile_data.dart';
+import '../../../models/fluency_profile_data.dart';
 
 import 'package:client/services/recording_service.dart';
 import 'package:client/presentation_layer/error_snackbar.dart';
 
 import "package:just_audio/just_audio.dart";
-import 'package:client/presentation_layer/profileUI/widgets/audio_waveform.dart';
-
+import 'package:client/presentation_layer/widgets/audio_waveform.dart';
+import '../../widgets/journey_stepper.dart';
 import 'dart:async';
 
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
@@ -345,17 +345,16 @@ class _SpeechAssesmentQuestionsScreen
                           },
                           icon: const Icon(Icons.arrow_back),
                         ),
+                        
                       ),
+           
                       const SizedBox(width: 120.0),
                       Column(
-                        children: [
-                          Text(
-                            "${questions.length}/${currentQuestionIndex + 1}",
-                            style: const TextStyle(
-                              color: Color(0xFF8FA39F),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        children: [       
+                              const SizedBox(height: 35.0),
+                              // Journey stepper
+                             const JourneyStepper(currentStep: 3),
+                          
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -436,7 +435,7 @@ class _SpeechAssesmentQuestionsScreen
                       style: const TextStyle(
                         color: Color.fromARGB(255, 8, 8, 8),
                         fontWeight: FontWeight.bold,
-                        fontSize: 22,
+                        fontSize: 20,
                       ),
                     ),
                   ),
@@ -575,14 +574,7 @@ class _SpeechAssesmentQuestionsScreen
                               ),
                             ),
                             const SizedBox(height: 4.0),
-                            const Text(
-                              "يبدأ التسجيل فقط عند ضغطك",
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 14,
-                                color: Color(0xFF8FA39F),
-                              ),
-                            ),
+                            
                           ],
                         ),
 

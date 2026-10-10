@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
 import '../../services/fluency_profile_service.dart';
+import '../widgets/journey_stepper.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -362,31 +363,8 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF16A34A),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'اكتمل التقييم بنجاح ✓',
-                        style: GoogleFonts.cairo(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF16A34A),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
+                  JourneyStepper(currentStep: 4),
+                
 
                   Text(
                     'ملف طلاقتي',
