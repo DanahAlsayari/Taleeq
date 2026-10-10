@@ -163,7 +163,29 @@ class AssessmentAnalysisService:
             overall_result,
         )
 
-        return overall_result
+        task_results = []
+
+        for (task_type, _, _), saved_result in zip(audio_tasks, results):
+
+            patterns = {
+                "repetition": saved_result.repetition_percent,
+                "prolongation": saved_result.prolongation_percent,
+                "block": saved_result.block_percent,
+            }
+
+            primary_pattern = max(patterns, key=patterns.get)
+
+            task_results.append({
+                "task_type": task_type,
+                "pattern": primary_pattern,
+                "percent": patterns[primary_pattern],
+                "stuttering_percent": saved_result.stuttering_percent,
+            })
+
+        return {
+            **overall_result,
+            "task_results": task_results,
+        }
 
     # ---------------------------------------------------------
     # CALCULATE OVERALL RESULT

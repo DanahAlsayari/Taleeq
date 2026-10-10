@@ -66,13 +66,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   @override
   void initState() {
     super.initState();
-
-    if (widget.profileData != null) {
-      _data = widget.profileData!;
-      _isLoading = false;
-    } else {
-      _loadFluencyProfile();
-    }
+    _loadFluencyProfile();
   }
 
   Future<void> _loadFluencyProfile() async {
@@ -1305,11 +1299,34 @@ class _TaskResultsCard extends StatelessWidget {
   final List<TaskResultData> tasks;
 
   const _TaskResultsCard({required this.tasks});
+  String _getTaskName(String taskType) {
+    switch (taskType) {
+      case 'task_1':
+        return 'القراءة بصوت عالٍ';
+      case 'task_2':
+        return 'وصف الصورة';
+      case 'task_3':
+        return 'التحدث العفوي';
+      default:
+        return taskType;
+    }
+  }
+  String _getPatternName(String pattern) {
+  switch (pattern.toLowerCase()) {
+    case 'repetition':
+      return 'التكرار';
+    case 'prolongation':
+      return 'الإطالة';
+    case 'block':
+      return 'التوقف';
+    default:
+      return pattern;
+  }
+}
 
   @override
   Widget build(BuildContext context) {
-    // مؤقتًا للتصميم فقط
-    // بعدين نربطها بالـ API الحقيقي
+    debugPrint('TASK RESULTS COUNT: ${tasks.length}');
 
     final highestPercent = tasks.isEmpty
         ? 0.0
@@ -1373,15 +1390,15 @@ class _TaskResultsCard extends StatelessWidget {
 
           ...List.generate(tasks.length, (index) {
             final task = tasks[index];
-            final percent = task.percent;س
+            final percent = task.percent;
 
             return Padding(
               padding: EdgeInsets.only(
                 bottom: index == tasks.length - 1 ? 0 : 16,
               ),
               child: _buildTaskResult(
-                taskName: task.taskType,
-                patternName: task.pattern,
+                taskName: _getTaskName(task.taskType),
+               patternName: _getPatternName(task.pattern),
                 percent: percent,
                 relativePercent: highestPercent == 0
                     ? 0
@@ -1436,14 +1453,24 @@ class _TaskResultsCard extends StatelessWidget {
 
           const SizedBox(height: 4),
 
-          Text(
-            'أبرز نمط: $patternName',
-            style: GoogleFonts.cairo(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: TaleeqTheme.textMuted,
+          if (percent > 0)
+            Text(
+              'أبرز نمط: $patternName',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: TaleeqTheme.textMuted,
+              ),
+            )
+          else
+            Text(
+              'لم يتم رصد أي نمط تأتأة',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: TaleeqTheme.textMuted,
+              ),
             ),
-          ),
 
           const SizedBox(height: 12),
 
