@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-
+import '../../widgets/journey_stepper.dart';
 import 'pre_assessment_questions_screen.dart';
+import '../../widgets/skip_assessment_button.dart';
 
 class PreAssessmentIntroScreen extends StatelessWidget {
   const PreAssessmentIntroScreen({super.key, this.allowBack = true});
@@ -59,10 +60,11 @@ class PreAssessmentIntroScreen extends StatelessWidget {
               child: Column(
                 children: [
                   
-                    const SizedBox(height: 48.0),
+                 const SizedBox(height: 12.0),
+                  // Journey stepper
+                  const JourneyStepper(currentStep: 2),
 
-                  const SizedBox(height: 60.0),
-
+                 const SizedBox(height: 28.0),
                   // Document icon
                   Container(
                     width: 74,
@@ -78,28 +80,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 28.0),
 
-                  // Step indicator
-                  Container(
-                    width: double.infinity,
-                    height: 40,
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7EAD7),
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: const Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: Text(
-                        "الخطوة ١ من ٢ : التقييم المسبق",
-                        style: TextStyle(
-                          color: Color(0xFF6FA7A3),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
 
                   const SizedBox(height: 35.0),
 
@@ -146,8 +127,48 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   ),
 
         
+/*
+
+                  // Start button
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const PreAssessmentQuestionsScreen(),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6FA7A3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18.0),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24.0,
+                        vertical: 12.0,
+                      ),
+                    ),
+                    child: const Text(
+                      "ابدأ التقييم المسبق",
+                      style: TextStyle(fontSize: 16.0, color: Colors.white),
+                    ),
+                  ),
+
+                  */
 
 
+                  
+                  SkipAssessmentButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    },
+                  ),
                 ],
               ),
             ),

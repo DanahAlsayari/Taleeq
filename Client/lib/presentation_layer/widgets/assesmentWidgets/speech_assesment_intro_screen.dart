@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'pre_assesment_success_screen.dart';
 import 'speech_assesment_questions_screen.dart';
-
+import '../../widgets/journey_stepper.dart';
 class SpeechAssesmentIntroScreen extends StatelessWidget {
      const SpeechAssesmentIntroScreen({super.key});
 
@@ -21,21 +21,22 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
             children: [
               
               const SizedBox(height: 30.0,),
-
             Align(
-            alignment: AlignmentDirectional.centerStart,
-            child:Container(
-
-              padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 8.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF7EAD7),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child :
-                 Text ("الخطوة ٢ من ٢ : تقييم الكلام" ,style: const TextStyle(color: const Color(0xFF6FA7A3), fontWeight: FontWeight.bold , fontSize: 13) , ),
-                
+              alignment: AlignmentDirectional.centerStart,
+              child: IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const PreAssessmentSuccessScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.arrow_back),
               ),
             ),
+
+            const JourneyStepper(currentStep:3),
             const SizedBox(height: 28.0,),
             Align(
             alignment: AlignmentDirectional.centerStart,
@@ -95,7 +96,7 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                 alignment: Alignment.topRight,
                 child: const Text(
                 'نصائح قبل أن تبدأ',
-                style: const TextStyle(
+                style: TextStyle(
                   color: Color.fromARGB(255, 11, 11, 11),
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -121,135 +122,6 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-
-          /*
-
-             Container(
-              width: double.infinity,
-              height: 60,
-              padding: const EdgeInsets.all(20.0),
-              margin: const EdgeInsets.symmetric(vertical : 3),
-
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 1), // changes position of shadow
-                  ),
-                ],
-                
-              ),
-    
-                    child: Row(
-                      children: [
-                      const Icon(
-                        Icons.description_outlined,
-                        size: 25.0,
-                        color: Color.fromARGB(255, 182, 201, 197),),
-                        
-                      const SizedBox(width: 12.0,),
-
-                      const Text(
-                        "اقرأ كل مهمة بعناية قبل التسجيل",
-                         style: TextStyle(fontSize: 15.0, color: Color.fromARGB(255, 101, 101, 101), fontWeight: FontWeight.bold),
-                        
-                  ),
-                  ],
-                ),
-            ),
-
-
-             Container(
-              width: double.infinity,
-              height: 60,
-              padding: const EdgeInsets.all(20.0),
-              margin: const EdgeInsets.symmetric(vertical : 3),
-
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 1), // changes position of shadow
-                  ),
-                ],
-                
-              ),
-    
-                    child: Row(
-                      children: [
-                      const Icon(
-                        Icons.replay,
-                        size: 25.0,
-                        color: Color.fromARGB(255, 182, 201, 197),),
-                        
-                      const SizedBox(width: 12.0,),
-
-                      const Text(
-                        "يمكنك الاستماع واعادة التسجيل",
-                         style: TextStyle(fontSize: 15.0, color: Color.fromARGB(255, 101, 101, 101), fontWeight: FontWeight.bold),
-                        
-                  ),
-                  ],
-                ),
-            ),
-
-
-
-            
-             Container(
-              width: double.infinity,
-              height: 60,
-              padding: const EdgeInsets.all(20.0),
-              margin: const EdgeInsets.symmetric(vertical : 3),
-
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFFFFF),
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    spreadRadius: 1,
-                    blurRadius: 5,
-                    offset: const Offset(0, 1), // changes position of shadow
-                  ),
-                ],
-                
-              ),
-    
-                    child: Row(
-                      children: [
-                      const Icon(
-                        Icons.phone_iphone,
-                        size: 25.0,
-                        color: Color.fromARGB(255, 182, 201, 197),),
-                        
-                      const SizedBox(width: 12.0,),
-
-                      const Text(
-                        "ابق جهازك قريبا لصوت واضح",
-                         style: TextStyle(fontSize: 15.0, color: Color.fromARGB(255, 101, 101, 101), fontWeight: FontWeight.bold),
-                        
-                  ),
-                  ],
-                ),
-            ),
-
-
-
-*/
-                  
-
-
-
-
 
 
       ]),

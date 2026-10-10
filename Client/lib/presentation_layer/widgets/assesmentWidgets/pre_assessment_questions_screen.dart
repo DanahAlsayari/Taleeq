@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/pre_assessment_service.dart';
-import 'pre_assessment_intro_screen.dart';
+import '../../../services/pre_assessment_service.dart';
 import 'pre_assesment_success_screen.dart';
+import '../../widgets/journey_stepper.dart';
 
 class PreAssessmentQuestionsScreen extends StatefulWidget {
   const PreAssessmentQuestionsScreen({super.key});
@@ -134,8 +134,8 @@ class _PreAssessmentQuestionsScreenState
                 children: [
                   Stack(
                     children: [
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
+                    Align(
+                          alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
                           onPressed: isSubmitting
                               ? null
@@ -145,29 +145,23 @@ class _PreAssessmentQuestionsScreenState
                                       currentQuestionIndex--;
                                     });
                                   } else {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            const PreAssessmentIntroScreen(),
-                                      ),
-                                    );
+                                    Navigator.pop(context);
                                   }
                                 },
                           icon: const Icon(Icons.arrow_back),
                         ),
-                      ),
-                      const SizedBox(width: 120.0),
+                        ),
+            
+                      
+                      
                       Column(
                         children: [
-                          Text(
-                            '${questions.length}/'
-                            '${currentQuestionIndex + 1}',
-                            style: const TextStyle(
-                              color: Color(0xFF8FA39F),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          const SizedBox(height: 35.0),
+                        
+                           JourneyStepper(currentStep: 2),
+                   
+                      
+                          
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -326,7 +320,10 @@ class _PreAssessmentQuestionsScreenState
                     currentQuestionIndex == questions.length - 1
                         ? 'إرسال'
                         : 'التالي',
-                    style: const TextStyle(fontSize: 16.0, color: Colors.white),
+                    style: const TextStyle(
+                      fontSize: 16.0,
+                      color: Colors.white,
+                    ),
                   ),
           ),
         ),

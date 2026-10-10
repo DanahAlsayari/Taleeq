@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/assessment_api_service.dart';
-import '../../../fluencyUI/fluency_profile_screen.dart';
+import '../../../services/assessment_api_service.dart';
+import '../../fluencyUI/fluency_profile_screen.dart';
 import 'speech_assesment_intro_screen.dart';
 
 import 'dart:io';
 
-import '../../../../models/fluency_profile_data.dart';
+import '../../../models/fluency_profile_data.dart';
 
 import 'package:client/services/recording_service.dart';
-//import 'package:client/services/audio_storage_service.dart';
+import 'package:client/presentation_layer/error_snackbar.dart';
 
 import "package:just_audio/just_audio.dart";
-import 'package:client/presentation_layer/profileUI/widgets/audio_waveform.dart';
-
+import 'package:client/presentation_layer/widgets/audio_waveform.dart';
+import '../../widgets/journey_stepper.dart';
 import 'dart:async';
 
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
@@ -26,6 +26,7 @@ class SpeechAssesmentQuestionsScreen extends StatefulWidget {
 
 class _SpeechAssesmentQuestionsScreen
     extends State<SpeechAssesmentQuestionsScreen> {
+  AppLifecycleListener? lifecycleListener;
   int currentQuestionIndex = 0;
 
   final AssessmentApiService _assessmentApiService = AssessmentApiService();
@@ -36,6 +37,13 @@ class _SpeechAssesmentQuestionsScreen
   @override
   void initState() {
     super.initState();
+    lifecycleListener = AppLifecycleListener(
+      onPause: () {
+        if (isRecording && !isStoppingRecording) {
+          finishRecording();
+        }
+      },
+    );
     _createAssessment();
     _loadTasks();
 
@@ -53,6 +61,7 @@ class _SpeechAssesmentQuestionsScreen
 
         setState(() {
           isPlaying = false;
+          playbackPosition = Duration.zero;
         });
       }
     });
@@ -69,10 +78,7 @@ class _SpeechAssesmentQuestionsScreen
       });
     } catch (e) {
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      ErrorSnackBar.show(context, e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -130,33 +136,28 @@ class _SpeechAssesmentQuestionsScreen
         _isSubmitting = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
-      );
+      ErrorSnackBar.show(context, e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
   final recordingService = RecordingService();
-  final player = AudioPlayer();
+  late final AudioPlayer player = recordingService.player;
+
   bool isPlaying = false;
   Duration playbackPosition = Duration.zero;
   String? loadedAudioPath;
   bool hasStartedPlaying = false;
 
   bool isRecording = false;
-
-  //the answers are records not strings
-  final Map<int, Set<String>> answers = {};
+  bool isStoppingRecording = false;
 
   final Map<int, String> recordingPaths = {};
   final Map<int, int> recordingDurations = {};
   final Map<int, List<double>> recordingAmplitudes = {};
 
   final List<double> amplitudes = [];
-  Timer? amplitudeTimer;
 
   int recordingSeconds = 0;
-  Timer? recordingTimer;
 
   // Questions list
   /*
@@ -211,39 +212,46 @@ List<Map<String, dynamic>> questions = [];
   }
 
   void startAmplitudeTimer() {
-    amplitudeTimer = Timer.periodic(const Duration(milliseconds: 150), (
-      timer,
-    ) async {
-      final amplitude = await recordingService.getAmplitude();
-
+    recordingService.startAmplitudeTimer((values) {
       if (!mounted || !isRecording) return;
 
       setState(() {
-        amplitudes.add(amplitude.current);
-
-        if (amplitudes.length > 35) {
-          amplitudes.removeAt(0);
-        }
+        amplitudes
+          ..clear()
+          ..addAll(values);
       });
     });
   }
 
   void stopAmplitudeTimer() {
-    amplitudeTimer?.cancel();
-    amplitudeTimer = null;
+    recordingService.stopAmplitudeTimer();
   }
 
   void startRecordingTimer() {
-    recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        recordingSeconds++;
-      });
-    });
+    recordingService.startRecordingTimer(
+      (seconds) {
+        if (!mounted) return;
+
+        setState(() {
+          recordingSeconds = seconds;
+        });
+      },
+      () async {
+        if (!mounted) return;
+        await finishRecording();
+
+        if (!mounted) return;
+
+        ErrorSnackBar.show(
+          context,
+          "تم إيقاف التسجيل تلقائيًا لوصوله للحد الأقصى (5 دقائق)",
+        );
+      },
+    );
   }
 
   void stopRecordingTimer() {
-    recordingTimer?.cancel();
-    recordingTimer = null;
+    recordingService.stopRecordingTimer();
   }
 
   String formatTime(int seconds) {
@@ -251,6 +259,35 @@ List<Map<String, dynamic>> questions = [];
     final remainingSeconds = seconds % 60;
 
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> finishRecording() async {
+    if (!isRecording || isStoppingRecording) return;
+
+    isStoppingRecording = true;
+
+    stopAmplitudeTimer();
+    stopRecordingTimer();
+
+    try {
+      final path = await recordingService.stopRecording();
+
+      if (!mounted) return;
+
+      setState(() {
+        isRecording = false;
+
+        if (path != null) {
+          recordingPaths[currentQuestionIndex] = path;
+          recordingDurations[currentQuestionIndex] = recordingSeconds;
+          recordingAmplitudes[currentQuestionIndex] = List<double>.from(
+            amplitudes,
+          );
+        }
+      });
+    } finally {
+      isStoppingRecording = false;
+    }
   }
 
   @override
@@ -322,18 +359,15 @@ List<Map<String, dynamic>> questions = [];
                         child: IconButton(
                           onPressed: () async {
                             if (isRecording) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "أوقف التسجيل أولًا قبل الرجوع",
-                                  ),
-                                ),
+                              ErrorSnackBar.show(
+                                context,
+                                "أوقف التسجيل أولًا قبل الرجوع",
                               );
                               return;
                             }
 
                             if (currentQuestionIndex > 0) {
-                              await player.stop();
+                              await recordingService.stopAudio();
                               await player.seek(Duration.zero);
 
                               setState(() {
@@ -344,7 +378,7 @@ List<Map<String, dynamic>> questions = [];
                                 hasStartedPlaying = false;
                               });
                             } else {
-                              await player.stop();
+                              await recordingService.stopAudio();
                               await player.seek(Duration.zero);
 
                               if (!mounted) return;
@@ -360,17 +394,16 @@ List<Map<String, dynamic>> questions = [];
                           },
                           icon: const Icon(Icons.arrow_back),
                         ),
+                        
                       ),
+           
                       const SizedBox(width: 120.0),
                       Column(
-                        children: [
-                          Text(
-                            "${questions.length}/${currentQuestionIndex + 1}",
-                            style: const TextStyle(
-                              color: Color(0xFF8FA39F),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        children: [       
+                              const SizedBox(height: 35.0),
+                              // Journey stepper
+                             const JourneyStepper(currentStep: 3),
+                          
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -448,7 +481,7 @@ List<Map<String, dynamic>> questions = [];
                       style: const TextStyle(
                         color: Color.fromARGB(255, 8, 8, 8),
                         fontWeight: FontWeight.bold,
-                        fontSize: 22,
+                        fontSize: 20,
                       ),
                     ),
                   ),
@@ -586,14 +619,7 @@ List<Map<String, dynamic>> questions = [];
                               ),
                             ),
                             const SizedBox(height: 4.0),
-                            const Text(
-                              "يبدأ التسجيل فقط عند ضغطك",
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 14,
-                                color: Color(0xFF8FA39F),
-                              ),
-                            ),
+                            
                           ],
                         ),
 
@@ -644,25 +670,7 @@ List<Map<String, dynamic>> questions = [];
                             // stop recording
                             GestureDetector(
                               onTap: () async {
-                                final path = await recordingService
-                                    .stopRecording();
-
-                                stopAmplitudeTimer();
-                                stopRecordingTimer();
-
-                                setState(() {
-                                  isRecording = false;
-
-                                  if (path != null) {
-                                    recordingPaths[currentQuestionIndex] = path;
-
-                                    recordingDurations[currentQuestionIndex] =
-                                        recordingSeconds;
-
-                                    recordingAmplitudes[currentQuestionIndex] =
-                                        List.from(amplitudes);
-                                  }
-                                });
+                                await finishRecording();
                               },
                               child: Container(
                                 width: 100,
@@ -699,6 +707,14 @@ List<Map<String, dynamic>> questions = [];
                               amplitudes:
                                   recordingAmplitudes[currentQuestionIndex] ??
                                   [],
+                              progress: hasStartedPlaying
+                                  ? (playbackPosition.inMilliseconds /
+                                            ((recordingDurations[currentQuestionIndex] ??
+                                                    1) *
+                                                1000))
+                                        .clamp(0.0, 1.0)
+                                        .toDouble()
+                                  : 0.0,
                             ),
                             const SizedBox(height: 20),
                             Row(
@@ -710,7 +726,7 @@ List<Map<String, dynamic>> questions = [];
                                       // play record
                                       onTap: () async {
                                         if (isPlaying) {
-                                          await player.pause();
+                                          await recordingService.pauseAudio();
 
                                           setState(() {
                                             isPlaying = false;
@@ -725,7 +741,7 @@ List<Map<String, dynamic>> questions = [];
                                               recordingPaths[currentQuestionIndex]!;
 
                                           if (loadedAudioPath != currentPath) {
-                                            await player.setFilePath(
+                                            await recordingService.loadAudio(
                                               currentPath,
                                             );
 
@@ -744,7 +760,7 @@ List<Map<String, dynamic>> questions = [];
                                             hasStartedPlaying = true;
                                           });
 
-                                          await player.play();
+                                          await recordingService.resumeAudio();
                                         }
                                       },
                                       child: Container(
@@ -781,7 +797,7 @@ List<Map<String, dynamic>> questions = [];
                                 GestureDetector(
                                   // re-record
                                   onTap: () async {
-                                    await player.stop();
+                                    await recordingService.stopAudio();
                                     await player.seek(Duration.zero);
 
                                     if (await recordingService.startRecording(
@@ -857,32 +873,37 @@ List<Map<String, dynamic>> questions = [];
           child: ElevatedButton(
             onPressed: () async {
               if (isRecording) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'أوقف التسجيل أولًا قبل الانتقال الى السؤال التالي',
-                    ),
-                  ),
+                ErrorSnackBar.show(
+                  context,
+                  currentQuestionIndex == questions.length - 1
+                      ? "أوقف التسجيل أولًا قبل إرسال التقييم"
+                      : "أوقف التسجيل أولًا قبل الانتقال للسؤال التالي",
                 );
                 return;
               }
-
               final path = recordingPaths[currentQuestionIndex];
 
               if (path == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("سجل إجابتك أولًا")),
-                );
+                ErrorSnackBar.show(context, "سجل إجابتك أولًا");
                 return;
               }
 
+              final duration = recordingDurations[currentQuestionIndex] ?? 0;
+
+              if (!recordingService.isRecordingDurationValid(duration)) {
+                ErrorSnackBar.show(
+                  context,
+                  "مدة التسجيل لازم تكون 15 ثانية على الأقل، أعيد التسجيل",
+                );
+                return;
+              }
               try {
                 if (_assessmentId == null) {
                   throw Exception('لم يتم إنشاء التقييم.');
                 }
 
                 if (currentQuestionIndex < questions.length - 1) {
-                  await player.stop();
+                  await recordingService.stopAudio();
                   await player.seek(Duration.zero);
 
                   setState(() {
@@ -893,17 +914,16 @@ List<Map<String, dynamic>> questions = [];
                     hasStartedPlaying = false;
                   });
                 } else {
-                  await player.stop();
+                  await recordingService.stopAudio();
                   await player.seek(Duration.zero);
                   await _submitAssessment();
                 }
               } catch (e) {
                 if (!mounted) return;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(e.toString().replaceFirst('Exception: ', '')),
-                  ),
+                ErrorSnackBar.show(
+                  context,
+                  e.toString().replaceFirst('Exception: ', ''),
                 );
               }
             },
@@ -925,10 +945,12 @@ List<Map<String, dynamic>> questions = [];
 
   @override
   void dispose() {
-    amplitudeTimer?.cancel();
-    recordingTimer?.cancel();
-    player.dispose();
+    lifecycleListener?.dispose();
+
+    recordingService.stopAmplitudeTimer();
+    recordingService.stopRecordingTimer();
     recordingService.disposeRecord();
+
     super.dispose();
   }
 }

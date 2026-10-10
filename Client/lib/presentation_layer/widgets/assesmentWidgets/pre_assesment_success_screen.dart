@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'speech_assesment_intro_screen.dart';
+import '../../widgets/journey_stepper.dart';
+import '../../widgets/skip_assessment_button.dart';
+import '../../HomepageUI/home_screen.dart';
 class PreAssessmentSuccessScreen extends StatelessWidget {
  const PreAssessmentSuccessScreen({super.key});
-
+                          
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,10 +14,13 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             
             
             children: [
+               const SizedBox(height:110),
+              JourneyStepper(currentStep: 2),
+               const SizedBox(height:120),
               const Icon(Icons.check_circle, size: 80.0, color: Color(0xFF6FA7A3)),
               const SizedBox(height:17),
                 Text( ' شكرا لك  ', style: TextStyle(color: Colors.black , fontWeight : FontWeight.bold , fontSize : 35),),
@@ -42,12 +48,22 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF6FA7A3),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
-                      
-                    ),
-                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 20.0, color: Colors.white),),
-                  ),
-                  ),
 
+                    ),
+        
+                
+                  ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 18.0, color: Colors.white),),
+                  ),
+                  ),
+                    SkipAssessmentButton(
+                    onPressed: () {
+                      Navigator.pushNamedAndRemoveUntil(
+                        context,
+                        '/home',
+                        (route) => false,
+                      );
+                    },
+                  ),
 
             ],
             ),

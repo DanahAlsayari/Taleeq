@@ -43,10 +43,10 @@ from data_and_integration_layer.database.Repositories.assessment_repository impo
     AssessmentRepository,
 )
 
-
 # =========================================================
 # Schemas
 # =========================================================
+
 
 class PreAssessmentAnswer(BaseModel):
     question_id: int
@@ -82,6 +82,7 @@ router = APIRouter(
 # Analyze Assessment
 # =========================================================
 
+
 @router.post("/{assessment_id}/analyze")
 def analyze_assessment(
     assessment_id: int,
@@ -100,6 +101,7 @@ def analyze_assessment(
 # Test Audio Analysis
 # =========================================================
 
+
 @router.post("/test-analyze")
 async def test_analyze_audio(
     file: UploadFile = File(...),
@@ -116,11 +118,7 @@ async def test_analyze_audio(
         len(audio_bytes),
     )
 
-    audio_format = (
-        file.filename
-        .rsplit(".", 1)[-1]
-        .lower()
-    )
+    audio_format = file.filename.rsplit(".", 1)[-1].lower()
 
     analyzer = OpenAIAudioAnalyzer()
 
@@ -135,6 +133,7 @@ async def test_analyze_audio(
 # =========================================================
 # Pre-Assessment Questions
 # =========================================================
+
 
 @router.get("/pre-assessment/questions")
 def get_pre_assessment_questions(db: Session = Depends(get_db)):
@@ -275,6 +274,7 @@ def get_speech_tasks(
 # Submit Pre-Assessment
 # =========================================================
 
+
 @router.post(
     "/pre-assessment/submissions",
     status_code=201,
@@ -284,10 +284,7 @@ def submit_pre_assessment(
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    question_ids = [
-        answer.question_id
-        for answer in data.answers
-    ]
+    question_ids = [answer.question_id for answer in data.answers]
 
     valid_question_ids = sorted(
         row.id
@@ -302,10 +299,7 @@ def submit_pre_assessment(
 
     submission = PreAssessmentSubmission(
         user_id=current_user.id,
-        answers=[
-            answer.model_dump()
-            for answer in data.answers
-        ],
+        answers=[answer.model_dump() for answer in data.answers],
     )
 
     db.add(submission)
@@ -321,8 +315,9 @@ def submit_pre_assessment(
 
 # =========================================================
 # Get Fluency Profile
-# =========================================================
 
+
+# =========================================================
 @router.get("/fluency-profile")
 def get_fluency_profile(
     current_user: User = Depends(auth.get_current_user),
@@ -330,9 +325,7 @@ def get_fluency_profile(
 ):
     repository = AssessmentRepository(db)
 
-    profile = repository.get_fluency_profile(
-        current_user.id
-    )
+    profile = repository.get_fluency_profile(current_user.id)
 
     if not profile:
         raise HTTPException(
@@ -340,33 +333,58 @@ def get_fluency_profile(
             detail="Fluency profile not found",
         )
 
+    latest_assessment = (
+        db.query(Assessment)
+        .filter(Assessment.user_id == current_user.id)
+        .order_by(Assessment.created_at.desc())
+        .first()
+    )
+
+    task_results = []
+
+    if latest_assessment:
+        for task in latest_assessment.tasks:
+            result = task.analysis_result
+
+            if result is None:
+                continue
+
+            patterns = {
+                "repetition": result.repetition_percent,
+                "prolongation": result.prolongation_percent,
+                "block": result.block_percent,
+            }
+
+            primary_pattern = max(patterns, key=patterns.get)
+
+            task_results.append(
+                {
+                    "task_type": task.task_type,
+                    "pattern": primary_pattern,
+                    "percent": patterns[primary_pattern],
+                    "stuttering_percent": result.stuttering_percent,
+                    "repetition_percent": result.repetition_percent,
+                    "prolongation_percent": result.prolongation_percent,
+                    "block_percent": result.block_percent,
+                }
+            )
+
     return {
-        "overall_stuttering_percent":
-            profile.overall_stuttering_percent,
-
-        "primary_pattern":
-            profile.primary_pattern,
-
-        "repetition_percent":
-            profile.repetition_percent,
-
-        "prolongation_percent":
-            profile.prolongation_percent,
-
-        "block_percent":
-            profile.block_percent,
-
-        "speaking_rate":
-            profile.speaking_rate,
-
-        "timing_pacing":
-            profile.timing_pacing,
+        "overall_stuttering_percent": profile.overall_stuttering_percent,
+        "primary_pattern": profile.primary_pattern,
+        "repetition_percent": profile.repetition_percent,
+        "prolongation_percent": profile.prolongation_percent,
+        "block_percent": profile.block_percent,
+        "speaking_rate": profile.speaking_rate,
+        "timing_pacing": profile.timing_pacing,
+        "task_results": task_results,
     }
 
 
 # =========================================================
 # Get Latest Completed Assessment Status
 # =========================================================
+
 
 @router.get("/status/latest")
 def get_latest_assessment_status(
@@ -400,6 +418,7 @@ def get_latest_assessment_status(
 # Get Assessment Task Results
 # =========================================================
 
+
 @router.get("/{assessment_id}/task-results")
 def get_task_results(
     assessment_id: int,
@@ -408,23 +427,15 @@ def get_task_results(
 ):
     repository = AssessmentRepository(db)
 
-    assessment = repository.get_assessment(
-        assessment_id
-    )
+    assessment = repository.get_assessment(assessment_id)
 
     if not assessment:
-        return {
-            "message": "Assessment not found"
-        }
+        return {"message": "Assessment not found"}
 
     if assessment.user_id != current_user.id:
-        return {
-            "message": "Unauthorized"
-        }
+        return {"message": "Unauthorized"}
 
-    tasks = repository.get_assessment_tasks(
-        assessment_id
-    )
+    tasks = repository.get_assessment_tasks(assessment_id)
 
     results = []
 
@@ -445,13 +456,14 @@ def get_task_results(
             key=patterns.get,
         )
 
-        results.append({
-            "task_id": task.id,
-            "task_type": task.task_type,
-            "highest_pattern": highest_pattern,
-            "highest_pattern_percent":
-                patterns[highest_pattern],
-        })
+        results.append(
+            {
+                "task_id": task.id,
+                "task_type": task.task_type,
+                "highest_pattern": highest_pattern,
+                "highest_pattern_percent": patterns[highest_pattern],
+            }
+        )
 
     return results
 
@@ -459,6 +471,7 @@ def get_task_results(
 # =========================================================
 # Create Assessment
 # =========================================================
+
 
 @router.post("/create")
 def create_assessment(
@@ -484,6 +497,7 @@ def create_assessment(
 # Create / Update Assessment Task
 # =========================================================
 
+
 @router.post("/tasks")
 def create_assessment_task(
     data: AssessmentTaskCreate,
@@ -492,9 +506,7 @@ def create_assessment_task(
 ):
     repository = AssessmentRepository(db)
 
-    assessment = repository.get_assessment(
-        data.assessment_id
-    )
+    assessment = repository.get_assessment(data.assessment_id)
 
     if not assessment:
         raise HTTPException(
@@ -512,11 +524,8 @@ def create_assessment_task(
     task = (
         db.query(AssessmentTask)
         .filter(
-            AssessmentTask.assessment_id ==
-            data.assessment_id,
-
-            AssessmentTask.task_type ==
-            data.task_type,
+            AssessmentTask.assessment_id == data.assessment_id,
+            AssessmentTask.task_type == data.task_type,
         )
         .first()
     )
@@ -555,6 +564,7 @@ def create_assessment_task(
 # Analyze Assessment Audio Directly
 # =========================================================
 
+
 @router.post("/{assessment_id}/analyze-audio")
 async def analyze_assessment_audio(
     assessment_id: int,
@@ -568,16 +578,10 @@ async def analyze_assessment_audio(
     assessment = repository.get_assessment(assessment_id)
 
     if not assessment:
-        raise HTTPException(
-            status_code=404,
-            detail="Assessment not found"
-        )
+        raise HTTPException(status_code=404, detail="Assessment not found")
 
     if assessment.user_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized"
-        )
+        raise HTTPException(status_code=403, detail="Unauthorized")
 
     print("📝 RAW TASK TYPES:", repr(task_types))
     print("📝 TASK TYPES TYPE:", type(task_types))
@@ -585,15 +589,11 @@ async def analyze_assessment_audio(
     try:
         task_types = json.loads(task_types)
     except json.JSONDecodeError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid task types."
-        )
+        raise HTTPException(status_code=400, detail="Invalid task types.")
 
     if len(files) != len(task_types):
         raise HTTPException(
-            status_code=400,
-            detail="Each audio file must have a task type."
+            status_code=400, detail="Each audio file must have a task type."
         )
 
     audio_tasks = []
@@ -603,15 +603,10 @@ async def analyze_assessment_audio(
 
         if not audio_bytes:
             raise HTTPException(
-                status_code=400,
-                detail=f"Empty audio file: {file.filename}"
+                status_code=400, detail=f"Empty audio file: {file.filename}"
             )
 
-        audio_format = (
-            file.filename
-            .rsplit(".", 1)[-1]
-            .lower()
-        )
+        audio_format = file.filename.rsplit(".", 1)[-1].lower()
 
         supported_formats = {
             "wav",
@@ -622,8 +617,7 @@ async def analyze_assessment_audio(
 
         if audio_format not in supported_formats:
             raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported audio format: {audio_format}"
+                status_code=400, detail=f"Unsupported audio format: {audio_format}"
             )
 
         print(
@@ -673,6 +667,7 @@ async def analyze_assessment_audio(
 # Analyze Latest Assessment
 # =========================================================
 
+
 @router.post("/analyze-latest")
 def analyze_latest_assessment(
     current_user: User = Depends(auth.get_current_user),
@@ -680,9 +675,7 @@ def analyze_latest_assessment(
 ):
     repository = AssessmentRepository(db)
 
-    assessment = repository.get_latest_assessment(
-        current_user.id
-    )
+    assessment = repository.get_latest_assessment(current_user.id)
 
     if not assessment:
         raise HTTPException(
@@ -693,9 +686,7 @@ def analyze_latest_assessment(
     service = AssessmentAnalysisService(db)
 
     try:
-        result = service.analyze_assessment(
-            assessment.id
-        )
+        result = service.analyze_assessment(assessment.id)
 
     except ValueError as error:
         raise HTTPException(
