@@ -1,13 +1,16 @@
 import 'dart:math' as math;
+
 import '../profileUI/profile_screen.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../theme/taleeq_theme.dart';
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:percent_indicator/linear_percent_indicator.dart';
+
 import '../../services/fluency_profile_service.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
@@ -74,9 +77,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
   Future<void> _loadFluencyProfile() async {
     try {
-      final data =
-          await _fluencyProfileService
-              .getFluencyProfile();
+      final data = await _fluencyProfileService.getFluencyProfile();
 
       if (!mounted) return;
 
@@ -97,42 +98,40 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-   if (_isLoading) {
-  return Scaffold(
-    backgroundColor: TaleeqTheme.warmBackground,
-    body: Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(
-            color: TaleeqTheme.primaryTeal,
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: TaleeqTheme.warmBackground,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(color: TaleeqTheme.primaryTeal),
+
+              const SizedBox(height: 16),
+
+              Text(
+                'نجهّز لك تحليل طلاقتك...',
+                style: GoogleFonts.cairo(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: TaleeqTheme.darkSlate,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'لحظات ونعرِض لك النتائج',
+                style: GoogleFonts.cairo(
+                  fontSize: 12,
+                  color: TaleeqTheme.textMuted,
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(height: 16),
-
-          Text(
-            'نجهّز لك تحليل طلاقتك...',
-            style: GoogleFonts.cairo(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: TaleeqTheme.darkSlate,
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            'لحظات ونعرِض لك النتائج',
-            style: GoogleFonts.cairo(
-              fontSize: 12,
-              color: TaleeqTheme.textMuted,
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+        ),
+      );
+    }
 
     if (_errorMessage != null) {
       return Directionality(
@@ -271,7 +270,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                       const SizedBox(height: 20),
 
                       // 3. مقاييس ديناميكيات وسرعة النطق (معدل التحدث + الإيقاع)
-                      _TaskResultsCard()
+                      _TaskResultsCard(tasks: _data.taskResults)
                           .animate()
                           .fadeIn(duration: 500.ms, delay: 300.ms)
                           .slideY(begin: 0.08, end: 0),
@@ -317,7 +316,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                                     builder: (context) => const ProfileScreen(),
                                   ),
                                 );
-                            },
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: TaleeqTheme.primaryTeal,
                                 foregroundColor: Colors.white,
@@ -1303,21 +1302,18 @@ class _SimpleSpeechMetricsCard extends StatelessWidget {
 }
 
 class _TaskResultsCard extends StatelessWidget {
-  const _TaskResultsCard();
+  final List<TaskResultData> tasks;
+
+  const _TaskResultsCard({required this.tasks});
 
   @override
   Widget build(BuildContext context) {
     // مؤقتًا للتصميم فقط
     // بعدين نربطها بالـ API الحقيقي
-    final tasks = [
-      {'task': 'القراءة', 'pattern': 'التكرار', 'percent': 14.0},
-      {'task': 'وصف الصورة', 'pattern': 'الإطالة', 'percent': 9.0},
-      {'task': 'الكلام العفوي', 'pattern': 'التوقف', 'percent': 11.0},
-    ];
 
-    final highestPercent = tasks
-        .map((task) => task['percent'] as double)
-        .reduce(math.max);
+    final highestPercent = tasks.isEmpty
+        ? 0.0
+        : tasks.map((task) => task.percent).reduce(math.max);
 
     return Container(
       width: double.infinity,
@@ -1377,15 +1373,15 @@ class _TaskResultsCard extends StatelessWidget {
 
           ...List.generate(tasks.length, (index) {
             final task = tasks[index];
-            final percent = task['percent'] as double;
+            final percent = task.percent;س
 
             return Padding(
               padding: EdgeInsets.only(
                 bottom: index == tasks.length - 1 ? 0 : 16,
               ),
               child: _buildTaskResult(
-                taskName: task['task'] as String,
-                patternName: task['pattern'] as String,
+                taskName: task.taskType,
+                patternName: task.pattern,
                 percent: percent,
                 relativePercent: highestPercent == 0
                     ? 0
