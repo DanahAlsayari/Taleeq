@@ -51,54 +51,43 @@ class WelcomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 30),
 
-              Container (
-                padding: const EdgeInsets.symmetric(vertical: 20.0),
-                decoration: BoxDecoration(
-                  border: Border(
-                  top : BorderSide(color: Color(0xFFEEE6D9)),
-                  bottom : BorderSide(color: Color(0xFFEEE6D9)),
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Color(0xFFEEE6D9)),
+                      bottom: BorderSide(color: Color(0xFFEEE6D9)),
+                    ),
                   ),
-                ),
-                child: const IntrinsicHeight(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: FeatureCard(
-                          icon: Icons.mic_rounded,
-                          text: 'تقييم ذكي \n لكلامك',
-                        ),
-                      ),
-                      VerticalDivider(
-                        color: Color(0xFFEEE6D9),
-                        width: 1,
-                      ),
-                      Expanded(
-                        child: FeatureCard(
-                          icon: Icons.psychology_rounded,
-                          text: 'خطة تدريب \n مخصصة لك',
-                        ),
-                      ),
-                      VerticalDivider(
-                        color: Color(0xFFEEE6D9),
-                        width: 1,
-                      ),
-                      Expanded(
-                        child: FeatureCard(
-                          icon: Icons.trending_up_rounded,
-                          text: 'تابع تقدمك \n وتطورك', 
-                        ),
-                      ),
-
-                    ]
-                    
+                  child: const IntrinsicHeight(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: FeatureCard(
+                            icon: Icons.mic_rounded,
+                            text: 'تقييم ذكي \n لكلامك',
                           ),
                         ),
-                      ),
-                   
+                        VerticalDivider(color: Color(0xFFEEE6D9), width: 1),
+                        Expanded(
+                          child: FeatureCard(
+                            icon: Icons.psychology_rounded,
+                            text: 'خطة تدريب \n مخصصة لك',
+                          ),
+                        ),
+                        VerticalDivider(color: Color(0xFFEEE6D9), width: 1),
+                        Expanded(
+                          child: FeatureCard(
+                            icon: Icons.trending_up_rounded,
+                            text: 'تابع تقدمك \n وتطورك',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
 
-
-
-/*
+                /*
 
 
 
@@ -144,7 +133,7 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                     ),
                     child: const Text(
-                      'ابدأ الآن',
+                      'إنشاء حساب',
                       style: TextStyle(
                         fontSize: 19,
                         fontWeight: FontWeight.bold,
@@ -208,12 +197,11 @@ class FeatureCard extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color:const Color(0xFFE4EFED),
+            color: const Color(0xFFE4EFED),
             borderRadius: BorderRadius.circular(14),
-       
-      ),
+          ),
 
-      child: Icon(icon, color: const Color(0xFF1F5F5A), size: 22),
+          child: Icon(icon, color: const Color(0xFF1F5F5A), size: 22),
         ),
         const SizedBox(height: 10),
         Text(
@@ -225,9 +213,8 @@ class FeatureCard extends StatelessWidget {
             fontWeight: FontWeight.w600,
             height: 1.5,
           ),
-          
-          ),
-        ],
-      );
+        ),
+      ],
+    );
   }
 }
