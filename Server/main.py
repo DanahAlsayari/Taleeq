@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
-
+from api.speech_exercises import router as speech_exercises_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -40,6 +40,8 @@ app.include_router(techniques_router)
 # Adds the authentication application under /auth.
 app.mount("/auth", authentication_app)
 
+# Adds the speech exercises endpoints.
+app.include_router(speech_exercises_router)
 
 @app.get("/")
 def root():
