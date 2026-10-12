@@ -2,12 +2,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.assessment import router as assessment_router
 
+import logging
+
+from api.techniques import router as techniques_router
+
 from fastapi.staticfiles import StaticFiles
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
@@ -26,6 +33,9 @@ app.add_middleware(
 
 # Adds the assessment endpoints.
 app.include_router(assessment_router)
+
+# Adds technique instruction endpoints.
+app.include_router(techniques_router)
 
 # Adds the authentication application under /auth.
 app.mount("/auth", authentication_app)
