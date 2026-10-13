@@ -385,7 +385,44 @@ def get_fluency_profile(
 # Get Latest Completed Assessment Status
 # =========================================================
 
+@router.get("/status/onboarding")
+def get_onboarding_status(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    pre_assessment = (
+        db.query(PreAssessmentSubmission)
+        .filter(
+            PreAssessmentSubmission.user_id == current_user.id,
+        )
+        .first()
+    )
 
+    speech_assessment = (
+        db.query(Assessment)
+        .filter(
+            Assessment.user_id == current_user.id,
+            Assessment.status.in_(["COMPLETED", "completed"]),
+            Assessment.completed_at.isnot(None),
+        )
+        .first()
+    )
+
+    pre_completed = pre_assessment is not None
+    speech_completed = speech_assessment is not None
+
+    if not pre_completed:
+        next_step = "pre_assessment"
+    elif not speech_completed:
+        next_step = "speech_assessment"
+    else:
+        next_step = "completed"
+
+    return {
+        "pre_assessment_completed": pre_completed,
+        "speech_assessment_completed": speech_completed,
+        "next_step": next_step,
+    }
 @router.get("/status/latest")
 def get_latest_assessment_status(
     current_user: User = Depends(auth.get_current_user),

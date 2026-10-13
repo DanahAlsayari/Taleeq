@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+
 import '../../services/api_config_service.dart';
 import 'auth_storage.dart';
 
 class AssessmentApiService {
-  
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
@@ -15,9 +15,24 @@ class AssessmentApiService {
       throw Exception('Not authenticated');
     }
 
-    return {
-      'Authorization': 'Bearer $token',
-    };
+    return {'Authorization': 'Bearer $token'};
+  }
+
+  Future<Map<String, dynamic>> getOnboardingStatus() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/assessments/status/onboarding'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('انتهت جلسة تسجيل الدخول');
+    }
+
+    throw Exception('تعذر تحميل حالة التقييم');
   }
 
   Future<Map<String, dynamic>> getLatestAssessmentStatus() async {
@@ -27,18 +42,14 @@ class AssessmentApiService {
     );
 
     if (response.statusCode == 200) {
-      return Map<String, dynamic>.from(
-        jsonDecode(response.body) as Map,
-      );
+      return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
     }
 
     if (response.statusCode == 401) {
       throw Exception('انتهت جلسة تسجيل الدخول.');
     }
 
-    throw Exception(
-      'فشل تحميل حالة التقييم (${response.statusCode})',
-    );
+    throw Exception('فشل تحميل حالة التقييم (${response.statusCode})');
   }
 
   Future<int> createAssessment() async {
@@ -56,18 +67,18 @@ class AssessmentApiService {
       throw Exception('انتهت جلسة تسجيل الدخول.');
     }
 
-    throw Exception(
-      'فشل إنشاء التقييم (${response.statusCode})',
-    );
+    throw Exception('فشل إنشاء التقييم (${response.statusCode})');
   }
-   Future<List<Map<String, dynamic>>> getSpeechTasks() async {
+
+  Future<List<Map<String, dynamic>>> getSpeechTasks() async {
     final response = await http.get(
       Uri.parse('${ApiConfig.baseUrl}/assessments/speech/tasks'),
       headers: {'Content-Type': 'application/json'},
     );
 
     if (response.statusCode == 200) {
-      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final body =
+          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
       final tasks = body['tasks'] as List<dynamic>;
 
       return tasks
@@ -75,9 +86,7 @@ class AssessmentApiService {
           .toList();
     }
 
-    throw Exception(
-      'فشل تحميل مهام التقييم (${response.statusCode})',
-    );
+    throw Exception('فشل تحميل مهام التقييم (${response.statusCode})');
   }
 
   Future<Map<String, dynamic>> analyzeAssessmentAudio({
@@ -96,9 +105,7 @@ class AssessmentApiService {
 
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse(
-        '${ApiConfig.baseUrl}/assessments/$assessmentId/analyze-audio',
-      ),
+      Uri.parse('${ApiConfig.baseUrl}/assessments/$assessmentId/analyze-audio'),
     );
 
     request.headers['Authorization'] = 'Bearer $token';
@@ -113,9 +120,7 @@ class AssessmentApiService {
       final file = File(filePath);
 
       if (!await file.exists()) {
-        throw Exception(
-          'ملف التسجيل غير موجود: $filePath',
-        );
+        throw Exception('ملف التسجيل غير موجود: $filePath');
       }
 
       request.files.add(
@@ -139,17 +144,13 @@ class AssessmentApiService {
 
     final streamedResponse = await request.send();
 
-    final response = await http.Response.fromStream(
-      streamedResponse,
-    );
+    final response = await http.Response.fromStream(streamedResponse);
 
     print('📡 ANALYSIS STATUS: ${response.statusCode}');
     print('📦 ANALYSIS RESPONSE: ${response.body}');
 
     if (response.statusCode == 200) {
-      return Map<String, dynamic>.from(
-        jsonDecode(response.body) as Map,
-      );
+      return Map<String, dynamic>.from(jsonDecode(response.body) as Map);
     }
 
     if (response.statusCode == 401) {
@@ -185,7 +186,6 @@ class AssessmentApiService {
       throw Exception(message);
     }
 
-
     throw Exception(
       'حدث خطأ أثناء تحليل التسجيلات '
       '(${response.statusCode})',
@@ -203,7 +203,7 @@ class AssessmentApiService {
     }
 
     final file = File(recordingPath);
-    
+
     if (!await file.exists() || await file.length() == 0) {
       throw Exception('التسجيل فارغ أو غير موجود. أعد التسجيل.');
     }
@@ -217,12 +217,7 @@ class AssessmentApiService {
 
     request.headers['Authorization'] = 'Bearer $token';
 
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        recordingPath,
-      ),
-    );
+    request.files.add(await http.MultipartFile.fromPath('file', recordingPath));
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
@@ -273,10 +268,7 @@ class AssessmentApiService {
   }) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/assessments/tasks'),
-      headers: {
-        ...(await _headers()),
-        'Content-Type': 'application/json',
-      },
+      headers: {...(await _headers()), 'Content-Type': 'application/json'},
       body: jsonEncode({
         'assessment_id': assessmentId,
         'task_type': taskType,
@@ -300,16 +292,12 @@ class AssessmentApiService {
       throw Exception('انتهت جلسة تسجيل الدخول.');
     }
 
-    throw Exception(
-      'فشل حفظ مهمة التقييم (${response.statusCode})',
-    );
+    throw Exception('فشل حفظ مهمة التقييم (${response.statusCode})');
   }
 
   Future<void> analyzeLatestAssessment() async {
     final response = await http.post(
-      Uri.parse(
-        '${ApiConfig.baseUrl}/assessments/analyze-latest',
-      ),
+      Uri.parse('${ApiConfig.baseUrl}/assessments/analyze-latest'),
       headers: await _headers(),
     );
 
@@ -324,9 +312,7 @@ class AssessmentApiService {
     if (response.statusCode == 400) {
       final body = jsonDecode(response.body);
 
-      throw Exception(
-        body['detail'] ?? 'فشل تحليل التقييم.',
-      );
+      throw Exception(body['detail'] ?? 'فشل تحليل التقييم.');
     }
 
     if (response.statusCode == 401) {
