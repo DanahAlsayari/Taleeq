@@ -5,10 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
 import '../widgets/journey_stepper.dart';
-import '../../services/auth_storage.dart';
-
-import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
-
+import 'signup_otp_screen.dart';
 import '../../services/api_config_service.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -250,53 +247,31 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      // Log the new user in automatically.
-      final loginResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': normalizedEmail,
-          'password': _passwordController.text,
-        }),
-      );
+      final decoded = jsonDecode(utf8.decode(signupResponse.bodyBytes));
 
-      if (!mounted) return;
+      if (decoded is! Map<String, dynamic>) {
+        _showMessage('تعذر قراءة استجابة الخادم. يرجى المحاولة مرة أخرى.');
+        return;
+      }
 
-      if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
-        _clearPasswordsOnNextFocus = true;
+      final registrationId = decoded['registration_id'];
+      final resendAfterSeconds = decoded['resend_after_seconds'];
 
-        _showMessage(
-          _readErrorMessage(
-            loginResponse,
-            fallback: 'تم إنشاء الحساب، ولكن تعذر تسجيل الدخول',
+      if (registrationId is! String ||
+          registrationId.isEmpty ||
+          resendAfterSeconds is! int) {
+        _showMessage('تعذر بدء التحقق من البريد الإلكتروني.');
+        return;
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SignupOtpScreen(
+            registrationId: registrationId,
+            email: normalizedEmail,
+            resendAfterSeconds: resendAfterSeconds,
           ),
-        );
-
-        return;
-      }
-
-      final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
-
-      final token = loginData['access_token'] as String?;
-
-      if (token == null || token.isEmpty) {
-        _clearPasswordsOnNextFocus = true;
-        _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
-        return;
-      }
-
-      await AuthStorage.saveToken(token);
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) =>
-              const PreAssessmentIntroScreen(allowBack: false),
         ),
-        (route) => false,
       );
     } catch (error) {
       _clearPasswordsOnNextFocus = true;
