@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import '../profileUI/profile_screen.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../theme/taleeq_theme.dart';
 
@@ -306,10 +305,10 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                             height: 56,
                             child: ElevatedButton(
                               onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
-                                  ),
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/home',
+                                  (route) => false,
                                 );
                               },
                               style: ElevatedButton.styleFrom(
@@ -357,7 +356,6 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   JourneyStepper(currentStep: 4),
-                
 
                   Text(
                     'ملف طلاقتي',
@@ -1289,18 +1287,19 @@ class _TaskResultsCard extends StatelessWidget {
         return taskType;
     }
   }
+
   String _getPatternName(String pattern) {
-  switch (pattern.toLowerCase()) {
-    case 'repetition':
-      return 'التكرار';
-    case 'prolongation':
-      return 'الإطالة';
-    case 'block':
-      return 'التوقف';
-    default:
-      return pattern;
+    switch (pattern.toLowerCase()) {
+      case 'repetition':
+        return 'التكرار';
+      case 'prolongation':
+        return 'الإطالة';
+      case 'block':
+        return 'التوقف';
+      default:
+        return pattern;
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -1376,7 +1375,7 @@ class _TaskResultsCard extends StatelessWidget {
               ),
               child: _buildTaskResult(
                 taskName: _getTaskName(task.taskType),
-               patternName: _getPatternName(task.pattern),
+                patternName: _getPatternName(task.pattern),
                 percent: percent,
                 relativePercent: highestPercent == 0
                     ? 0

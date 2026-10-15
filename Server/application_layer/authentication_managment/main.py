@@ -14,7 +14,7 @@ from . import auth
 from . import schemas
 from .profile import router as profile_router
 from .reset_password import router as reset_password_router
-
+from .weekly_plan import router as weekly_plan_router
 # Assessment routes
 from api.assessment import router as assessment_router
 
@@ -24,6 +24,7 @@ app = FastAPI()
 app.include_router(reset_password_router)
 app.include_router(profile_router)
 app.include_router(assessment_router)
+app.include_router(weekly_plan_router)
 
 
 @app.post("/signup", response_model=schemas.UserOut)

@@ -560,6 +560,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: const Text('إعادة المحاولة'),
             ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _logout,
+              child: const Text(
+                'تسجيل الخروج',
+                style: TextStyle(color: darkGreen),
+              ),
+            ),
           ],
         ),
       ),
