@@ -1,53 +1,60 @@
+
 import base64
+import io
 import json
 import os
+import re
+from typing import Literal
+
+import numpy as np
+import soundfile as sf
 import webrtcvad
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
-import io
-import numpy as np
-import soundfile as sf
 load_dotenv()
 
 
+# =========================================================
+# Response Models
+# =========================================================
+
 class SpeechEvent(BaseModel):
-    event_type: str
-    word_or_sound: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    event_type: Literal["repetition", "prolongation", "block"]
+    word_or_sound: str
     confidence: float = Field(ge=0.0, le=1.0)
 
 
 class AudioAnalysisResult(BaseModel):
-
-    stuttering_percent: float = Field(ge=0.0, le=100.0)
-    repetition_percent: float = Field(ge=0.0, le=100.0)
-    prolongation_percent: float = Field(ge=0.0, le=100.0)
-    block_percent: float = Field(ge=0.0, le=100.0)
-    #float 
-    speaking_rate_wpm: float | None = None
-    speaking_rate: float = Field(ge=0.0, le=100.0)
-    timing_pacing: float = Field(ge=0.0, le=100.0)
-    speech_events: list[SpeechEvent] = []
-
-
-class AudioAnalysisResponse(BaseModel):
-    speech_usable: bool
-    validation_reason: str = ""
+    model_config = ConfigDict(extra="forbid")
 
     stuttering_percent: float = Field(ge=0.0, le=100.0)
     repetition_percent: float = Field(ge=0.0, le=100.0)
     prolongation_percent: float = Field(ge=0.0, le=100.0)
     block_percent: float = Field(ge=0.0, le=100.0)
 
-    speaking_rate_wpm: float | None = None
+    speaking_rate_wpm: float | None = Field(default=None, ge=0.0)
     speaking_rate: float = Field(ge=0.0, le=100.0)
     timing_pacing: float = Field(ge=0.0, le=100.0)
 
     speech_events: list[SpeechEvent] = Field(default_factory=list)
 
+
+class AudioAnalysisResponse(AudioAnalysisResult):
+    speech_usable: bool
+    validation_reason: str = ""
+
+
 class UnusableSpeechError(ValueError):
-    pass
+    """Raised when a recording cannot be analyzed reliably."""
+
+
+# =========================================================
+# Audio Analyzer
+# =========================================================
 
 class OpenAIAudioAnalyzer:
 
@@ -62,9 +69,13 @@ class OpenAIAudioAnalyzer:
         self.client = OpenAI(api_key=api_key)
         self.model = "gpt-audio-1.5"
 
+    # =====================================================
+    # Stage 1: Read and validate the audio signal
+    # =====================================================
 
-    def _is_silent(self, audio_bytes: bytes) -> bool:
-        print("🚨 _is_silent() CALLED")
+    def _load_audio(self, audio_bytes: bytes):
+        if not audio_bytes:
+            raise UnusableSpeechError("التسجيل فارغ. أعيدي التسجيل.")
 
         try:
             audio, sample_rate = sf.read(
@@ -73,21 +84,51 @@ class OpenAIAudioAnalyzer:
                 always_2d=False,
             )
         except Exception as error:
-            raise ValueError(
-                "تعذرت قراءة التسجيل الصوتي."
+            raise UnusableSpeechError(
+                "تعذرت قراءة التسجيل الصوتي. "
+                "جرّبي تسجيله بصيغة WAV أو MP3."
             ) from error
 
-        if audio.size == 0:
-            print("🔇 AUDIO IS EMPTY")
-            return True
+        if audio.size == 0 or sample_rate <= 0:
+            raise UnusableSpeechError("التسجيل فارغ أو غير صالح.")
 
-        # تحويل التسجيل إلى قناة صوتية واحدة
+        # Convert stereo to mono.
         if audio.ndim == 2:
             audio = np.mean(audio, axis=1)
 
-        audio = np.nan_to_num(audio)
+        audio = np.nan_to_num(
+            audio,
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        )
+        audio = np.clip(audio, -1.0, 1.0)
 
-        # تقسيم التسجيل إلى نوافذ مدة كل منها 100ms
+        if audio.ndim != 1 or not np.any(np.isfinite(audio)):
+            raise UnusableSpeechError(
+                "تعذرت قراءة الإشارة الصوتية."
+            )
+
+        return audio, sample_rate
+
+    # =====================================================
+    # Stage 2: Detect silence and extremely weak audio
+    # =====================================================
+
+    def _validate_audio(self, audio_bytes: bytes) -> None:
+        audio, sample_rate = self._load_audio(audio_bytes)
+
+        duration = len(audio) / sample_rate
+
+        print("AUDIO DURATION:", round(duration, 2))
+        print("SAMPLE RATE:", sample_rate)
+
+        if duration < 5.0:
+            raise UnusableSpeechError(
+                "التسجيل قصير جدًا. حاولي التحدث لمدة أطول."
+            )
+
+        # Analyze consecutive 100 ms windows.
         window_size = max(1, int(sample_rate * 0.1))
         rms_values = []
         peak_values = []
@@ -98,166 +139,176 @@ class OpenAIAudioAnalyzer:
             if window.size == 0:
                 continue
 
-            rms = float(np.sqrt(np.mean(window ** 2)))
-            peak = float(np.max(np.abs(window)))
-
-            rms_values.append(rms)
-            peak_values.append(peak)
+            rms_values.append(
+                float(np.sqrt(np.mean(np.square(window))))
+            )
+            peak_values.append(
+                float(np.max(np.abs(window)))
+            )
 
         if not rms_values:
-            print("🔇 NO VALID AUDIO WINDOWS")
-            return True
+            raise UnusableSpeechError(
+                "لم يتم العثور على صوت في التسجيل."
+            )
 
-        max_rms = max(rms_values)
-        median_rms = float(np.median(rms_values))
-        max_peak = max(peak_values)
+        rms = np.asarray(rms_values)
+        peaks = np.asarray(peak_values)
 
-        active_windows = sum(
-            1
-            for rms, peak in zip(rms_values, peak_values)
-            if rms > 0.0005 or peak > 0.002
+        max_rms = float(np.max(rms))
+        max_peak = float(np.max(peaks))
+
+        # Initial thresholds; calibrate against real recordings.
+        MIN_MAX_RMS = 0.003
+        MIN_MAX_PEAK = 0.015
+
+        # Count windows with a meaningful signal.
+        active_mask = (
+            (rms >= 0.003)
+            | (peaks >= 0.015)
         )
 
-        print("🔍 SAMPLE RATE:", sample_rate)
-        print("🔍 AUDIO DURATION:", len(audio) / sample_rate)
-        print("🔊 MAX RMS:", max_rms)
-        print("🔊 MEDIAN RMS:", median_rms)
-        print("🔊 MAX PEAK:", max_peak)
-        print("🔍 ACTIVE WINDOWS:", active_windows, "/", len(rms_values))
+        active_windows = int(np.sum(active_mask))
+        active_duration = active_windows * 0.1
 
-        # حد مبدئي لمستوى الصوت المنخفض جدًا
-        MIN_MEDIAN_RMS = 0.015
+        print("MAX RMS:", max_rms)
+        print("MAX PEAK:", max_peak)
+        print("ACTIVE WINDOWS:", active_windows)
+        print("ACTIVE DURATION:", round(active_duration, 2))
 
-        if median_rms < MIN_MEDIAN_RMS:
-            print("🔇 AUDIO REJECTED: VOLUME TOO LOW")
-            return True
-
-        print("✅ AUDIO LEVEL PASSED")
-        return False
-
-    def _contains_speech(self, audio_bytes: bytes) -> bool:
-        try:
-            audio, sample_rate = sf.read(
-                io.BytesIO(audio_bytes),
-                dtype="float32",
-                always_2d=False,
+        if (
+            max_rms < MIN_MAX_RMS
+            or max_peak < MIN_MAX_PEAK
+            or active_duration < 0.3
+        ):
+            raise UnusableSpeechError(
+                "مستوى الصوت منخفض جدًا "
+                "تأكد من الميكروفون ثم أعد التسجيل."
             )
-        except Exception as error:
-            raise ValueError("تعذرت قراءة التسجيل الصوتي.") from error
 
-        if audio.size == 0:
-            return False
+        # Continue with speech-activity detection.
+        self._validate_speech_activity(audio, sample_rate)
 
-        if audio.ndim == 2:
-            audio = np.mean(audio, axis=1)
+    # =====================================================
+    # Stage 3: Detect possible speech activity with WebRTC VAD
+    # =====================================================
 
-        audio = np.nan_to_num(audio)
-        audio = np.clip(audio, -1.0, 1.0)
+    def _validate_speech_activity(
+        self,
+        audio: np.ndarray,
+        sample_rate: int,
+    ) -> None:
 
         target_rate = 16000
 
+        # Resample to 16 kHz when necessary.
         if sample_rate != target_rate:
-            target_length = int(len(audio) * target_rate / sample_rate)
+            target_length = int(
+                len(audio) * target_rate / sample_rate
+            )
 
-            if target_length == 0:
-                return False
+            if target_length <= 0:
+                raise UnusableSpeechError(
+                    "تعذر تحليل التسجيل الصوتي."
+                )
 
             old_positions = np.arange(len(audio))
             new_positions = (
-                np.arange(target_length) * sample_rate / target_rate
+                np.arange(target_length)
+                * sample_rate
+                / target_rate
             )
 
             audio = np.interp(
-                new_positions, old_positions, audio
+                new_positions,
+                old_positions,
+                audio,
             ).astype(np.float32)
 
-        frame_size = 480  # 30 ms عند 16 kHz
-        frame_bytes = frame_size * 2
-        pcm_audio = (audio * 32767).astype("<i2").tobytes()
+        # WebRTC VAD requires 16-bit PCM audio.
+        pcm = (audio * 32767).astype("<i2").tobytes()
+
+        # 30 ms frames at 16 kHz.
+        frame_samples = 480
+        frame_bytes = frame_samples * 2
 
         vad = webrtcvad.Vad(2)
+
         total_frames = 0
         voiced_frames = 0
-        flatness_values = []
 
         for start in range(
-            0, len(pcm_audio) - frame_bytes + 1, frame_bytes
+            0,
+            len(pcm) - frame_bytes + 1,
+            frame_bytes,
         ):
-            frame_bytes_data = pcm_audio[start:start + frame_bytes]
-            frame = np.frombuffer(frame_bytes_data, dtype="<i2").astype(
-                np.float32
-            ) / 32768.0
-
+            frame = pcm[start:start + frame_bytes]
             total_frames += 1
 
-            if vad.is_speech(frame_bytes_data, target_rate):
+            if vad.is_speech(frame, target_rate):
                 voiced_frames += 1
 
-            # مؤشر طيفي تقريبي؛ لا يحدد الكلام بمفرده.
-            spectrum = np.abs(np.fft.rfft(frame * np.hanning(len(frame)))) ** 2
-            spectrum = spectrum[1:]  # تجاهل التردد الصفري
-
-            if spectrum.size:
-                spectrum += 1e-12
-                flatness = float(
-                    np.exp(np.mean(np.log(spectrum)))
-                    / np.mean(spectrum)
-                )
-                flatness_values.append(flatness)
-
-        if total_frames == 0 or not flatness_values:
-            return False
-
         voiced_duration = voiced_frames * 0.03
-        voiced_ratio = voiced_frames / total_frames
-        median_flatness = float(np.median(flatness_values))
-        frame_rms_values = []
+        voiced_ratio = (
+            voiced_frames / total_frames
+            if total_frames
+            else 0.0
+        )
 
-        for start in range(
-            0, len(pcm_audio) - frame_bytes + 1, frame_bytes
-        ):
-            frame = np.frombuffer(
-                pcm_audio[start:start + frame_bytes],
-                dtype="<i2",
-            ).astype(np.float32) / 32768.0
+        print("VAD VOICED DURATION:", round(voiced_duration, 2))
+        print("VAD VOICED RATIO:", round(voiced_ratio, 3))
 
-            frame_rms_values.append(
-                float(np.sqrt(np.mean(frame ** 2)))
+        if voiced_duration < 0.3 or voiced_ratio < 0.02:
+            raise UnusableSpeechError(
+                "لم نتمكن من اكتشاف كلام كافٍ في التسجيل. "
+                "تأكد من الميكروفون وابتعد عن الضوضاء ثم أعد التسجيل."
             )
 
-        rms_variation = float(np.std(frame_rms_values))
-        rms_median = float(np.median(frame_rms_values))
-        rms_cv = rms_variation / (rms_median + 1e-8)
+    # =====================================================
+    # Stage 4: Parse the AI response safely
+    # =====================================================
 
-        print("🔊 RMS COEFFICIENT OF VARIATION:", rms_cv)
+    @staticmethod
+    def _parse_json_response(content: str) -> dict:
+        content = content.strip()
 
-        steady_noise_suspected = (
-            voiced_ratio >= 0.95
-            and rms_cv < 0.35
-            and median_flatness < 0.005
+        # Remove optional Markdown code fences.
+        content = re.sub(
+            r"^\s*```(?:json)?\s*",
+            "",
+            content,
+            flags=re.IGNORECASE,
         )
+        content = re.sub(r"\s*```\s*$", "", content)
 
-        print("⚠️ STEADY NOISE SUSPECTED:", steady_noise_suspected)
-        print("🔊 RMS MEDIAN:", rms_median)
-        print("🔊 RMS VARIATION:", rms_variation)
-        print("🗣️ VAD VOICED DURATION:", voiced_duration)
-        print("🗣️ VAD VOICED RATIO:", voiced_ratio)
-        print("🔊 MEDIAN SPECTRAL FLATNESS:", median_flatness)
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            # Recover a JSON object if extra text surrounds it.
+            start = content.find("{")
+            end = content.rfind("}")
 
-        # شرط VAD الأساسي، مع الاحتفاظ به كما كان.
-        vad_passed = voiced_duration >= 0.5 and voiced_ratio >= 0.03
+            if start == -1 or end <= start:
+                raise ValueError(
+                    "OpenAI returned an invalid JSON response."
+                )
 
-        # مؤشر تشخيصي للضوضاء الثابتة.
-        # لا نرفض التسجيل بناءً على هذا المؤشر وحده.
-        noise_suspected = (
-            voiced_ratio >= 0.80
-            and median_flatness >= 0.65
-        )
+            try:
+                result = json.loads(content[start:end + 1])
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    "OpenAI returned an invalid JSON response."
+                ) from error
 
-        print("⚠️ NOISE SUSPECTED:", noise_suspected)
+        if not isinstance(result, dict):
+            raise ValueError(
+                "OpenAI response must be a JSON object."
+            )
 
-        # مؤقتًا: نطبع الاشتباه فقط حتى نختبر تسجيلات حقيقية.
-        return vad_passed
+        return result
+
+    # =====================================================
+    # Stage 5: Analyze speech and stuttering
+    # =====================================================
 
     def analyze_audio(
         self,
@@ -265,83 +316,97 @@ class OpenAIAudioAnalyzer:
         audio_format: str,
     ) -> AudioAnalysisResult:
 
-        if self._is_silent(audio_bytes):
-            raise UnusableSpeechError(
-                "عذرًا، التسجيل صامت أو لا يحتوي على صوت مسموع. "
-                "يرجى التحدث بوضوح ثم إعادة التسجيل."
-            )
-        print("🧪 RUNNING VAD BEFORE OPENAI")
+        # Technical checks run before sending audio to the AI.
+        self._validate_audio(audio_bytes)
 
-        if not self._contains_speech(audio_bytes):
-            raise UnusableSpeechError(
-                "عذرًا، لم نتمكن من اكتشاف كلام واضح في التسجيل. "
-                "تأكدي من عمل الميكروفون وتحدثي بوضوح ثم أعيدي التسجيل."
-            )
-        print("🧪 VAD PASSED — CALLING OPENAI")
+        print("AUDIO VALIDATION PASSED — CALLING OPENAI")
 
-        encoded_audio = base64.b64encode(audio_bytes).decode("utf-8")
-        print("🎧 AUDIO FORMAT SENT TO OPENAI:", audio_format)
-        print("🎧 AUDIO BYTES FIRST 20:", audio_bytes[:20])
-        print("🎧 BASE64 LENGTH:", len(encoded_audio))
-        prompt =   """
-Listen carefully to the entire attached Arabic speech recording.
+        encoded_audio = base64.b64encode(
+            audio_bytes
+        ).decode("utf-8")
 
-Your task is to analyze the speaker's speech for stuttering.
+        prompt = """
+You are Taleeq's audio-based speech fluency analyzer.
+Analyze the entire Arabic speech recording using only audible evidence.
 
-Detect:
-1. Repetition: repeated sounds, syllables, or words.
-2. Prolongation: unusually prolonged speech sounds.
-3. Block: interruption or inability to initiate or continue speech.
+AUDIO USABILITY:
+Determine whether speech is sufficiently intelligible for reliable
+analysis. Reject silence, extremely weak audio, severe distortion,
+dominant noise, or unintelligible speech.
 
-Analyze the actual audio you can hear.
-Do not ask for the audio again.
-Do not say that you cannot access the recording.
+Accept understandable speech even when quiet or affected by stuttering.
+Do not confuse natural pauses, breathing, or thinking with silence.
+Do not confuse stuttering with unintelligibility.
 
-Return ONLY valid JSON in exactly this structure:
+If unusable, set speech_usable to false, explain briefly in
+validation_reason, set all percentage and score metrics to 0,
+set speaking_rate_wpm to null, and return an empty speech_events array.
 
+STUTTERING EVENTS:
+Identify only genuine audible events:
+
+- repetition: involuntary repetition of sounds, syllables, or words.
+- prolongation: an unusually extended sound consistent with stuttering.
+- block: an audible difficulty initiating or continuing a sound or word.
+
+Do not infer blocks from silence alone. Do not classify ordinary
+breathing, thinking pauses, emphasis, or self-corrections as stuttering
+without supporting evidence. Never invent or duplicate events.
+
+For each event, provide event_type, word_or_sound, and confidence
+between 0.0 and 1.0. If an event is uncertain, omit it rather than guess.
+
+METRICS:
+Estimate these values from the entire usable recording:
+
+- stuttering_percent: estimated percentage of speech affected by stuttering.
+- repetition_percent: estimated percentage affected by repetitions.
+- prolongation_percent: estimated percentage affected by prolongations.
+- block_percent: estimated percentage affected by blocks.
+- speaking_rate_wpm: estimated spoken words per minute, or null if unreliable.
+- speaking_rate: score from 0 to 100 for appropriateness and consistency
+  of speaking rate.
+- timing_pacing: score from 0 to 100 for naturalness and consistency
+  of timing, rhythm, and pauses.
+
+Keep speaking_rate and timing_pacing distinct.
+Do not penalize a speaker solely for having a stutter or speaking slowly.
+Do not count pauses alone as stuttering. Use zero when no relevant
+event is audible. Keep scores consistent with the evidence.
+
+These metrics are estimates, not clinical measurements or diagnoses.
+
+OUTPUT:
+Return only one valid JSON object with exactly these keys:
 {
   "speech_usable": true,
   "validation_reason": "",
-  "stuttering_percent": 0,
-  "repetition_percent": 0,
-  "prolongation_percent": 0,
-  "block_percent": 0,
-  "speaking_rate_wpm": 0,
-  "speaking_rate": 0,
-  "timing_pacing": 0,
+  "stuttering_percent": 0.0,
+  "repetition_percent": 0.0,
+  "prolongation_percent": 0.0,
+  "block_percent": 0.0,
+  "speaking_rate_wpm": 0.0,
+  "speaking_rate": 0.0,
+  "timing_pacing": 0.0,
   "speech_events": []
 }
 
-For speech_events, use:
+Use a boolean for speech_usable, a string for validation_reason,
+numbers from 0 to 100 for percentages and scores, and a non-negative
+number or null for speaking_rate_wpm.
 
+Each speech_events item must contain exactly:
 {
-  "event_type": "repetition | prolongation | block",
-  "word_or_sound": "Arabic sound, syllable, or word",
+  "event_type": "repetition",
+  "word_or_sound": "audible sound or word",
   "confidence": 0.0
 }
 
-Rules:
-- Analyze the recording from beginning to end.
-- Detect every genuine stuttering event you can hear.
-- Do not invent events.
-- stuttering_percent represents the estimated percentage of speech affected by stuttering.
-- repetition_percent, prolongation_percent, and block_percent represent the percentage of overall speech affected by each type.
-- speaking_rate_wpm is the estimated words per minute.
-- speaking_rate is a 0-100 score for appropriateness and stability of speaking rate.
-- timing_pacing is a 0-100 score for stability and naturalness of speech timing and pacing.
-- confidence must be between 0 and 1.
-- Determine whether the recording contains audible human speech that is
-  sufficiently clear to analyze.
-- Set "speech_usable" to false for silence, background noise only,
-  or audio where speech is too unclear to analyze reliably.
-- Set "speech_usable" to true when meaningful speech is audible,
-  even if the speaker stutters, repeats sounds or words, prolongs sounds,
-  experiences blocks, hesitates, or pauses.
-- If speech is not usable, explain briefly in "validation_reason".
-- If speech is usable, set "validation_reason" to an empty string.
-
+event_type must be repetition, prolongation, or block.
+Confidence must be between 0.0 and 1.0.
+Always include all required keys. Use valid JSON only, without
+Markdown or additional explanation.
 """
-
 
         response = self.client.chat.completions.create(
             model=self.model,
@@ -368,27 +433,41 @@ Rules:
         content = response.choices[0].message.content
 
         if not content:
-            raise ValueError("OpenAI returned an empty response.")
-
-        try:
-            result_data = json.loads(content)
-        except json.JSONDecodeError as error:
             raise ValueError(
-                f"OpenAI returned invalid JSON: {content}"
-            ) from error
-        print("🔍 OPENAI RAW RESULT:", result_data)
+                "OpenAI returned an empty response."
+            )
+
+        result_data = self._parse_json_response(content)
+
+        print("OPENAI RAW RESULT:", result_data)
+
+        # Validate field names, types, ranges, and event categories.
         response_data = AudioAnalysisResponse.model_validate(
             result_data
         )
 
         if not response_data.speech_usable:
-            raise UnusableSpeechError(
-                "عذرًا، لم نتمكن من سماع كلام واضح بما يكفي لتحليل التسجيل. "
-                "يرجى التأكد من عمل الميكروفون والتحدث بوضوح ثم إعادة التسجيل."
+            reason = response_data.validation_reason.strip()
+
+            if not reason:
+                reason = (
+                    "لم نتمكن من سماع كلام واضح بما يكفي "
+                    "لتحليل التسجيل."
+                )
+
+            raise UnusableSpeechError(reason)
+
+        if not response_data.validation_reason.strip() == "":
+            print(
+                "WARNING: Usable recording has a validation reason:",
+                response_data.validation_reason,
             )
 
         analysis_data = response_data.model_dump(
-            exclude={"speech_usable", "validation_reason"}
+            exclude={
+                "speech_usable",
+                "validation_reason",
+            }
         )
 
         return AudioAnalysisResult.model_validate(analysis_data)

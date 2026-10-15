@@ -15,6 +15,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
+from api.naming_game import router as naming_challenge_router
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
@@ -42,6 +43,8 @@ app.mount("/auth", authentication_app)
 
 # Adds the speech exercises endpoints.
 app.include_router(speech_exercises_router)
+# Adds the naming challenge endpoints.
+app.include_router(naming_challenge_router)
 
 @app.get("/")
 def root():
