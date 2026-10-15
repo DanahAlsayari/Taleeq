@@ -13,13 +13,24 @@ import '../authenticationUI/welcome_screen.dart';
 import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.isActive = true});
+
+  final bool isActive;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadProfileData();
+    }
+  }
+
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color background = Color(0xFFFCFAF6);
   static const Color darkText = Color(0xFF233330);
@@ -549,6 +560,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: const Text('إعادة المحاولة'),
             ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _logout,
+              child: const Text(
+                'تسجيل الخروج',
+                style: TextStyle(color: darkGreen),
+              ),
+            ),
           ],
         ),
       ),
@@ -644,6 +663,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: background,
         elevation: 0,
         centerTitle: true,
