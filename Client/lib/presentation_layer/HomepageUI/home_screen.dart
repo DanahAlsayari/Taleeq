@@ -31,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isUpdatingCompletion = false;
   String? _assessmentStatusError;
   bool _isPreparingWeeklyPlan = false;
+  bool _hasPreviousWeeklyPlan = false;
   String? _weeklyPlanActionError;
   @override
   void initState() {
@@ -169,6 +170,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _isLoadingWeeklyPlan = true;
       _weeklyPlanError = null;
+      _hasPreviousWeeklyPlan = false;
     });
 
     try {
@@ -180,6 +182,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _weeklyPlan = plan;
         _isLoadingWeeklyPlan = false;
       });
+
+      if (plan != null) return;
+
+      final today = _riyadhToday();
+      final weekStart = today.subtract(Duration(days: today.weekday % 7));
+      final previousWeek = weekStart.subtract(const Duration(days: 7));
+
+      try {
+        final previousPlan = await _weeklyPlanService.getWeeklyPlan(
+          weekStart: previousWeek.toIso8601String().substring(0, 10),
+        );
+
+        if (!mounted || _weeklyPlan != null) return;
+
+        final previousSessions = previousPlan?['sessions'];
+
+        setState(() {
+          _hasPreviousWeeklyPlan =
+              previousSessions is List && previousSessions.isNotEmpty;
+        });
+      } catch (_) {
+        // Creating a new plan remains available if this check fails.
+      }
     } catch (_) {
       if (!mounted) return;
 
@@ -217,7 +242,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         if (!mounted) return;
 
-        if (previousPlan == null) {
+        if (previousPlan == null ||
+            (previousPlan['sessions'] as List<dynamic>).isEmpty) {
           setState(() {
             _weeklyPlanActionError =
                 'لا يوجد جدول محفوظ للأسبوع الماضي. يمكنك إنشاء جدول جديد.';
@@ -769,18 +795,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 icon: const Icon(Icons.add),
                 label: const Text('إنشاء جدول جديد'),
               ),
-              OutlinedButton(
-                onPressed: _isPreparingWeeklyPlan
-                    ? null
-                    : () => _prepareWeeklyPlan(copyPrevious: true),
-                child: const Text('استخدام جدول الأسبوع الماضي'),
-              ),
-              TextButton(
-                onPressed: _isPreparingWeeklyPlan
-                    ? null
-                    : () => _prepareWeeklyPlan(copyPrevious: false),
-                child: const Text('بدون ممارسة هذا الأسبوع'),
-              ),
+              if (_hasPreviousWeeklyPlan)
+                OutlinedButton(
+                  onPressed: _isPreparingWeeklyPlan
+                      ? null
+                      : () => _prepareWeeklyPlan(copyPrevious: true),
+                  child: const Text('استخدام جدول الأسبوع الماضي'),
+                ),
               if (_isPreparingWeeklyPlan)
                 const Center(child: CircularProgressIndicator(color: teal)),
               if (_weeklyPlanActionError != null)
@@ -1018,7 +1039,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Text(
             completed
                 ? 'أكملت التقييمات بنجاح. جلسات التدريب المخصصة ستكون متاحة قريبًا.'
-                : 'أكمل التقييم القبلي وتقييم الكلام للحصول على جلسات تدريب وخطة تناسب احتياجاتك.',
+                : 'أكمل التقييم القبلي وتقييم الكلام للحصول على جلسات تدريب تناسب احتياجاتك.',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -1105,12 +1126,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ] else
                 _buildAssessmentCard(),
-              if (_nextStep == 'completed' &&
-                  !_isLoadingAssessmentStatus &&
-                  _assessmentStatusError == null) ...[
-                const SizedBox(height: 24),
-                _buildWeeklyPlanCard(),
-              ],
+              const SizedBox(height: 24),
+              _buildWeeklyPlanCard(),
             ],
           ),
         ),
