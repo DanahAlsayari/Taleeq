@@ -357,16 +357,34 @@ def get_fluency_profile(
 
             primary_pattern = max(patterns, key=patterns.get)
 
-            task_results.append(
-                {
-                    "task_type": task.task_type,
-                    "pattern": primary_pattern,
-                    "percent": patterns[primary_pattern],
-                    "stuttering_percent": result.stuttering_percent,
-                    "repetition_percent": result.repetition_percent,
-                    "prolongation_percent": result.prolongation_percent,
-                    "block_percent": result.block_percent,
-                }
+            task_results.append({
+                "task_type": task.task_type,
+                "pattern": primary_pattern,
+                "percent": patterns[primary_pattern],
+                "stuttering_percent": result.stuttering_percent,
+                "repetition_percent": result.repetition_percent,
+                "prolongation_percent": result.prolongation_percent,
+                "block_percent": result.block_percent,
+                "speech_events": [
+                    {
+                        "word_or_sound": event.word_or_sound,
+                    }
+                    for event in (result.speech_events or [])
+                    if event.word_or_sound
+                    and event.word_or_sound.strip()
+                ],
+            })
+            task_order = {
+                "task_1": 0,
+                "task_2": 1,
+                "task_3": 2,
+            }
+
+            task_results.sort(
+                key=lambda item: task_order.get(
+                    item["task_type"],
+                    999,
+                )
             )
 
     return {

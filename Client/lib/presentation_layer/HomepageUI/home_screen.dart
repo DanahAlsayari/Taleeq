@@ -1,4 +1,5 @@
 
+
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -6,10 +7,58 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Color(0xFFFFFBF6),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFFBF6),
       body: SafeArea(
-        child: SizedBox.expand(),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.lightbulb_rounded,
+                  size: 64,
+                  color: Color(0xFF6FA7A3),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'الألعاب والتحديات',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F5F5A),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pushNamed(
+                        context,
+                        '/naming-challenge',
+                      );
+                    },
+                    icon: const Icon(Icons.mic_rounded),
+                    label: const Text(
+                      'تحدي التسمية',
+                      style: TextStyle(fontSize: 17),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1F5F5A),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

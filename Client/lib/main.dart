@@ -11,6 +11,8 @@ import 'presentation_layer/authenticationUI/signup_screen.dart';
 import 'presentation_layer/HomepageUI/home_screen.dart';
 import 'presentation_layer/widgets/assesmentWidgets/pre_assesment_success_screen.dart';
 import 'presentation_layer/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import 'presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -118,6 +120,8 @@ class _TaleeqAppState extends State<TaleeqApp> {
       routes: {
         '/signup': (context) => const SignupScreen(),
         '/home': (context) => const HomeScreen(),
+        '/naming-challenge': (context) =>
+            const NamingChallengeScreen(),
       },
     );
   }

@@ -37,7 +37,7 @@ class AudioAnalysisResult(BaseModel):
     block_percent: float = Field(ge=0.0, le=100.0)
 
     speaking_rate_wpm: float | None = Field(default=None, ge=0.0)
-    speaking_rate: float = Field(ge=0.0, le=100.0)
+    speaking_rate: float = Field(ge=0.0)
     timing_pacing: float = Field(ge=0.0, le=100.0)
 
     speech_events: list[SpeechEvent] = Field(default_factory=list)
@@ -338,7 +338,7 @@ Accept understandable speech even when quiet or affected by stuttering.
 Do not confuse natural pauses, breathing, or thinking with silence.
 Do not confuse stuttering with unintelligibility.
 
-If unusable, set speech_usable to false, explain briefly in
+If unusable, set speech_usable to false, explain in arabic briefly in
 validation_reason, set all percentage and score metrics to 0,
 set speaking_rate_wpm to null, and return an empty speech_events array.
 
@@ -364,8 +364,7 @@ Estimate these values from the entire usable recording:
 - prolongation_percent: estimated percentage affected by prolongations.
 - block_percent: estimated percentage affected by blocks.
 - speaking_rate_wpm: estimated spoken words per minute, or null if unreliable.
-- speaking_rate: score from 0 to 100 for appropriateness and consistency
-  of speaking rate.
+- speaking_rate: estimated number of words spoken in 10 seconds.
 - timing_pacing: score from 0 to 100 for naturalness and consistency
   of timing, rhythm, and pauses.
 
@@ -391,10 +390,10 @@ Return only one valid JSON object with exactly these keys:
   "speech_events": []
 }
 
-Use a boolean for speech_usable, a string for validation_reason,
-numbers from 0 to 100 for percentages and scores, and a non-negative
-number or null for speaking_rate_wpm.
-
+Use a boolean for speech_usable and a string for validation_reason.
+Percentages and timing_pacing must be between 0 and 100.
+speaking_rate must be a non-negative number representing words per 10 seconds.
+speaking_rate_wpm must be a non-negative number or null.
 Each speech_events item must contain exactly:
 {
   "event_type": "repetition",
