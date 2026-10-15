@@ -922,10 +922,21 @@ List<Map<String, dynamic>> questions = [];
                     hasStartedPlaying = false;
                   });
                 } else {
-                  await recordingService.stopAudio();
-                  await player.seek(Duration.zero);
-                  await _submitAssessment();
-                }
+                    await recordingService.stopAudio();
+                    await player.seek(Duration.zero);
+
+                    print('started validating audio for question ${currentQuestionIndex + 1}');
+                  
+
+                    await _assessmentApiService.validateAssessmentAudio(
+                      assessmentId: _assessmentId!,
+                      recordingPath: path,
+                    );
+
+                    print('audio file validated successfully for question ${currentQuestionIndex + 1}');
+
+                    await _submitAssessment();
+                  }
               } catch (e) {
                 if (!mounted) return;
 
