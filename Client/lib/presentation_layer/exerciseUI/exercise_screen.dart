@@ -396,10 +396,82 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                                       ),
                                     ),
                                   ],
-                                ),
+                                )
+                                
+                                
+                                ,
                                 
                               ],
                             )
+
+
+                                                    // Storytelling
+                            : exerciseData['type'] == 'Storytelling'
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.auto_stories_outlined,
+                                        size: 42,
+                                        color: Color(0xFF6FA7A3),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'احكِ لنا قصة',
+                                        style: TextStyle(
+                                          color: Color(0xFF1F5F5A),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        exerciseData['content']['prompt'] ??
+                                            exerciseData['content']['topic'] ??
+                                            '',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF2E3A38),
+                                          fontSize: 17,
+                                          height: 1.6,
+                                        ),
+                                      ),
+                                    ],
+                                  )
+
+                            // Free Speech
+                            : exerciseData['type'] == 'Free Speech'
+                                ? Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.record_voice_over_outlined,
+                                        size: 42,
+                                        color: Color(0xFF6FA7A3),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'تحدث بحرية',
+                                        style: TextStyle(
+                                          color: Color(0xFF1F5F5A),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        exerciseData['content']['prompt'] ??
+                                            exerciseData['content']['topic'] ??
+                                            '',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF2E3A38),
+                                          fontSize: 17,
+                                          height: 1.6,
+                                        ),
+                                      ),
+                                    ],
+                                  )
                           : const SizedBox.shrink(),
                     ),
                   ),
