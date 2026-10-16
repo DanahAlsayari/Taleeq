@@ -65,7 +65,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
         ),
       ),
 
-      
+
         body: Directionality(
           textDirection: TextDirection.rtl,
           child: SafeArea(
@@ -73,7 +73,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24.0),
               child: Column(
                 children: [
-                  
+
                  const SizedBox(height: 12.0),
                   // Journey stepper
                   const JourneyStepper(currentStep: 2),
@@ -121,14 +121,14 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   const SizedBox(height: 32.0),
 
                   // Information card
-               
-  
+
+
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20.0),
-                    
-                    child: 
-                    
+
+                    child:
+
                     const Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -140,7 +140,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                     ),
                   ),
 
-        
+
 /*
 
                   // Start button
@@ -174,7 +174,7 @@ class PreAssessmentIntroScreen extends StatelessWidget {
 
 
 
-                 
+
                 ],
               ),
             ),
