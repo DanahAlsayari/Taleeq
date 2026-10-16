@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.assessment import router as assessment_router
+from api.training import router as training_router
 
 from fastapi.staticfiles import StaticFiles
 from application_layer.authentication_managment.main import (
@@ -26,6 +27,9 @@ app.add_middleware(
 
 # Adds the assessment endpoints.
 app.include_router(assessment_router)
+
+# Adds the training endpoints.
+app.include_router(training_router)
 
 # Adds the authentication application under /auth.
 app.mount("/auth", authentication_app)
