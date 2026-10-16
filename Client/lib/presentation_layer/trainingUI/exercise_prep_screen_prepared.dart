@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
 import 'package:client/services/technique_service.dart';
 import 'package:client/models/technique_model.dart';
 
@@ -41,7 +40,7 @@ class Technique {
   final List<String> steps;
   final String? example;
   final List<String> tips;
-  final String? videoAsset;
+
   const Technique({
     required this.id,
     required this.nameAr,
@@ -50,13 +49,11 @@ class Technique {
     this.steps = const [],
     this.example,
     this.tips = const [],
-    this.videoAsset,
+  
   });
 }
 
-// Local video assets only. Add entries after adding files to pubspec.yaml.
-// For example: 1: 'assets/videos/easy_onset.mp4'
-const Map<int, String> techniqueVideoAssets = {};
+
 
 Technique techniqueFromModel(TechniqueModel model) => Technique(
   id: model.id,
@@ -66,7 +63,7 @@ Technique techniqueFromModel(TechniqueModel model) => Technique(
   steps: model.steps,
   example: model.example,
   tips: model.tips,
-  videoAsset: techniqueVideoAssets[model.id],
+ 
 );
 
 // ==================== SCREEN ====================
@@ -463,34 +460,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                   selectedTechnique == null &&
                   techniqueError == null)
                 const Text('لا توجد تقنيات متاحة'),
-              if (!loadingDetails &&
-                  techniqueError == null &&
-                  selectedTechnique?.videoAsset != null) ...[
-                const SizedBox(height: 22),
-                const Row(
-                  children: [
-                    Icon(
-                      Icons.play_circle_outline_rounded,
-                      color: TaleeqColors.primary,
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      'شاهد طريقة تطبيق التقنية',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: TaleeqColors.text,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LocalTechniqueVideo(
-                  key: ValueKey(selectedTechnique!.videoAsset),
-                  asset: selectedTechnique!.videoAsset!,
-                ),
-              ],
-            ],
+            ],  
           ),
           // Fixed bottom button
           bottomNavigationBar: Container(
@@ -1024,206 +994,6 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
   }
 }
 
-// ==================== LOCAL VIDEO PLAYER ====================
-class LocalTechniqueVideo extends StatefulWidget {
-  final String asset;
-  const LocalTechniqueVideo({super.key, required this.asset});
-  @override
-  State<LocalTechniqueVideo> createState() => _LocalTechniqueVideoState();
-}
-
-class _LocalTechniqueVideoState extends State<LocalTechniqueVideo> {
-  late VideoPlayerController controller;
-  bool failed = false;
-  bool ready = false;
-  @override
-  void initState() {
-    super.initState();
-    initializeVideo();
-  }
-
-  Future<void> initializeVideo() async {
-    controller = VideoPlayerController.asset(widget.asset);
-    controller.addListener(refreshPlayer);
-    try {
-      await controller.initialize();
-      if (mounted) {
-        setState(() {
-          ready = true;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          failed = true;
-        });
-      }
-    }
-  }
-
-  void refreshPlayer() {
-    if (mounted && ready) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.removeListener(refreshPlayer);
-    controller.dispose();
-    super.dispose();
-  }
-
-  void toggleVideo() {
-    if (!ready) return;
-    if (controller.value.isPlaying) {
-      controller.pause();
-    } else {
-      controller.play();
-    }
-  }
-
-  String formatTime(Duration time) {
-    final minutes = time.inMinutes;
-    final seconds = (time.inSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (failed) {
-      return const SizedBox.shrink();
-    }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: AspectRatio(
-        aspectRatio: ready ? controller.value.aspectRatio : 16 / 9,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [TaleeqColors.primary, Color(0xFF3F8A84)],
-            ),
-          ),
-          child: !ready
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                )
-              : Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    VideoPlayer(controller),
-                    if (!controller.value.isPlaying)
-                      IconButton(
-                        onPressed: toggleVideo,
-                        icon: const Icon(
-                          Icons.play_circle_fill_rounded,
-                          size: 70,
-                          color: Colors.white,
-                        ),
-                      )
-                    else
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: toggleVideo,
-                          behavior: HitTestBehavior.translucent,
-                        ),
-                      ),
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        color: Colors.black54,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        child: Column(
-                          children: [
-                            VideoProgressIndicator(
-                              controller,
-                              allowScrubbing: true,
-                              colors: const VideoProgressColors(
-                                playedColor: Colors.white,
-                                bufferedColor: Colors.white54,
-                                backgroundColor: Colors.white24,
-                              ),
-                            ),
-                            Row(
-                              children: [
-                                IconButton(
-                                  onPressed: toggleVideo,
-                                  icon: Icon(
-                                    controller.value.isPlaying
-                                        ? Icons.pause_rounded
-                                        : Icons.play_arrow_rounded,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    '${formatTime(controller.value.position)} / '
-                                    '${formatTime(controller.value.duration)}',
-                                    textDirection: TextDirection.ltr,
-                                    textAlign: TextAlign.right,
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: 'ملء الشاشة',
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            FullscreenTechniqueVideo(
-                                              controller: controller,
-                                            ),
-                                      ),
-                                    );
-                                  },
-                                  icon: const Icon(
-                                    Icons.fullscreen_rounded,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class FullscreenTechniqueVideo extends StatelessWidget {
-  final VideoPlayerController controller;
-  const FullscreenTechniqueVideo({super.key, required this.controller});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: AspectRatio(
-          aspectRatio: controller.value.aspectRatio,
-          child: VideoPlayer(controller),
-        ),
-      ),
-    );
-  }
-}
 
 // ==================== TEMPORARY PREVIEW DATA ====================
 // Exercise data will come from the exercise team's DB table.
