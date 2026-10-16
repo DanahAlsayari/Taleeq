@@ -45,7 +45,7 @@ class WeeklyPlanService {
   }
 
   Future<Map<String, dynamic>?> getWeeklyPlan({String? weekStart}) async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/weekly-plan');
+    final uri = Uri.parse('${ApiConfig.authBaseUrl}/weekly-plan');
 
     final response = await http
         .get(
@@ -69,7 +69,7 @@ class WeeklyPlanService {
   }) async {
     final response = await http
         .put(
-          Uri.parse('${ApiConfig.baseUrl}/weekly-plan'),
+          Uri.parse('${ApiConfig.authBaseUrl}/weekly-plan'),
           headers: await _headers(),
           body: jsonEncode({'week_start': weekStart, 'sessions': sessions}),
         )
@@ -85,7 +85,7 @@ class WeeklyPlanService {
     final response = await http
         .patch(
           Uri.parse(
-            '${ApiConfig.baseUrl}/weekly-plan/'
+            '${ApiConfig.authBaseUrl}/weekly-plan/'
             'sessions/$sessionId/completion',
           ),
           headers: await _headers(),

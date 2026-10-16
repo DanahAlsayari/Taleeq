@@ -194,7 +194,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     try {
       final signupResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/signup'),
+        Uri.parse('${ApiConfig.authBaseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
