@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../services/pre_assessment_service.dart';
+import '../../../services/pre_assessment_service.dart';
 import 'pre_assesment_success_screen.dart';
+import '../../widgets/journey_stepper.dart';
 
 class PreAssessmentQuestionsScreen extends StatefulWidget {
   const PreAssessmentQuestionsScreen({super.key});
@@ -133,8 +134,8 @@ class _PreAssessmentQuestionsScreenState
                 children: [
                   Stack(
                     children: [
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
+                    Align(
+                          alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
                           onPressed: isSubmitting
                               ? null
@@ -149,18 +150,18 @@ class _PreAssessmentQuestionsScreenState
                                 },
                           icon: const Icon(Icons.arrow_back),
                         ),
-                      ),
-                      const SizedBox(width: 120.0),
+                        ),
+            
+                      
+                      
                       Column(
                         children: [
-                          Text(
-                            '${questions.length}/'
-                            '${currentQuestionIndex + 1}',
-                            style: const TextStyle(
-                              color: Color(0xFF8FA39F),
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          const SizedBox(height: 35.0),
+                        
+                           JourneyStepper(currentStep: 2),
+                   
+                      
+                          
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -233,7 +234,7 @@ class _PreAssessmentQuestionsScreenState
                       child: Container(
                         width: double.infinity,
                         height: 60,
-                        margin: const EdgeInsets.all(7.0),
+                        margin: const EdgeInsets.symmetric(vertical: 6.0),
                         padding: const EdgeInsets.all(13.0),
                         decoration: BoxDecoration(
                           color: isSelected
@@ -285,9 +286,9 @@ class _PreAssessmentQuestionsScreenState
         ),
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
         child: SizedBox(
-          height: 60.0,
+          height: 56.0,
           child: ElevatedButton(
             onPressed: hasAnswer && !isSubmitting
                 ? () async {
@@ -303,7 +304,7 @@ class _PreAssessmentQuestionsScreenState
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6FA7A3),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(18.0),
               ),
             ),
             child: isSubmitting

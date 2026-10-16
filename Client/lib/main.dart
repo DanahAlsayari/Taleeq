@@ -7,6 +7,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'presentation_layer/authenticationUI/forgot_password_screen.dart';
 import 'presentation_layer/authenticationUI/reset_password_screen.dart';
 import 'presentation_layer/authenticationUI/welcome_screen.dart';
+import 'presentation_layer/authenticationUI/signup_screen.dart';
+import 'presentation_layer/widgets/assesmentWidgets/pre_assesment_success_screen.dart';
+import 'presentation_layer/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import 'presentation_layer/widgets/main_navigation_screen.dart';
+import 'presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,8 +34,7 @@ class TaleeqApp extends StatefulWidget {
 class _TaleeqAppState extends State<TaleeqApp> {
   final AppLinks _appLinks = AppLinks();
 
-  final GlobalKey<NavigatorState> _navigatorKey =
-      GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
   StreamSubscription<Uri>? _linkSubscription;
 
@@ -57,8 +61,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
   }
 
   void _handleLink(Uri uri) {
-    if (uri.scheme != 'taleeq' ||
-        uri.host != 'reset-password') {
+    if (uri.scheme != 'taleeq' || uri.host != 'reset-password') {
       return;
     }
 
@@ -76,11 +79,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
       }
 
       navigator.pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => ResetPasswordScreen(
-            token: token,
-          ),
-        ),
+        MaterialPageRoute(builder: (_) => ResetPasswordScreen(token: token)),
         (route) => false,
       );
     });
@@ -100,20 +99,17 @@ class _TaleeqAppState extends State<TaleeqApp> {
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFFFFBF6),
         fontFamily: 'Tajawal',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1F5F5A),
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1F5F5A)),
       ),
       builder: (context, child) {
-        return Directionality(
-          textDirection: TextDirection.rtl,
-          child: child!,
-        );
+        return Directionality(textDirection: TextDirection.rtl, child: child!);
       },
-
-      // مؤقتًا نفتح Profile مباشرة.
-      // روابط Reset Password يتم التعامل معها داخل _handleLink().
       home: const WelcomeScreen(),
+      routes: {
+        '/signup': (context) => const SignupScreen(),
+        '/home': (context) => const MainNavigationScreen(),
+        '/naming-challenge': (context) => const NamingChallengeScreen(),
+      },
     );
   }
 }

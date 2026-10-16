@@ -7,6 +7,10 @@ from data_and_integration_layer.database.Repositories.assessment_repository impo
     AssessmentRepository,
 )
 
+from data_and_integration_layer.ai_integration.openai_audio import (
+    UnusableSpeechError,
+)
+
 
 class AssessmentAnalysisService:
 
@@ -14,75 +18,6 @@ class AssessmentAnalysisService:
         self.repository = AssessmentRepository(db)
         self.task_analysis_service = TaskAnalysisService()
 
-    # ---------------------------------------------------------
-    # OLD FLOW
-    # ---------------------------------------------------------
-
-    def analyze_assessment(self, assessment_id: int):
-
-        assessment = self.repository.get_assessment(
-            assessment_id
-        )
-
-        if not assessment:
-            raise ValueError("Assessment not found.")
-
-        tasks = self.repository.get_assessment_tasks(
-            assessment_id
-        )
-
-        if not tasks:
-            raise ValueError("No tasks found for this assessment.")
-
-        results = []
-
-        for task in tasks:
-
-            if not task.storage_url:
-                continue
-
-            try:
-                analysis = self.task_analysis_service.analyze_task(
-                    task.storage_url
-                )
-
-                saved_result = self.repository.save_task_analysis(
-                    task,
-                    analysis,
-                )
-
-                results.append(saved_result)
-
-            except Exception as error:
-                print(
-                    f"❌ Task {task.id} failed: {error}"
-                )
-
-                self.repository.mark_task_as_failed(
-                    task,
-                    str(error),
-                )
-
-        if not results:
-            raise ValueError(
-                "No assessment tasks were successfully analyzed."
-            )
-
-        overall_result = self._calculate_overall_result(
-            results
-        )
-
-        self.repository.update_assessment_result(
-            assessment_id,
-            overall_result,
-        )
-
-        self.repository.update_fluency_profile(
-            assessment.user_id,
-            overall_result,
-        )
-
-        return overall_result
 
     # ---------------------------------------------------------
     # NEW FLOW - DIRECT AUDIO
@@ -93,7 +28,6 @@ class AssessmentAnalysisService:
         assessment_id: int,
         audio_tasks: list[tuple[str, bytes, str]],
     ):
-
         assessment = self.repository.get_assessment(
             assessment_id
         )
@@ -104,16 +38,16 @@ class AssessmentAnalysisService:
         if not audio_tasks:
             raise ValueError("No audio files were provided.")
 
-        results = []
+        # PHASE 1: Analyze and validate all audio files first.
+        analyses = []
 
         for task_type, audio_bytes, audio_format in audio_tasks:
+            print(
+                f"🎙️ ANALYZING {task_type} "
+                f"({audio_format})"
+            )
 
             try:
-                print(
-                    f"🎙️ ANALYZING {task_type} "
-                    f"({audio_format})"
-                )
-
                 analysis = (
                     self.task_analysis_service.analyze_audio_bytes(
                         audio_bytes,
@@ -121,34 +55,42 @@ class AssessmentAnalysisService:
                     )
                 )
 
-                # Create/get the assessment task
-                task = self.repository.get_or_create_task(
-                    assessment_id=assessment_id,
-                    task_type=task_type,
-                )
+                analyses.append((task_type, analysis))
 
-                saved_result = self.repository.save_task_analysis(
-                    task,
-                    analysis,
-                )
-
-                results.append(saved_result)
+            except UnusableSpeechError:
+                # Stop immediately. Nothing has been saved yet.
+                raise
 
             except Exception as error:
-
-                print(
-                    f"❌ {task_type} failed: {error}"
-                )
+                print(f"❌ {task_type} failed: {error}")
 
                 raise ValueError(
                     f"Failed to analyze {task_type}: {error}"
-                )
+                ) from error
+
+        # PHASE 2: Save results only after all audio files
+        # have been analyzed successfully.
+        results = []
+
+        for task_type, analysis in analyses:
+            task = self.repository.get_or_create_task(
+                assessment_id=assessment_id,
+                task_type=task_type,
+            )
+
+            saved_result = self.repository.save_task_analysis(
+                task,
+                analysis,
+            )
+
+            results.append(saved_result)
 
         if not results:
             raise ValueError(
                 "No assessment tasks were successfully analyzed."
             )
 
+        # PHASE 3: Update overall results and fluency profile.
         overall_result = self._calculate_overall_result(
             results
         )
@@ -163,7 +105,29 @@ class AssessmentAnalysisService:
             overall_result,
         )
 
-        return overall_result
+        task_results = []
+
+        for (task_type, _, _), saved_result in zip(audio_tasks, results):
+
+            patterns = {
+                "repetition": saved_result.repetition_percent,
+                "prolongation": saved_result.prolongation_percent,
+                "block": saved_result.block_percent,
+            }
+
+            primary_pattern = max(patterns, key=patterns.get)
+
+            task_results.append({
+                "task_type": task_type,
+                "pattern": primary_pattern,
+                "percent": patterns[primary_pattern],
+                "stuttering_percent": saved_result.stuttering_percent,
+            })
+
+        return {
+            **overall_result,
+            "task_results": task_results,
+        }
 
     # ---------------------------------------------------------
     # CALCULATE OVERALL RESULT

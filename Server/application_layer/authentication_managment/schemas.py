@@ -82,7 +82,21 @@ class UserLogin(BaseModel):
 
         return value
 
-
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class SignupOTPResponse(BaseModel):
+    registration_id: str
+    message: str
+    expires_in_seconds: int
+    resend_after_seconds: int
+
+
+class VerifySignupOTP(BaseModel):
+    registration_id: str = Field(min_length=36, max_length=36)
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class ResendSignupOTP(BaseModel):
+    registration_id: str = Field(min_length=36, max_length=36)

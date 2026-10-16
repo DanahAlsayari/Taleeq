@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
 
-import '../../services/auth_storage.dart';
-import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import '../widgets/journey_stepper.dart';
+import 'signup_otp_screen.dart';
 import '../../services/api_config_service.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -16,8 +16,6 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-
-
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
   static const Color background = Color(0xFFFFFBF6);
@@ -25,6 +23,10 @@ class _SignupScreenState extends State<SignupScreen> {
   static const Color borderColor = Color(0xFFDDE8E6);
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
+  final _phoneFieldKey = GlobalKey<FormFieldState<String>>();
+  final _passwordFieldKey = GlobalKey<FormFieldState<String>>();
+  final _confirmPasswordFieldKey = GlobalKey<FormFieldState<String>>();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -41,25 +43,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
-  bool _showPasswordRequirements = false;
   bool _isLoading = false;
+  bool _showGenderError = false;
 
   String? _selectedGender;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _passwordFocusNode.addListener(() {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _showPasswordRequirements = _passwordFocusNode.hasFocus;
-      });
-    });
-  }
+  String? _emailServerError;
+  String? _phoneServerError;
+  final Map<String, String> _backendFieldErrors = {};
 
   @override
   void dispose() {
@@ -120,18 +110,79 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
+  bool _showBackendValidationErrors(http.Response response) {
+    final errors = <String, String>{};
+    const fieldMessages = {
+      'name': 'يرجى التحقق من الاسم المدخل',
+      'email':
+          'البريد الإلكتروني غير صالح. يرجى التحقق من اسم البريد واسم النطاق',
+      'phone_number': 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05',
+      'age': 'يجب إدخال عمر صحيح بين 13 و100 سنة',
+      'gender': 'يرجى اختيار الجنس',
+      'password': 'كلمة المرور لا تستوفي جميع الشروط',
+      'confirm_password': 'يرجى التحقق من تأكيد كلمة المرور',
+    };
+
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map) return false;
+      final detail = decoded['detail'];
+
+      if (response.statusCode == 422 && detail is List) {
+        for (final error in detail) {
+          if (error is! Map) continue;
+          final location = error['loc'];
+          if (location is! List) continue;
+          for (final part in location) {
+            final field = part.toString();
+            final message = fieldMessages[field];
+            if (message != null) {
+              errors[field] = message;
+              break;
+            }
+          }
+        }
+      } else if (response.statusCode == 400 && detail is String) {
+        if (detail == 'Passwords do not match.' ||
+            detail == 'Passwords do not match') {
+          errors['confirm_password'] = 'كلمتا المرور غير متطابقتين';
+        } else if (detail.startsWith('Password ')) {
+          final translated = _translateBackendError(detail);
+          errors['password'] = translated == detail
+              ? 'كلمة المرور لا تستوفي جميع الشروط'
+              : translated;
+        } else if (detail == 'Account information cannot be used') {
+          errors['email'] = 'تعذر استخدام بيانات الحساب. يرجى التحقق منها';
+          errors['phone_number'] =
+              'تعذر استخدام بيانات الحساب. يرجى التحقق منها';
+        }
+      }
+    } catch (_) {
+      return false;
+    }
+
+    if (errors.isEmpty) return false;
+    setState(() {
+      _backendFieldErrors.addAll(errors);
+    });
+    return true;
+  }
+
   Future<void> _createAccount() async {
     FocusScope.of(context).unfocus();
+
+    setState(() {
+      _showGenderError = _selectedGender == null;
+    });
 
     final formIsValid = _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
-      _clearPasswordsOnNextFocus = true;
+      _clearPasswordsOnNextFocus = !_passwordIsValid || !_passwordsMatch;
       return;
     }
 
-    if (_selectedGender == null) {
-      _showMessage('يرجى اختيار الجنس');
+    if (_showGenderError) {
       return;
     }
 
@@ -156,61 +207,71 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
+      if (!mounted) return;
+
       if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
-        _clearPasswordsOnNextFocus = true;
+        String? detail;
+
+        try {
+          final decoded = jsonDecode(signupResponse.body);
+          if (decoded is Map && decoded['detail'] is String) {
+            detail = decoded['detail'] as String;
+          }
+        } catch (_) {}
+
+        final emailUsed =
+            detail == 'Email already registered' ||
+            detail == 'Email and phone number already registered';
+
+        final phoneUsed =
+            detail == 'Phone number already registered' ||
+            detail == 'Email and phone number already registered';
+
+        if (emailUsed || phoneUsed) {
+          setState(() {
+            _emailServerError = emailUsed
+                ? 'البريد الإلكتروني مستخدم بالفعل'
+                : null;
+            _phoneServerError = phoneUsed ? 'رقم الهاتف مستخدم بالفعل' : null;
+          });
+
+          _formKey.currentState?.validate();
+          return;
+        }
+
+        if (_showBackendValidationErrors(signupResponse)) return;
 
         _showMessage(
-          _readErrorMessage(signupResponse, fallback: 'تعذر إنشاء الحساب'),
+          'تعذر إنشاء الحساب بسبب مشكلة في الخادم. يرجى المحاولة مرة أخرى',
         );
-
         return;
       }
 
-      // Log the new user in automatically.
-      final loginResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': normalizedEmail,
-          'password': _passwordController.text,
-        }),
-      );
+      final decoded = jsonDecode(utf8.decode(signupResponse.bodyBytes));
 
-      if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
-        _clearPasswordsOnNextFocus = true;
+      if (decoded is! Map<String, dynamic>) {
+        _showMessage('تعذر قراءة استجابة الخادم. يرجى المحاولة مرة أخرى.');
+        return;
+      }
 
-        _showMessage(
-          _readErrorMessage(
-            loginResponse,
-            fallback: 'تم إنشاء الحساب، ولكن تعذر تسجيل الدخول',
+      final registrationId = decoded['registration_id'];
+      final resendAfterSeconds = decoded['resend_after_seconds'];
+
+      if (registrationId is! String ||
+          registrationId.isEmpty ||
+          resendAfterSeconds is! int) {
+        _showMessage('تعذر بدء التحقق من البريد الإلكتروني.');
+        return;
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => SignupOtpScreen(
+            registrationId: registrationId,
+            email: normalizedEmail,
+            resendAfterSeconds: resendAfterSeconds,
           ),
-        );
-
-        return;
-      }
-
-      final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
-
-      final token = loginData['access_token'] as String?;
-
-      if (token == null || token.isEmpty) {
-        _clearPasswordsOnNextFocus = true;
-        _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
-        return;
-      }
-
-      await AuthStorage.saveToken(token);
-
-      if (!mounted) {
-        return;
-      }
-
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) =>
-              const PreAssessmentIntroScreen(allowBack: false),
         ),
-        (route) => false,
       );
     } catch (error) {
       _clearPasswordsOnNextFocus = true;
@@ -238,7 +299,7 @@ class _SignupScreenState extends State<SignupScreen> {
         final firstError = detail.first;
 
         if (firstError is Map<String, dynamic>) {
-          return firstError['msg']?.toString() ?? fallback;
+          return fallback;
         }
       }
     } catch (_) {
@@ -282,7 +343,7 @@ class _SignupScreenState extends State<SignupScreen> {
         return 'يجب أن تحتوي كلمة المرور على رمز خاص';
 
       default:
-        return message;
+        return 'يرجى التحقق من البيانات المدخلة';
     }
   }
 
@@ -325,6 +386,7 @@ class _SignupScreenState extends State<SignupScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
+      errorMaxLines: 3,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -379,6 +441,8 @@ class _SignupScreenState extends State<SignupScreen> {
         onTap: () {
           setState(() {
             _selectedGender = value;
+            _showGenderError = false;
+            _backendFieldErrors.remove('gender');
           });
         },
         borderRadius: BorderRadius.circular(14),
@@ -390,7 +454,11 @@ class _SignupScreenState extends State<SignupScreen> {
             color: isSelected ? darkGreen : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: isSelected ? darkGreen : borderColor,
+              color:
+                  (_showGenderError ||
+                      _backendFieldErrors.containsKey('gender'))
+                  ? Colors.red
+                  : (isSelected ? darkGreen : borderColor),
               width: 1.3,
             ),
           ),
@@ -436,9 +504,11 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Scaffold(
         backgroundColor: background,
         appBar: AppBar(
+          automaticallyImplyLeading: false,
           backgroundColor: background,
           elevation: 0,
           foregroundColor: darkText,
+
           title: const Text(
             'إنشاء حساب',
             style: TextStyle(fontWeight: FontWeight.bold),
@@ -454,6 +524,20 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: IconButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.of(context)
+                                  .popUntil((route) => route.isFirst);
+                            },
+                      icon: const Icon(Icons.arrow_back_ios_new),
+                    ),
+                  ),
+                  const JourneyStepper(currentStep: 1),
+
                   const Text(
                     'مرحبًا بك في طليق',
                     textAlign: TextAlign.center,
@@ -479,7 +563,14 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 28),
 
                   TextFormField(
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     controller: _nameController,
+                    onChanged: (_) {
+                      setState(() {
+                        _backendFieldErrors.remove('name');
+                      });
+                    },
+                    forceErrorText: _backendFieldErrors['name'],
                     keyboardType: TextInputType.name,
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.right,
@@ -514,7 +605,20 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 14),
 
                   TextFormField(
+                    key: _emailFieldKey,
+                    autovalidateMode:
+                        _emailFieldKey.currentState?.hasError == true
+                        ? AutovalidateMode.onUserInteraction
+                        : AutovalidateMode.onUnfocus,
                     controller: _emailController,
+                    forceErrorText:
+                        _backendFieldErrors['email'] ?? _emailServerError,
+                    onChanged: (_) {
+                      setState(() {
+                        _emailServerError = null;
+                        _backendFieldErrors.remove('email');
+                      });
+                    },
                     keyboardType: TextInputType.emailAddress,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
@@ -528,27 +632,94 @@ class _SignupScreenState extends State<SignupScreen> {
                       icon: Icons.email_outlined,
                     ),
                     validator: (value) {
-                      final email = value?.trim() ?? '';
+                      final email = value ?? '';
 
-                      if (email.isEmpty) {
+                      if (email.trim().isEmpty) {
                         return 'يرجى إدخال البريد الإلكتروني';
                       }
 
-                      final emailIsValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                          .hasMatch(email);
-
-                      if (!emailIsValid) {
-                        return 'البريد الإلكتروني غير صحيح';
+                      if (RegExp(r'\s').hasMatch(email)) {
+                        return 'يجب ألا يحتوي البريد الإلكتروني على مسافات';
                       }
 
-                      return null;
+                      final atCount = '@'.allMatches(email).length;
+
+                      if (atCount == 0) {
+                        return 'يجب أن يحتوي البريد الإلكتروني على الرمز @';
+                      }
+
+                      if (atCount > 1) {
+                        return 'يجب أن يحتوي البريد الإلكتروني على رمز @ واحد فقط';
+                      }
+
+                      final parts = email.split('@');
+                      final username = parts[0];
+                      final domain = parts[1];
+
+                      if (username.isEmpty) {
+                        return 'يرجى إدخال اسم البريد قبل الرمز @';
+                      }
+
+                      if (domain.isEmpty) {
+                        return 'يرجى إدخال اسم النطاق بعد الرمز @';
+                      }
+
+                      if (!domain.contains('.')) {
+                        return 'يرجى إدخال نطاق كامل، مثل gmail.com';
+                      }
+
+                      final domainParts = domain.split('.');
+
+                      if (domainParts.any((part) => part.isEmpty)) {
+                        return 'اسم النطاق غير مكتمل، مثل gmail.com';
+                      }
+
+                      final domainIsValid = domainParts.every(
+                        (part) => RegExp(
+                          r'^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$',
+                        ).hasMatch(part),
+                      );
+
+                      if (!domainIsValid) {
+                        return 'اسم النطاق يحتوي على أحرف غير مسموحة';
+                      }
+
+                      if (username.startsWith('.') ||
+                          username.endsWith('.') ||
+                          username.contains('..')) {
+                        return 'اسم البريد يجب ألا يبدأ أو ينتهي بنقطة أو يحتوي على نقطتين متتاليتين';
+                      }
+
+                      final usernameIsValid = RegExp(
+                        r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$",
+                      ).hasMatch(username);
+
+                      if (!usernameIsValid) {
+                        return 'اسم البريد يحتوي على أحرف غير مسموحة';
+                      }
+
+                      return _emailServerError;
                     },
                   ),
 
                   const SizedBox(height: 14),
 
                   TextFormField(
+                    key: _phoneFieldKey,
+                    autovalidateMode:
+                        _phoneFieldKey.currentState?.hasError == true
+                        ? AutovalidateMode.onUserInteraction
+                        : AutovalidateMode.onUnfocus,
                     controller: _phoneController,
+                    forceErrorText:
+                        _backendFieldErrors['phone_number'] ??
+                        _phoneServerError,
+                    onChanged: (_) {
+                      setState(() {
+                        _phoneServerError = null;
+                        _backendFieldErrors.remove('phone_number');
+                      });
+                    },
                     keyboardType: TextInputType.phone,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -573,14 +744,21 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
                       }
 
-                      return null;
+                      return _phoneServerError;
                     },
                   ),
 
                   const SizedBox(height: 14),
 
                   TextFormField(
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     controller: _ageController,
+                    onChanged: (_) {
+                      setState(() {
+                        _backendFieldErrors.remove('age');
+                      });
+                    },
+                    forceErrorText: _backendFieldErrors['age'],
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -627,11 +805,27 @@ class _SignupScreenState extends State<SignupScreen> {
                       _genderChoice(label: 'ذكر', value: 'male'),
                     ],
                   ),
+                  if (_showGenderError ||
+                      _backendFieldErrors.containsKey('gender'))
+                    const Padding(
+                      padding: EdgeInsetsDirectional.only(start: 12, top: 8),
+                      child: Text(
+                        'يرجى اختيار الجنس',
+                        textAlign: TextAlign.right,
+                        style: TextStyle(color: Colors.red, fontSize: 12),
+                      ),
+                    ),
 
                   const SizedBox(height: 18),
 
                   TextFormField(
+                    key: _passwordFieldKey,
+                    autovalidateMode:
+                        _passwordFieldKey.currentState?.hasError == true
+                        ? AutovalidateMode.onUserInteraction
+                        : AutovalidateMode.onUnfocus,
                     controller: _passwordController,
+                    forceErrorText: _backendFieldErrors['password'],
                     textAlign: TextAlign.right,
                     focusNode: _passwordFocusNode,
                     obscureText: _hidePassword,
@@ -647,7 +841,9 @@ class _SignupScreenState extends State<SignupScreen> {
                       LengthLimitingTextInputFormatter(20),
                     ],
                     onChanged: (_) {
-                      setState(() {});
+                      setState(() {
+                        _backendFieldErrors.remove('password');
+                      });
                     },
                     decoration: _fieldDecoration(
                       label: 'كلمة المرور',
@@ -679,7 +875,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     },
                   ),
 
-                  if (_showPasswordRequirements) ...[
+                  ...[
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(15),
@@ -722,7 +918,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 14),
 
                   TextFormField(
+                    key: _confirmPasswordFieldKey,
+                    autovalidateMode:
+                        _confirmPasswordFieldKey.currentState?.hasError == true
+                        ? AutovalidateMode.onUserInteraction
+                        : AutovalidateMode.onUnfocus,
                     controller: _confirmPasswordController,
+                    forceErrorText: _backendFieldErrors['confirm_password'],
                     focusNode: _confirmPasswordFocusNode,
                     obscureText: _hideConfirmPassword,
                     autocorrect: false,
@@ -738,7 +940,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                     onTap: _clearPasswordsForRetry,
                     onChanged: (_) {
-                      setState(() {});
+                      setState(() {
+                        _backendFieldErrors.remove('confirm_password');
+                      });
                     },
                     onFieldSubmitted: (_) {
                       if (!_isLoading) {
@@ -768,12 +972,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
 
                       if (!_passwordsMatch) {
-                        _clearPasswordsOnNextFocus = true;
-
                         return 'كلمتا المرور غير متطابقتين';
                       }
-
-                      _clearPasswordsOnNextFocus = false;
 
                       return null;
                     },
