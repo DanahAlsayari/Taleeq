@@ -55,6 +55,30 @@ class HomeScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.pushNamed(context, '/dont-say-it');
+                      },
+                      icon: const Icon(Icons.record_voice_over_rounded),
+                      label: const Text(
+                        'لعبة لا تقلها',
+                        style: TextStyle(fontSize: 17),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6FA7A3),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
               ],
             ),
           ),

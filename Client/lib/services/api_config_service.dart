@@ -11,6 +11,6 @@ class ApiConfig {
       return 'http://10.0.2.2:8000/auth';
     }
 
-    return 'http://192.168.100.131:8000/auth';
+    return 'http://192.168.3.37:8000/auth';
   }
 }

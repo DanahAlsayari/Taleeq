@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.assessment import router as assessment_router
 
 import logging
-
+from api.dont_say_it import router as dont_say_it_router
 from api.techniques import router as techniques_router
 
 from fastapi.staticfiles import StaticFiles
@@ -45,6 +45,9 @@ app.mount("/auth", authentication_app)
 app.include_router(speech_exercises_router)
 # Adds the naming challenge endpoints.
 app.include_router(naming_challenge_router)
+
+# Adds the don't say it endpoints.
+app.include_router(dont_say_it_router)
 
 @app.get("/")
 def root():

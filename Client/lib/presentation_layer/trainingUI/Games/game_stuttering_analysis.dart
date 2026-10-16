@@ -69,29 +69,7 @@ class GameStutteringAnalysis {
                         const SizedBox(height: 16),
                         _buildAdditionalMetricsCard(analysis),
                         const SizedBox(height: 18),
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop(true);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: teal,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            child: const Text(
-                              'العودة إلى اللعبة',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
+                        
                       ],
                     ),
                   ),
@@ -110,54 +88,66 @@ class GameStutteringAnalysis {
   // Header
   // ------------------------------------------------------------
 
-static Widget _buildHeader(BuildContext context) => Padding(
-  padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
-  child: Column(
-    children: [
-      Align(
-        alignment: Alignment.centerRight,
-        child: IconButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          icon: const Icon(Icons.arrow_back_rounded),
-          color: teal,
-          tooltip: 'رجوع إلى نتائج اللعبة',
+static Widget _buildHeader(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+    child: Column(
+      children: [
+        // زر الإغلاق ✕
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+            icon: const Icon(Icons.close_rounded),
+            color: teal,
+            tooltip: 'إغلاق التحليل',
+          ),
         ),
-      ),
-      Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          color: const Color(0xFFEAF4F2),
-          borderRadius: BorderRadius.circular(19),
+
+        // أيقونة التحليل
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEAF4F2),
+            borderRadius: BorderRadius.circular(19),
+          ),
+          child: const Icon(
+            Icons.analytics_outlined,
+            color: teal,
+            size: 32,
+          ),
         ),
-        child: const Icon(
-          Icons.analytics_outlined,
-          color: teal,
-          size: 32,
+
+        const SizedBox(height: 12),
+
+        // عنوان النافذة
+        const Text(
+          'تحليل التأتأة',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: teal,
+          ),
         ),
-      ),
-      const SizedBox(height: 12),
-      const Text(
-        'تحليل التأتأة',
-        style: TextStyle(
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-          color: teal,
+
+        const SizedBox(height: 6),
+
+        Text(
+          'تحليل أنماط الكلام خلال هذه المحاولة',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: Colors.grey.shade700,
+            height: 1.5,
+          ),
         ),
-      ),
-      const SizedBox(height: 6),
-      Text(
-        'تحليل أنماط الكلام خلال هذه المحاولة',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 13,
-          color: Colors.grey.shade700,
-          height: 1.5,
-        ),
-      ),
-    ],
-  ),
-);
+      ],
+    ),
+  );
+}
 
   // ------------------------------------------------------------
   // Overall stuttering
