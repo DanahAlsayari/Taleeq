@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import '../profileUI/profile_screen.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../theme/taleeq_theme.dart';
 
@@ -13,6 +12,7 @@ import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../services/fluency_profile_service.dart';
 import '../widgets/journey_stepper.dart';
+
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -36,11 +36,15 @@ bool _isPrimaryPattern(FluencyProfileData data, String pattern) =>
 // =============================================================================
 // 3. MAIN SCREEN: طلاقتي (FluencyProfileScreen)
 // =============================================================================
-
 class FluencyProfileScreen extends StatefulWidget {
   final FluencyProfileData? profileData;
+  final bool isHistoryView;
 
-  const FluencyProfileScreen({super.key, this.profileData});
+  const FluencyProfileScreen({
+    super.key,
+    this.profileData,
+    this.isHistoryView = false,
+  });
 
   @override
   State<FluencyProfileScreen> createState() => _FluencyProfileScreenState();
@@ -63,11 +67,16 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
-    _loadFluencyProfile();
+
+    if (widget.isHistoryView && widget.profileData != null) {
+      _data = widget.profileData!;
+      _isLoading = false;
+    } else {
+      _loadFluencyProfile();
+    }
   }
 
   Future<void> _loadFluencyProfile() async {
@@ -215,7 +224,8 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
               physics: const SlowClampingScrollPhysics(speedFactor: 0.6),
               slivers: [
                 // الشريط العلوي
-                SliverToBoxAdapter(child: _buildTopAppBar(context)),
+                if (!widget.isHistoryView)
+                  SliverToBoxAdapter(child: _buildTopAppBar(context)),
 
                 // محتوى تقرير الطلاقة
                 SliverPadding(
@@ -275,60 +285,62 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                       // مشاركة التقرير
                       Column(
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 18,
-                            ),
-                            decoration: BoxDecoration(
-                              color: TaleeqTheme.softTeal.withValues(
-                                alpha: 0.65,
+                          if (!widget.isHistoryView)
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 18,
                               ),
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            child: Text(
-                              '✨ بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
-                              textAlign: TextAlign.center,
-                              style: GoogleFonts.cairo(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: TaleeqTheme.primaryTeal,
-                                height: 1.7,
+                              decoration: BoxDecoration(
+                                color: TaleeqTheme.softTeal.withValues(
+                                  alpha: 0.65,
+                                ),
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Text(
+                                '✨ بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: TaleeqTheme.primaryTeal,
+                                  height: 1.7,
+                                ),
                               ),
                             ),
-                          ),
 
                           const SizedBox(height: 18),
 
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
+                          if (!widget.isHistoryView)
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    '/home',
+                                    (route) => false,
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: TaleeqTheme.primaryTeal,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
                                   ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: TaleeqTheme.primaryTeal,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                              ),
-                              child: Text(
-                                'ابدأ خطتي',
-                                style: GoogleFonts.cairo(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
+                                child: Text(
+                                  'ابدأ خطتي',
+                                  style: GoogleFonts.cairo(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
                         ],
                       ).animate().fadeIn(duration: 500.ms, delay: 450.ms),
 
@@ -357,7 +369,6 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   JourneyStepper(currentStep: 4),
-                
 
                   Text(
                     'ملف طلاقتي',
@@ -429,7 +440,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
     _showTaleeqModal(
       context,
       title: patternName,
-      category: 'نمط عدم الطلاقة',
+      category: 'نمط التأتأة',
       description: description,
       icon: Icons.hearing_rounded,
     );
@@ -593,18 +604,6 @@ class _OverallFluencyCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          Positioned(
-            top: -40,
-            left: -40,
-            child: Container(
-              width: 140,
-              height: 140,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: TaleeqTheme.softTeal.withValues(alpha: 0.35),
-              ),
-            ),
-          ),
           Padding(
             padding: const EdgeInsets.all(22.0),
             child: Column(
@@ -837,7 +836,7 @@ class _StutteringPatternsChartState extends State<_StutteringPatternsChart> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'مقارنة أنماط عدم الطلاقة',
+                      'مقارنة أنماط التأتأة',
                       style: GoogleFonts.cairo(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -1277,6 +1276,7 @@ class _TaskResultsCard extends StatelessWidget {
   final List<TaskResultData> tasks;
 
   const _TaskResultsCard({required this.tasks});
+
   String _getTaskName(String taskType) {
     switch (taskType) {
       case 'task_1':
@@ -1289,30 +1289,34 @@ class _TaskResultsCard extends StatelessWidget {
         return taskType;
     }
   }
+
   String _getPatternName(String pattern) {
-  switch (pattern.toLowerCase()) {
-    case 'repetition':
-      return 'التكرار';
-    case 'prolongation':
-      return 'الإطالة';
-    case 'block':
-      return 'التوقف';
-    default:
-      return pattern;
+    switch (pattern.toLowerCase()) {
+      case 'repetition':
+        return 'التكرار';
+      case 'prolongation':
+        return 'الإطالة';
+      case 'block':
+        return 'التوقف';
+      default:
+        return pattern;
+    }
   }
-}
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('TASK RESULTS COUNT: ${tasks.length}');
+    const taskOrder = {'task_1': 0, 'task_2': 1, 'task_3': 2};
 
-    final highestPercent = tasks.isEmpty
-        ? 0.0
-        : tasks.map((task) => task.percent).reduce(math.max);
+    final orderedTasks = [...tasks]
+      ..sort(
+        (a, b) => (taskOrder[a.taskType] ?? 999).compareTo(
+          taskOrder[b.taskType] ?? 999,
+        ),
+      );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22.0),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -1336,9 +1340,7 @@ class _TaskResultsCard extends StatelessWidget {
                   size: 22,
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1352,7 +1354,7 @@ class _TaskResultsCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'مقارنة أبرز نمط بين مهام التقييم',
+                      'نسبة التأتأة والكلمات والأصوات المكتشفة',
                       style: GoogleFonts.cairo(
                         fontSize: 12,
                         color: TaleeqTheme.textMuted,
@@ -1363,24 +1365,19 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          ...List.generate(tasks.length, (index) {
-            final task = tasks[index];
-            final percent = task.percent;
+          ...List.generate(orderedTasks.length, (index) {
+            final task = orderedTasks[index];
 
             return Padding(
               padding: EdgeInsets.only(
-                bottom: index == tasks.length - 1 ? 0 : 16,
+                bottom: index == orderedTasks.length - 1 ? 0 : 16,
               ),
               child: _buildTaskResult(
                 taskName: _getTaskName(task.taskType),
-               patternName: _getPatternName(task.pattern),
-                percent: percent,
-                relativePercent: highestPercent == 0
-                    ? 0
-                    : percent / highestPercent,
+                patternName: _getPatternName(task.pattern),
+                percent: task.percent,
+                speechEvents: task.speechEvents,
               ),
             );
           }),
@@ -1393,8 +1390,10 @@ class _TaskResultsCard extends StatelessWidget {
     required String taskName,
     required String patternName,
     required double percent,
-    required double relativePercent,
+    required List<String>? speechEvents,
   }) {
+    final safePercent = percent.clamp(0.0, 100.0);
+    final safeSpeechEvents = speechEvents ?? const <String>[];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1417,9 +1416,8 @@ class _TaskResultsCard extends StatelessWidget {
                   ),
                 ),
               ),
-
               Text(
-                '${percent.toStringAsFixed(0)}%',
+                '${safePercent.toStringAsFixed(0)}%',
                 style: GoogleFonts.cairo(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -1428,10 +1426,8 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 4),
-
-          if (percent > 0)
+          if (safePercent > 0 && patternName.trim().isNotEmpty)
             Text(
               'أبرز نمط: $patternName',
               style: GoogleFonts.cairo(
@@ -1440,7 +1436,7 @@ class _TaskResultsCard extends StatelessWidget {
                 color: TaleeqTheme.textMuted,
               ),
             )
-          else
+          else if (safePercent == 0)
             Text(
               'لم يتم رصد أي نمط تأتأة',
               style: GoogleFonts.cairo(
@@ -1449,15 +1445,13 @@ class _TaskResultsCard extends StatelessWidget {
                 color: TaleeqTheme.textMuted,
               ),
             ),
-
           const SizedBox(height: 12),
-
           LinearPercentIndicator(
-            lineHeight: 12.0,
+            lineHeight: 12,
             animation: true,
-            animationDuration: 1400,
+            animationDuration: 1000,
             isRTL: true,
-            percent: relativePercent.clamp(0.0, 1.0),
+            percent: safePercent / 100,
             barRadius: const Radius.circular(8),
             backgroundColor: TaleeqTheme.softTeal.withValues(alpha: 0.35),
             linearGradient: const LinearGradient(
@@ -1465,6 +1459,53 @@ class _TaskResultsCard extends StatelessWidget {
             ),
             padding: EdgeInsets.zero,
           ),
+          const SizedBox(height: 16),
+          Text(
+            'الكلمات والأصوات المكتشفة',
+            style: GoogleFonts.cairo(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: TaleeqTheme.darkSlate,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (safeSpeechEvents.isEmpty)
+            Text(
+              'لم تُرصد كلمات أو أصوات متعثرة في هذه المهمة',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                color: TaleeqTheme.textMuted,
+              ),
+            )
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: safeSpeechEvents.map((word) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: TaleeqTheme.softTeal.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: TaleeqTheme.mediumTeal.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    word,
+                    textDirection: TextDirection.rtl,
+                    style: GoogleFonts.cairo(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: TaleeqTheme.darkSlate,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
         ],
       ),
     );

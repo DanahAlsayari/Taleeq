@@ -1,9 +1,11 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON
+from sqlalchemy import Column, DateTime, ForeignKey, Integer,Text,Boolean, JSON
 from sqlalchemy.orm import relationship
 
 from data_and_integration_layer.database.connection import Base
+
+from sqlalchemy.dialects.postgresql import ARRAY
 
 
 class PreAssessmentSubmission(Base):
@@ -17,7 +19,7 @@ class PreAssessmentSubmission(Base):
 
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -34,3 +36,19 @@ class PreAssessmentSubmission(Base):
     )
 
     user = relationship("User")
+
+
+
+
+class AssessmentQuestion(Base):
+    __tablename__ = "assessment_questions"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    sort_order = Column(Integer, nullable=False)
+    question = Column(Text, nullable=False)
+    subtitle = Column(Text, nullable=False)
+    multiple = Column(Boolean, nullable=False)
+    options = Column(ARRAY(Text), nullable=False)
+
+        

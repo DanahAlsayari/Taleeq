@@ -1,27 +1,29 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from api.assessment import router as assessment_router
-from api.training import router as training_router
 
 import logging
 
-from api.techniques import router as techniques_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.staticfiles import StaticFiles
+from api.assessment import router as assessment_router
+from api.training import router as training_router
+from api.techniques import router as techniques_router
+from api.speech_exercises import router as speech_exercises_router
+from api.naming_game import router as naming_challenge_router
+
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-)
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
     version="1.0.0",
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,17 +33,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Adds the assessment endpoints.
+# Assessment endpoints
 app.include_router(assessment_router)
 
-# Adds technique instruction endpoints.
+# Technique instruction endpoints
 app.include_router(techniques_router)
 
-# Adds training exercise endpoints.
+# Training exercise endpoints
 app.include_router(training_router)
 
-# Adds the authentication application under /auth.
+# Speech exercise endpoints
+app.include_router(speech_exercises_router)
+
+# Naming challenge endpoints
+app.include_router(naming_challenge_router)
+
+# Authentication endpoints
 app.mount("/auth", authentication_app)
 
 

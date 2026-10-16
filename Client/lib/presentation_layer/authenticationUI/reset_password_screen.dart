@@ -109,7 +109,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/reset-password'), 
+        Uri.parse('${ApiConfig.authBaseUrl}/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': widget.token,

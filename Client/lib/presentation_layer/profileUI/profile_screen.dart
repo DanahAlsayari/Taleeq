@@ -2,24 +2,32 @@
 
 import '../../services/auth_storage.dart';
 import '../../services/profile_service.dart';
-import '../../services/assessment_api_service.dart';
 import '../widgets/account_card.dart';
-import '../widgets/assessment_card.dart';
 import '../widgets/logout_button.dart';
 import '../widgets/profile_header.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
-import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, this.isActive = true});
+
+  final bool isActive;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadProfileData();
+    }
+  }
+
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color background = Color(0xFFFCFAF6);
   static const Color darkText = Color(0xFF233330);
@@ -27,13 +35,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final ScrollController _scrollController = ScrollController();
   final ProfileService _profileService = ProfileService();
-  final AssessmentApiService _assessmentApiService = AssessmentApiService();
 
   String _name = '';
   String _email = '';
-
-  bool _hasAssessment = false;
-  String? _lastAssessmentDate;
 
   bool _reminderEnabled = true;
   TimeOfDay _reminderTime = const TimeOfDay(hour: 18, minute: 0);
@@ -61,15 +65,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final goals = await _profileService.getGoals();
       final reminder = await _profileService.getReminder();
 
-      Map<String, dynamic>? assessmentStatus;
-
-      try {
-        assessmentStatus = await _assessmentApiService
-            .getLatestAssessmentStatus();
-      } catch (_) {
-        assessmentStatus = null;
-      }
-
       if (!mounted) return;
 
       setState(() {
@@ -84,12 +79,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         _reminderTime = _parseTime(reminder['reminder_time']?.toString());
 
-        _hasAssessment = assessmentStatus?['has_assessment'] == true;
-
-        _lastAssessmentDate = _formatAssessmentDate(
-          assessmentStatus?['completed_at']?.toString(),
-        );
-
         _isLoading = false;
         _errorMessage = null;
       });
@@ -100,53 +89,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _isLoading = false;
         _errorMessage = 'تعذر تحميل بيانات الملف الشخصي';
       });
-    }
-  }
-
-  String? _formatAssessmentDate(String? value) {
-    if (value == null || value.isEmpty) {
-      return null;
-    }
-
-    final date = DateTime.tryParse(value)?.toLocal();
-
-    if (date == null) {
-      return null;
-    }
-
-    const months = [
-      'يناير',
-      'فبراير',
-      'مارس',
-      'أبريل',
-      'مايو',
-      'يونيو',
-      'يوليو',
-      'أغسطس',
-      'سبتمبر',
-      'أكتوبر',
-      'نوفمبر',
-      'ديسمبر',
-    ];
-
-    return '${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  Future<void> _loadAssessmentStatus() async {
-    try {
-      final status = await _assessmentApiService.getLatestAssessmentStatus();
-
-      if (!mounted) return;
-
-      setState(() {
-        _hasAssessment = status['has_assessment'] == true;
-
-        _lastAssessmentDate = _formatAssessmentDate(
-          status['completed_at']?.toString(),
-        );
-      });
-    } catch (_) {
-      // نخلي حالة الكرت الحالية إذا تعذر تحديث حالة التقييم.
     }
   }
 
@@ -434,18 +376,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _openAssessment() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const PreAssessmentIntroScreen(allowBack: true),
-      ),
-    );
-
-    if (!mounted) return;
-
-    await _loadAssessmentStatus();
-  }
-
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -549,6 +479,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: const Text('إعادة المحاولة'),
             ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _logout,
+              child: const Text(
+                'تسجيل الخروج',
+                style: TextStyle(color: darkGreen),
+              ),
+            ),
           ],
         ),
       ),
@@ -608,18 +546,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChangeTime: _changeReminderTime,
               ),
 
-              const SizedBox(height: 24),
-
-              _sectionTitle('التقييم'),
-
-              const SizedBox(height: 10),
-
-              AssessmentCard(
-                onTap: _openAssessment,
-                hasAssessment: _hasAssessment,
-                lastAssessmentDate: _lastAssessmentDate,
-              ),
-
               const SizedBox(height: 28),
 
               LogoutButton(onPressed: _logout),
@@ -644,6 +570,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: background,
         elevation: 0,
         centerTitle: true,

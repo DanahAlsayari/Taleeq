@@ -9,8 +9,9 @@ class ApiConfig {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:8000';
     }
-     return 'http://192.168.0.178:8000/auth';
 
-
+    return 'http://192.168.100.131:8000';
   }
+
+  static String get authBaseUrl => '$baseUrl/auth';
 }
