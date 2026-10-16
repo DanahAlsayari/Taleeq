@@ -28,11 +28,13 @@ from data_and_integration_layer.database.connection import get_db
 
 from data_and_integration_layer.database.models.pre_assessment import (
     PreAssessmentSubmission,
+    AssessmentQuestion,
 )
 
 from data_and_integration_layer.database.models.assessment import (
     Assessment,
     AssessmentTask,
+    SpeechTask
 )
 
 from data_and_integration_layer.database.models.user import User
@@ -134,90 +136,139 @@ async def test_analyze_audio(
 
 
 @router.get("/pre-assessment/questions")
-def get_pre_assessment_questions():
+def get_pre_assessment_questions(db: Session = Depends(get_db)):
+    questions = (
+        db.query(AssessmentQuestion)
+        .order_by(AssessmentQuestion.sort_order)
+        .all()
+    )
+
     return {
         "questions": [
             {
-                "id": 1,
-                "question": "متى بدأت التأتأة لديك؟",
-                "subtitle": "اختر إجابة واحدة",
-                "multiple": False,
-                "options": [
-                    "منذ الطفولة",
-                    "في مرحلة المراهقة",
-                    "في مرحلة البلوغ",
-                    "لست متأكدًا",
-                ],
-            },
-            {
-                "id": 2,
-                "question": "كيف تصف بداية التأتأة لديك؟",
-                "subtitle": "اختر إجابة واحدة",
-                "multiple": False,
-                "options": [
-                    "بدأت في الطفولة بشكل تدريجي",
-                    "يوجد تاريخ عائلي للتأتأة",
-                    "بدأت بشكل مفاجئ",
-                    "بدأت بعد ضغط أو تجربة نفسية صعبة",
-                    "بدأت بعد إصابة أو حادث",
-                    "بدأت بعد مشكلة صحية أو عصبية",
-                    "بدأت بعد دواء أو علاج",
-                    "لا أعرف أو لا أتذكر",
-                ],
-            },
-            {
-                "id": 3,
-                "question": ("هل سبق أن تلقيت جلسات علاج " "نطق/تخاطب للتأتأة؟"),
-                "subtitle": "اختر إجابة واحدة",
-                "multiple": False,
-                "options": [
-                    "نعم",
-                    "لا",
-                ],
-            },
-            {
-                "id": 4,
-                "question": ("هل تتجنب أو تستبدل كلمات لأنك " "تتوقع أنك ستتأتئ فيها؟"),
-                "subtitle": "اختر إجابة واحدة",
-                "multiple": False,
-                "options": [
-                    "غالبًا",
-                    "أحيانًا",
-                    "أبدًا",
-                ],
-            },
-            {
-                "id": 5,
-                "question": "في أي مواقف تزداد التأتأة لديك؟",
-                "subtitle": ("اختر جميع الإجابات التي تنطبق عليك"),
-                "multiple": True,
-                "options": [
-                    "التحدث مع أشخاص جدد",
-                    "المكالمات الهاتفية",
-                    "العروض والتحدث أمام مجموعة",
-                    "القراءة بصوت مرتفع",
-                    "المحادثات اليومية",
-                    "مواقف أخرى",
-                ],
-            },
-            {
-                "id": 6,
-                "question": "ماذا تريد أن تحسن؟",
-                "subtitle": ("اختر جميع الإجابات التي تنطبق عليك"),
-                "multiple": True,
-                "options": [
-                    "التحدث براحة أكبر",
-                    "المحادثات اليومية",
-                    "التقديم والعروض",
-                    "المكالمات الهاتفية",
-                    "مقابلات العمل",
-                    "تقليل التوقف أثناء الكلام",
-                    "تقليل الشد والتوتر أثناء الكلام",
-                ],
-            },
+                "id": question.id,
+                "question": question.question,
+                "subtitle": question.subtitle,
+                "multiple": question.multiple,
+                "options": question.options,
+            }
+            for question in questions
         ]
     }
 
+    # return {
+    #     "questions": [
+    #         {
+    #             "id": 1,
+    #             "question": "متى بدأت التأتأة لديك؟",
+    #             "subtitle": "اختر إجابة واحدة",
+    #             "multiple": False,
+    #             "options": [
+    #                 "منذ الطفولة",
+    #                 "في مرحلة المراهقة",
+    #                 "في مرحلة البلوغ",
+    #                 "لست متأكدًا",
+    #             ],
+    #         },
+    #         {
+    #             "id": 2,
+    #             "question": "كيف تصف بداية التأتأة لديك؟",
+    #             "subtitle": "اختر إجابة واحدة",
+    #             "multiple": False,
+    #             "options": [
+    #                 "بدأت في الطفولة بشكل تدريجي",
+    #                 "يوجد تاريخ عائلي للتأتأة",
+    #                 "بدأت بشكل مفاجئ",
+    #                 "بدأت بعد ضغط أو تجربة نفسية صعبة",
+    #                 "بدأت بعد إصابة أو حادث",
+    #                 "بدأت بعد مشكلة صحية أو عصبية",
+    #                 "بدأت بعد دواء أو علاج",
+    #                 "لا أعرف أو لا أتذكر",
+    #             ],
+    #         },
+    #         {
+    #             "id": 3,
+    #             "question": (
+    #                 "هل سبق أن تلقيت جلسات علاج "
+    #                 "نطق/تخاطب للتأتأة؟"
+    #             ),
+    #             "subtitle": "اختر إجابة واحدة",
+    #             "multiple": False,
+    #             "options": [
+    #                 "نعم",
+    #                 "لا",
+    #             ],
+    #         },
+    #         {
+    #             "id": 4,
+    #             "question": (
+    #                 "هل تتجنب أو تستبدل كلمات لأنك "
+    #                 "تتوقع أنك ستتأتئ فيها؟"
+    #             ),
+    #             "subtitle": "اختر إجابة واحدة",
+    #             "multiple": False,
+    #             "options": [
+    #                 "غالبًا",
+    #                 "أحيانًا",
+    #                 "أبدًا",
+    #             ],
+    #         },
+    #         {
+    #             "id": 5,
+    #             "question": "في أي مواقف تزداد التأتأة لديك؟",
+    #             "subtitle": (
+    #                 "اختر جميع الإجابات التي تنطبق عليك"
+    #             ),
+    #             "multiple": True,
+    #             "options": [
+    #                 "التحدث مع أشخاص جدد",
+    #                 "المكالمات الهاتفية",
+    #                 "العروض والتحدث أمام مجموعة",
+    #                 "القراءة بصوت مرتفع",
+    #                 "المحادثات اليومية",
+    #                 "مواقف أخرى",
+    #             ],
+    #         },
+    #         {
+    #             "id": 6,
+    #             "question": "ماذا تريد أن تحسن؟",
+    #             "subtitle": (
+    #                 "اختر جميع الإجابات التي تنطبق عليك"
+    #             ),
+    #             "multiple": True,
+    #             "options": [
+    #                 "التحدث براحة أكبر",
+    #                 "المحادثات اليومية",
+    #                 "التقديم والعروض",
+    #                 "المكالمات الهاتفية",
+    #                 "مقابلات العمل",
+    #                 "تقليل التوقف أثناء الكلام",
+    #                 "تقليل الشد والتوتر أثناء الكلام",
+    #             ],
+    #         },
+    #     ]
+    # }
+
+
+@router.get("/speech/tasks")
+def get_speech_tasks(
+    db: Session = Depends(get_db),
+):
+
+    tasks = db.query(SpeechTask).order_by(SpeechTask.sort_order).all()
+
+    return {
+        "tasks": [
+            {
+                "id": task.id,
+                "category": task.category,
+                "instruction": task.instruction,
+                "type": task.type,
+                "content": task.content,
+            }
+            for task in tasks
+        ]
+    }
 
 # =========================================================
 # Submit Pre-Assessment
@@ -235,7 +286,12 @@ def submit_pre_assessment(
 ):
     question_ids = [answer.question_id for answer in data.answers]
 
-    if sorted(question_ids) != [1, 2, 3, 4, 5, 6]:
+    valid_question_ids = sorted(
+        row.id
+        for row in db.query(AssessmentQuestion).all()
+    )
+
+    if sorted(question_ids) != (valid_question_ids):
         raise HTTPException(
             status_code=400,
             detail="All six questions must be answered once",
@@ -591,7 +647,8 @@ async def analyze_assessment_audio(
         raise HTTPException(
             status_code=400,
             detail=str(error),
-        )
+        ) from error
+
 
     # Mark the assessment as completed only after
     # all audio tasks are analyzed successfully.
@@ -642,3 +699,66 @@ def analyze_latest_assessment(
         "assessment_id": assessment.id,
         "result": result,
     }
+
+# =========================================================
+# Validate Single Assessment Audio
+# =========================================================
+
+@router.post("/{assessment_id}/validate-audio")
+async def validate_assessment_audio(
+    assessment_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+    assessment = repository.get_assessment(assessment_id)
+    print("🚨 FASTAPI VALIDATE ENDPOINT CALLED")
+    if not assessment:
+        raise HTTPException(
+            status_code=404,
+            detail="لم يتم العثور على التقييم.",
+        )
+
+    if assessment.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="غير مصرح لك بالوصول إلى هذا التقييم.",
+        )
+
+    audio_bytes = await file.read()
+
+    if not audio_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="التسجيل فارغ. أعيدي التسجيل وحاول مرة أخرى.",
+        )
+
+    audio_format = (
+        file.filename.rsplit(".", 1)[-1].lower()
+        if file.filename and "." in file.filename
+        else ""
+    )
+
+    try:
+        analyzer = OpenAIAudioAnalyzer()
+        analyzer.analyze_audio(audio_bytes, audio_format)
+
+        return {
+            "valid": True,
+            "message": "التسجيل قابل للتحليل.",
+        }
+
+    except ValueError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        ) from error
+
+    except Exception as error:
+        print(f"Audio validation failed: {error}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="تعذر التحقق من التسجيل حاليًا. حاول مرة أخرى.",
+        ) from error

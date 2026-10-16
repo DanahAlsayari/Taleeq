@@ -446,7 +446,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                     TextButton(
                       onPressed: () {
                         Navigator
-                            .pushReplacement(
+                            .push(
                           context,
                           MaterialPageRoute(
                             builder: (context) =>

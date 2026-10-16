@@ -188,3 +188,17 @@ class FluencyProfile(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+
+
+class SpeechTask(Base):
+        __tablename__ = "speech_tasks"
+
+        id = Column(Integer, primary_key=True, index=True)
+        sort_order = Column(Integer, nullable=False)
+        category = Column(String, nullable=False)
+        instruction = Column(Text, nullable=False)
+        type = Column(String, nullable=False)
+        content = Column(Text, nullable=False)
+
+        

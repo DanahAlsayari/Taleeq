@@ -60,6 +60,25 @@ class AssessmentApiService {
       'فشل إنشاء التقييم (${response.statusCode})',
     );
   }
+   Future<List<Map<String, dynamic>>> getSpeechTasks() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/assessments/speech/tasks'),
+      headers: {'Content-Type': 'application/json'},
+    );
+
+    if (response.statusCode == 200) {
+      final body = jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
+      final tasks = body['tasks'] as List<dynamic>;
+
+      return tasks
+          .map((task) => Map<String, dynamic>.from(task as Map))
+          .toList();
+    }
+
+    throw Exception(
+      'فشل تحميل مهام التقييم (${response.statusCode})',
+    );
+  }
 
   Future<Map<String, dynamic>> analyzeAssessmentAudio({
     required int assessmentId,
@@ -146,19 +165,104 @@ class AssessmentApiService {
     }
 
     if (response.statusCode == 400) {
+      var message = 'فشل تحليل التسجيلات.';
+
       try {
         final body = jsonDecode(response.body);
-        throw Exception(
-          body['detail'] ?? 'فشل تحليل التسجيلات.',
-        );
+
+        if (body is Map<String, dynamic>) {
+          final detail = body['detail'];
+
+          if (detail is String && detail.isNotEmpty) {
+            message = detail;
+          }
+        }
       } catch (_) {
-        throw Exception('فشل تحليل التسجيلات.');
+        // Keep the default error message if the response
+        // is not valid JSON.
       }
+
+      throw Exception(message);
     }
+
 
     throw Exception(
       'حدث خطأ أثناء تحليل التسجيلات '
       '(${response.statusCode})',
+    );
+  }
+
+  Future<void> validateAssessmentAudio({
+    required int assessmentId,
+    required String recordingPath,
+  }) async {
+    final token = await AuthStorage.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('انتهت جلسة تسجيل الدخول.');
+    }
+
+    final file = File(recordingPath);
+    
+    if (!await file.exists() || await file.length() == 0) {
+      throw Exception('التسجيل فارغ أو غير موجود. أعد التسجيل.');
+    }
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(
+        '${ApiConfig.baseUrl}/assessments/$assessmentId/validate-audio',
+      ),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file',
+        recordingPath,
+      ),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      return;
+    }
+
+    if (response.statusCode == 401) {
+      throw Exception('انتهت جلسة تسجيل الدخول.');
+    }
+
+    if (response.statusCode == 403) {
+      throw Exception('غير مصرح بهذا التقييم.');
+    }
+
+    if (response.statusCode == 404) {
+      throw Exception('التقييم غير موجود.');
+    }
+
+    if (response.statusCode == 400) {
+      var message = 'التسجيل غير واضح. أعيدي التسجيل وحاولي مرة أخرى.';
+
+      try {
+        final body = jsonDecode(response.body);
+
+        if (body is Map<String, dynamic> &&
+            body['detail'] is String &&
+            (body['detail'] as String).isNotEmpty) {
+          message = body['detail'] as String;
+        }
+      } catch (_) {
+        // Keep the default message.
+      }
+
+      throw Exception(message);
+    }
+
+    throw Exception(
+      'تعذر التحقق من التسجيل (${response.statusCode}). حاولي مرة أخرى.',
     );
   }
 

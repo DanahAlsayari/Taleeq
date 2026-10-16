@@ -3,14 +3,14 @@
 import '../../services/auth_storage.dart';
 import '../../services/profile_service.dart';
 import '../../services/assessment_api_service.dart';
-import 'widgets/account_card.dart';
-import 'widgets/assessment_card.dart';
-import 'widgets/logout_button.dart';
-import 'widgets/profile_header.dart';
-import 'widgets/reminder_card.dart';
-import 'widgets/training_goals_section.dart';
+import '../widgets/account_card.dart';
+import '../widgets/assessment_card.dart';
+import '../widgets/logout_button.dart';
+import '../widgets/profile_header.dart';
+import '../widgets/reminder_card.dart';
+import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
-import 'widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});

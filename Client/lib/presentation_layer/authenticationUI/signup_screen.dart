@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 import '../../services/auth_storage.dart';
-import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 import '../../services/api_config_service.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -130,7 +130,7 @@ class _SignupScreenState extends State<SignupScreen> {
     }
 
     if (_selectedGender == null) {
-      _showMessage('يرجى اختيار الجنس');
+      _showMessage('ظٹط±ط¬ظ‰ ط§ط®طھظٹط§ط± ط§ظ„ط¬ظ†ط³');
       return;
     }
 
@@ -163,7 +163,7 @@ class _SignupScreenState extends State<SignupScreen> {
         _showMessage(
           _readErrorMessage(
             signupResponse,
-            fallback: 'تعذر إنشاء الحساب',
+            fallback: 'طھط¹ط°ط± ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨',
           ),
         );
 
@@ -187,7 +187,7 @@ class _SignupScreenState extends State<SignupScreen> {
         _showMessage(
           _readErrorMessage(
             loginResponse,
-            fallback: 'تم إنشاء الحساب، ولكن تعذر تسجيل الدخول',
+            fallback: 'طھظ… ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨طŒ ظˆظ„ظƒظ† طھط¹ط°ط± طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„',
           ),
         );
 
@@ -201,7 +201,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       if (token == null || token.isEmpty) {
         _clearPasswordsOnNextFocus = true;
-        _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
+        _showMessage('ظ„ظ… ظٹط±ط³ظ„ ط§ظ„ط®ط§ط¯ظ… ط±ظ…ط² طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„');
         return;
       }
 
@@ -220,7 +220,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     } catch (error) {
       _clearPasswordsOnNextFocus = true;
-      _showMessage('تعذر الاتصال بالخادم. تأكد من تشغيل الخادم .');
+      _showMessage('طھط¹ط°ط± ط§ظ„ط§طھطµط§ظ„ ط¨ط§ظ„ط®ط§ط¯ظ…. طھط£ظƒط¯ ظ…ظ† طھط´ط؛ظٹظ„ ط§ظ„ط®ط§ط¯ظ… .');
     } finally {
       if (mounted) {
         setState(() {
@@ -261,35 +261,35 @@ class _SignupScreenState extends State<SignupScreen> {
   String _translateBackendError(String message) {
     switch (message) {
       case 'Email already registered':
-        return 'البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول ';
+        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³طھط®ط¯ظ… ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Phone number already registered':
-        return 'رقم الهاتف مستخدم بالفعل. جرّب تسجيل الدخول إلى حسابك السابق';
+        return 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظ…ط³طھط®ط¯ظ… ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ ط­ط³ط§ط¨ظƒ ط§ظ„ط³ط§ط¨ظ‚';
 
       case 'Email and phone number already registered':
-        return 'البريد الإلكتروني ورقم الهاتف مستخدمان بالفعل. جرّب تسجيل الدخول ';
+        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظˆط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظ…ط³طھط®ط¯ظ…ط§ظ† ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Account information cannot be used':
-        return 'تعذر إنشاء الحساب. إذا كان لديك حساب سابق، جرّب تسجيل الدخول ';
+        return 'طھط¹ط°ط± ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨. ط¥ط°ط§ ظƒط§ظ† ظ„ط¯ظٹظƒ ط­ط³ط§ط¨ ط³ط§ط¨ظ‚طŒ ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
-        return 'كلمتا المرور غير متطابقتين';
+        return 'ظƒظ„ظ…طھط§ ط§ظ„ظ…ط±ظˆط± ط؛ظٹط± ظ…طھط·ط§ط¨ظ‚طھظٹظ†';
 
       case 'Password must be at least 8 characters long.':
-        return 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل';
+        return 'ظٹط¬ط¨ ط£ظ† طھطھظƒظˆظ† ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظ…ظ† 8 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„';
 
       case 'Password must contain at least one uppercase letter.':
-        return 'يجب أن تحتوي كلمة المرور على حرف كبير';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط­ط±ظپ ظƒط¨ظٹط±';
 
       case 'Password must contain at least one lowercase letter.':
-        return 'يجب أن تحتوي كلمة المرور على حرف صغير';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط­ط±ظپ طµط؛ظٹط±';
 
       case 'Password must contain at least one number.':
-        return 'يجب أن تحتوي كلمة المرور على رقم';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ‚ظ…';
 
       case 'Password must contain at least one special character.':
-        return 'يجب أن تحتوي كلمة المرور على رمز خاص';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ…ط² ط®ط§طµ';
 
       default:
         return message;
@@ -473,7 +473,7 @@ class _SignupScreenState extends State<SignupScreen> {
           elevation: 0,
           foregroundColor: darkText,
           title: const Text(
-            'إنشاء حساب',
+            'ط¥ظ†ط´ط§ط، ط­ط³ط§ط¨',
             style: TextStyle(
               fontWeight: FontWeight.bold,
             ),
@@ -492,7 +492,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'مرحبًا بك في طليق',
+                    'ظ…ط±ط­ط¨ظ‹ط§ ط¨ظƒ ظپظٹ ط·ظ„ظٹظ‚',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: darkText,
@@ -504,7 +504,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 8),
 
                   const Text(
-                    'أنشئ حسابك للبدء في رحلة تحسين طلاقة الكلام',
+                    'ط£ظ†ط´ط¦ ط­ط³ط§ط¨ظƒ ظ„ظ„ط¨ط¯ط، ظپظٹ ط±ط­ظ„ط© طھط­ط³ظٹظ† ط·ظ„ط§ظ‚ط© ط§ظ„ظƒظ„ط§ظ…',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: lightGreen,
@@ -522,19 +522,19 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'الاسم',
+                      label: 'ط§ظ„ط§ط³ظ…',
                       icon: Icons.person_outline_rounded,
                     ),
                     validator: (value) {
                       final name = value?.trim() ?? '';
 
                       if (name.isEmpty) {
-                        return 'يرجى إدخال الاسم';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط§ط³ظ…';
                       }
 
                       if (name.length < 2 ||
                           name.length > 50) {
-                        return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
+                        return 'ظٹط¬ط¨ ط£ظ† ظٹطھظƒظˆظ† ط§ظ„ط§ط³ظ… ظ…ظ† 2 ط¥ظ„ظ‰ 50 ط­ط±ظپظ‹ط§';
                       }
 
                       final nameIsValid = RegExp(
@@ -542,7 +542,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ).hasMatch(name);
 
                       if (!nameIsValid) {
-                        return 'يرجى استخدام الأحرف العربية أو الإنجليزية فقط';
+                        return 'ظٹط±ط¬ظ‰ ط§ط³طھط®ط¯ط§ظ… ط§ظ„ط£ط­ط±ظپ ط§ظ„ط¹ط±ط¨ظٹط© ط£ظˆ ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹط© ظپظ‚ط·';
                       }
 
                       return null;
@@ -564,14 +564,14 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                     ],
                     decoration: _fieldDecoration(
-                      label: 'البريد الإلكتروني',
+                      label: 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ',
                       icon: Icons.email_outlined,
                     ),
                     validator: (value) {
                       final email = value?.trim() ?? '';
 
                       if (email.isEmpty) {
-                        return 'يرجى إدخال البريد الإلكتروني';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ';
                       }
 
                       final emailIsValid = RegExp(
@@ -579,7 +579,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ).hasMatch(email);
 
                       if (!emailIsValid) {
-                        return 'البريد الإلكتروني غير صحيح';
+                        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ط؛ظٹط± طµط­ظٹط­';
                       }
 
                       return null;
@@ -600,18 +600,18 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'رقم الهاتف',
+                      label: 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ',
                       icon: Icons.phone_outlined,
                     ),
                     validator: (value) {
                       final phone = value?.trim() ?? '';
 
                       if (phone.isEmpty) {
-                        return 'يرجى إدخال رقم الهاتف';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ';
                       }
 
                       if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
-                        return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
+                        return 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظٹط¬ط¨ ط£ظ† ظٹطھظƒظˆظ† ظ…ظ† 10 ط£ط±ظ‚ط§ظ… ظˆظٹط¨ط¯ط£ ط¨ظ€ 05';
                       }
 
                       return null;
@@ -631,24 +631,24 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'العمر',
+                      label: 'ط§ظ„ط¹ظ…ط±',
                       icon: Icons.cake_outlined,
                     ),
                     validator: (value) {
                       final ageText = value?.trim() ?? '';
 
                       if (ageText.isEmpty) {
-                        return 'يرجى إدخال العمر';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط¹ظ…ط±';
                       }
 
                       final age = int.tryParse(ageText);
 
                       if (age == null) {
-                        return 'يرجى إدخال عمر صحيح';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط¹ظ…ط± طµط­ظٹط­';
                       }
 
                       if (age < 13 || age > 100) {
-                        return 'يجب أن يكون العمر بين 13 و100 سنة';
+                        return 'ظٹط¬ط¨ ط£ظ† ظٹظƒظˆظ† ط§ظ„ط¹ظ…ط± ط¨ظٹظ† 13 ظˆ100 ط³ظ†ط©';
                       }
 
                       return null;
@@ -658,7 +658,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 18),
 
                   _requiredLabel(
-                    'الجنس',
+                    'ط§ظ„ط¬ظ†ط³',
                     color: darkText,
                   ),
 
@@ -667,12 +667,12 @@ class _SignupScreenState extends State<SignupScreen> {
                   Row(
                     children: [
                       _genderChoice(
-                        label: 'أنثى',
+                        label: 'ط£ظ†ط«ظ‰',
                         value: 'female',
                       ),
                       const SizedBox(width: 12),
                       _genderChoice(
-                        label: 'ذكر',
+                        label: 'ط°ظƒط±',
                         value: 'male',
                       ),
                     ],
@@ -700,7 +700,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       setState(() {});
                     },
                     decoration: _fieldDecoration(
-                      label: 'كلمة المرور',
+                      label: 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                       icon: Icons.lock_outline_rounded,
                       suffixIcon: IconButton(
                         onPressed: () {
@@ -718,11 +718,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى إدخال كلمة المرور';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±';
                       }
 
                       if (!_passwordIsValid) {
-                        return 'كلمة المرور لا تستوفي جميع الشروط';
+                        return 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظ„ط§ طھط³طھظˆظپظٹ ط¬ظ…ظٹط¹ ط§ظ„ط´ط±ظˆط·';
                       }
 
                       return null;
@@ -745,7 +745,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'متطلبات كلمة المرور',
+                            'ظ…طھط·ظ„ط¨ط§طھ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                             style: TextStyle(
                               color: darkText,
                               fontSize: 15,
@@ -754,23 +754,23 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                           const SizedBox(height: 7),
                           _requirement(
-                            '8 أحرف على الأقل',
+                            '8 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„',
                             _hasEightCharacters,
                           ),
                           _requirement(
-                            'حرف كبير واحد على الأقل (A-Z)',
+                            'ط­ط±ظپ ظƒط¨ظٹط± ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (A-Z)',
                             _hasUppercase,
                           ),
                           _requirement(
-                            'حرف صغير واحد على الأقل (a-z)',
+                            'ط­ط±ظپ طµط؛ظٹط± ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (a-z)',
                             _hasLowercase,
                           ),
                           _requirement(
-                            'رقم واحد على الأقل (0-9)',
+                            'ط±ظ‚ظ… ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (0-9)',
                             _hasNumber,
                           ),
                           _requirement(
-                            'رمز خاص واحد (! @ # \$ % ^ & *)',
+                            'ط±ظ…ط² ط®ط§طµ ظˆط§ط­ط¯ (! @ # \$ % ^ & *)',
                             _hasSpecialCharacter,
                           ),
                         ],
@@ -805,7 +805,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
                     },
                     decoration: _fieldDecoration(
-                      label: 'تأكيد كلمة المرور',
+                      label: 'طھط£ظƒظٹط¯ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                       icon: Icons.lock_reset_rounded,
                       suffixIcon: IconButton(
                         onPressed: () {
@@ -824,12 +824,12 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى تأكيد كلمة المرور';
+                        return 'ظٹط±ط¬ظ‰ طھط£ظƒظٹط¯ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±';
                       }
 
                       if (!_passwordsMatch) {
                         _clearPasswordsOnNextFocus = true;
-                        return 'كلمتا المرور غير متطابقتين';
+                        return 'ظƒظ„ظ…طھط§ ط§ظ„ظ…ط±ظˆط± ط؛ظٹط± ظ…طھط·ط§ط¨ظ‚طھظٹظ†';
                       }
 
                       _clearPasswordsOnNextFocus = false;
@@ -865,7 +865,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             )
                           : const Text(
-                              'إنشاء الحساب',
+                              'ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
