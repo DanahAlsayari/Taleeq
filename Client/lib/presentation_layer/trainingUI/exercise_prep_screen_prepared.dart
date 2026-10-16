@@ -15,21 +15,45 @@ class TaleeqColors {
 
 // ==================== MODELS ====================
 class ExerciseDetails {
-  final int id;
+  final String id;
+  final String type;
   final String title;
   final String description;
   final List<String> instructions;
+  final String difficulty;
+  final String language;
+  final Map<String, dynamic> content;
+
   const ExerciseDetails({
     required this.id,
+    required this.type,
     required this.title,
     required this.description,
-    this.instructions = const [],
+    required this.instructions,
+    required this.difficulty,
+    required this.language,
+    required this.content,
   });
+
+  factory ExerciseDetails.fromJson(Map<String, dynamic> json) {
+    return ExerciseDetails(
+      id: json['id'].toString(),
+      type: json['type']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      instructions: (json['instructions'] as List<dynamic>? ?? [])
+          .map((item) => item.toString())
+          .toList(),
+      difficulty: json['difficulty']?.toString() ?? '',
+      language: json['language']?.toString() ?? '',
+      content: Map<String, dynamic>.from(json['content'] as Map? ?? {}),
+    );
+  }
 }
 
 // Future connection to the exercise team's API.
 typedef ExerciseDetailsLoader = Future<ExerciseDetails> Function(
-  int exerciseId,
+  String exerciseId,
 );
 
 class Technique {
@@ -52,6 +76,16 @@ class Technique {
   });
 }
 
+class ExerciseStartData {
+  final ExerciseDetails exercise;
+  final Technique technique;
+
+  const ExerciseStartData({required this.exercise, required this.technique});
+
+  String get exerciseId => exercise.id;
+  int get techniqueId => technique.id;
+}
+
 Technique techniqueFromModel(TechniqueModel model) => Technique(
   id: model.id,
   nameAr: model.nameAr,
@@ -64,17 +98,17 @@ Technique techniqueFromModel(TechniqueModel model) => Technique(
 
 // ==================== SCREEN ====================
 class ExercisePrepScreen extends StatefulWidget {
-  final int? exerciseId;
+  final String? exerciseId;
   final ExerciseDetailsLoader? exerciseLoader;
   // Preview only; remove when the exercise API is connected.
-  final ExerciseDetails? previewExercise;
+  final ExerciseDetails? exercise;
   final List<Technique> techniques;
-  final ValueChanged<Technique> onStart;
+  final ValueChanged<ExerciseStartData> onStart;
   const ExercisePrepScreen({
     super.key,
     this.exerciseId,
     this.exerciseLoader,
-    this.previewExercise,
+    this.exercise,
     this.techniques = const [],
     required this.onStart,
   });
@@ -104,6 +138,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
   bool _showTechniqueList = false;
   final ScrollController _pageScrollController = ScrollController();
   late Future<ExerciseDetails> exerciseFuture;
+  ExerciseDetails? loadedExercise;
 
   @override
   void initState() {
@@ -122,7 +157,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.exerciseId != widget.exerciseId ||
         oldWidget.exerciseLoader != widget.exerciseLoader ||
-        oldWidget.previewExercise != widget.previewExercise) {
+        oldWidget.exercise != widget.exercise) {
       setState(loadExercise);
     }
     if (oldWidget.techniques != widget.techniques &&
@@ -185,8 +220,8 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
   void loadExercise() {
     if (widget.exerciseId != null && widget.exerciseLoader != null) {
       exerciseFuture = widget.exerciseLoader!(widget.exerciseId!);
-    } else if (widget.previewExercise != null) {
-      exerciseFuture = Future.value(widget.previewExercise!);
+    } else if (widget.exercise != null) {
+      exerciseFuture = Future.value(widget.exercise!);
     } else {
       exerciseFuture = Future.error(
         StateError('Exercise API is not connected yet'),
@@ -272,6 +307,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                       ),
                     );
                   }
+                  loadedExercise = snapshot.data!;
                   return ExerciseCard(exercise: snapshot.data!);
                 },
               ),
@@ -468,7 +504,14 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                           loadingDetails ||
                           techniqueError != null
                       ? null
-                      : () => widget.onStart(selectedTechnique!),
+                      : loadedExercise == null
+                      ? null
+                      : () => widget.onStart(
+                          ExerciseStartData(
+                            exercise: loadedExercise!,
+                            technique: selectedTechnique!,
+                          ),
+                        ),
                   icon: const Icon(Icons.play_arrow_rounded, size: 26),
                   label: const Text(
                     'ابدأ التمرين',
@@ -517,6 +560,22 @@ class CardContainer extends StatelessWidget {
   }
 }
 
+String exerciseTypeArabic(String type) {
+  if (type == 'Reading') {
+    return 'القراءة بصوت عالٍ';
+  } else if (type == 'Picture Description') {
+    return 'وصف الصور';
+  } else if (type == 'Question & Answer') {
+    return 'أسئلة وأجوبة';
+  } else if (type == 'Storytelling') {
+    return 'سرد القصص';
+  } else if (type == 'Free Speech') {
+    return 'التحدث الحر';
+  } else {
+    return type;
+  }
+}
+
 // ==================== EXERCISE CARD ====================
 class ExerciseCard extends StatelessWidget {
   final ExerciseDetails exercise;
@@ -546,16 +605,12 @@ class ExerciseCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'التمرين',
-                      style: TextStyle(color: TaleeqColors.muted, fontSize: 12),
-                    ),
                     Text(
-                      exercise.title,
+                      exerciseTypeArabic(exercise.type),
                       style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
                         color: TaleeqColors.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ],
@@ -563,7 +618,28 @@ class ExerciseCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          const Text(
+            'عنوان التمرين',
+            style: TextStyle(
+              fontSize: 13,
+              color: TaleeqColors.muted,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 5),
+          // Exercise title from the database
+          Text(
+            exercise.title,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w900,
+              color: TaleeqColors.primary,
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
           Text(
             exercise.description,
             style: const TextStyle(
@@ -986,8 +1062,9 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
 // Exercise data will come from the exercise team's DB table.
 // Technique data is loaded from the existing API.
 // Preview exercise
-const previewExercise = ExerciseDetails(
-  id: 1,
+const exercise = ExerciseDetails(
+  id: 'preview',
+  type: 'Reading',
   title: 'تمرين القراءة',
   description: 'اقرأ النص بصوت واضح مع تطبيق التقنية التي تختارها.',
   instructions: [
@@ -995,4 +1072,7 @@ const previewExercise = ExerciseDetails(
     'تأكد من عمل الميكروفون.',
     'خذ وقتك وتحدث براحة.',
   ],
+  difficulty: 'Easy',
+  language: 'ar',
+  content: {},
 );

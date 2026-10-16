@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api.assessment import router as assessment_router
+from api.training import router as training_router
 
 import logging
 
@@ -36,6 +37,9 @@ app.include_router(assessment_router)
 
 # Adds technique instruction endpoints.
 app.include_router(techniques_router)
+
+# Adds training exercise endpoints.
+app.include_router(training_router)
 
 # Adds the authentication application under /auth.
 app.mount("/auth", authentication_app)
