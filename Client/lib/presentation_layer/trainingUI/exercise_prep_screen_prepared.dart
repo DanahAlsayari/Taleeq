@@ -49,11 +49,8 @@ class Technique {
     this.steps = const [],
     this.example,
     this.tips = const [],
-  
   });
 }
-
-
 
 Technique techniqueFromModel(TechniqueModel model) => Technique(
   id: model.id,
@@ -63,7 +60,6 @@ Technique techniqueFromModel(TechniqueModel model) => Technique(
   steps: model.steps,
   example: model.example,
   tips: model.tips,
- 
 );
 
 // ==================== SCREEN ====================
@@ -235,20 +231,12 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            leading: Padding(
-              padding: const EdgeInsets.all(7),
-              child: Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => Navigator.maybePop(context),
-                  child: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    size: 18,
-                    color: TaleeqColors.primary,
-                  ),
-                ),
+            leading: IconButton(
+              onPressed: () => Navigator.maybePop(context),
+              icon: const Icon(
+                Icons.arrow_back,
+                size: 24,
+                color: Color(0xFF555555),
               ),
             ),
           ),
@@ -344,7 +332,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                           ElevatedButton(
                             onPressed: () => Navigator.pop(dialogContext),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: TaleeqColors.primary,
+                              backgroundColor: TaleeqColors.medium,
                               foregroundColor: Colors.white,
                               elevation: 0,
                               padding: const EdgeInsets.symmetric(
@@ -460,7 +448,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                   selectedTechnique == null &&
                   techniqueError == null)
                 const Text('لا توجد تقنيات متاحة'),
-            ],  
+            ],
           ),
           // Fixed bottom button
           bottomNavigationBar: Container(
@@ -487,7 +475,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: TaleeqColors.primary,
+                    backgroundColor: TaleeqColors.medium,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),
@@ -993,7 +981,6 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
     return widget.embedded ? content : CardContainer(child: content);
   }
 }
-
 
 // ==================== TEMPORARY PREVIEW DATA ====================
 // Exercise data will come from the exercise team's DB table.
