@@ -38,7 +38,7 @@ class SignupOtpService {
     try {
       response = await http
           .post(
-            Uri.parse('${ApiConfig.baseUrl}$path'),
+            Uri.parse('${ApiConfig.authBaseUrl}$path'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode(body),
           )

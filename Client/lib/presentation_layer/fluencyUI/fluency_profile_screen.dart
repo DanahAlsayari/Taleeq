@@ -12,7 +12,7 @@ import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../services/fluency_profile_service.dart';
 import '../widgets/journey_stepper.dart';
-import '../HomepageUI/home_screen.dart';
+
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -604,7 +604,6 @@ class _OverallFluencyCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          
           Padding(
             padding: const EdgeInsets.all(22.0),
             child: Column(
@@ -1376,6 +1375,7 @@ class _TaskResultsCard extends StatelessWidget {
               ),
               child: _buildTaskResult(
                 taskName: _getTaskName(task.taskType),
+                patternName: _getPatternName(task.pattern),
                 percent: task.percent,
                 speechEvents: task.speechEvents,
               ),
@@ -1388,6 +1388,7 @@ class _TaskResultsCard extends StatelessWidget {
 
   Widget _buildTaskResult({
     required String taskName,
+    required String patternName,
     required double percent,
     required List<String>? speechEvents,
   }) {
@@ -1425,6 +1426,25 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          if (safePercent > 0 && patternName.trim().isNotEmpty)
+            Text(
+              'أبرز نمط: $patternName',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: TaleeqTheme.textMuted,
+              ),
+            )
+          else if (safePercent == 0)
+            Text(
+              'لم يتم رصد أي نمط تأتأة',
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: TaleeqTheme.textMuted,
+              ),
+            ),
           const SizedBox(height: 12),
           LinearPercentIndicator(
             lineHeight: 12,

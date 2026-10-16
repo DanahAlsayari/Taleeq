@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/login'),
+        Uri.parse('${ApiConfig.authBaseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,

@@ -5,8 +5,9 @@ import 'package:http/http.dart' as http;
 
 import 'auth_storage.dart';
 import '../../services/api_config_service.dart';
+
 class ProfileService {
-  
+
   Future<Map<String, String>> _headers() async {
     final token = await AuthStorage.getToken();
 
@@ -22,7 +23,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getProfile() async {
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/profile'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile'),
       headers: await _headers(),
     );
 
@@ -31,7 +32,7 @@ class ProfileService {
 
   Future<List<dynamic>> getGoals() async {
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/profile/goals'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/goals'),
       headers: await _headers(),
     );
 
@@ -44,7 +45,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> addGoal(String goal) async {
     final response = await http.post(
-      Uri.parse('${ApiConfig.baseUrl}/profile/goals'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/goals'),
       headers: await _headers(),
       body: jsonEncode({
         'goal': goal,
@@ -59,7 +60,7 @@ class ProfileService {
     String goal,
   ) async {
     final response = await http.put(
-      Uri.parse('${ApiConfig.baseUrl}/profile/goals/$goalId'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/goals/$goalId'),
       headers: await _headers(),
       body: jsonEncode({
         'goal': goal,
@@ -71,7 +72,7 @@ class ProfileService {
 
   Future<void> deleteGoal(int goalId) async {
     final response = await http.delete(
-      Uri.parse('${ApiConfig.baseUrl}/goals/$goalId'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/goals/$goalId'),
       headers: await _headers(),
     );
 
@@ -82,7 +83,7 @@ class ProfileService {
 
   Future<Map<String, dynamic>> getReminder() async {
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/profile/reminder'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/reminder'),
       headers: await _headers(),
     );
 
@@ -94,7 +95,7 @@ class ProfileService {
     required String reminderTime,
   }) async {
     final response = await http.put(
-      Uri.parse('${ApiConfig.baseUrl}/profile/reminder'),
+      Uri.parse('${ApiConfig.authBaseUrl}/profile/reminder'),
       headers: await _headers(),
       body: jsonEncode({
         'enabled': enabled,

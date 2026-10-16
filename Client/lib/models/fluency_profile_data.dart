@@ -139,6 +139,19 @@ class FluencyProfileData {
     };
   }
 
+  factory FluencyProfileData.mock() {
+    return const FluencyProfileData(
+      overallStutteringPercent: 24.0,
+      primaryPattern: 'Repetition',
+      repetitionPercent: 15.0,
+      prolongationPercent: 6.0,
+      blockPercent: 3.0,
+      speakingRate: 85.0,
+      timingPacing: 72.0,
+      taskResults: [],
+    );
+  }
+
   String get primaryPatternArabic {
     switch (primaryPattern.toLowerCase().trim()) {
       case 'repetition':

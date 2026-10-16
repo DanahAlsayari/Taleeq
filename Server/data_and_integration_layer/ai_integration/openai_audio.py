@@ -37,7 +37,7 @@ class AudioAnalysisResult(BaseModel):
     block_percent: float = Field(ge=0.0, le=100.0)
 
     speaking_rate_wpm: float | None = Field(default=None, ge=0.0)
-    speaking_rate: float = Field(ge=0.0)
+    speaking_rate: float = Field(ge=0.0, le=100.0)
     timing_pacing: float = Field(ge=0.0, le=100.0)
 
     speech_events: list[SpeechEvent] = Field(default_factory=list)
@@ -364,7 +364,8 @@ Estimate these values from the entire usable recording:
 - prolongation_percent: estimated percentage affected by prolongations.
 - block_percent: estimated percentage affected by blocks.
 - speaking_rate_wpm: estimated spoken words per minute, or null if unreliable.
-- speaking_rate: estimated number of words spoken in 10 seconds.
+- speaking_rate: a score from 0 to 100 representing the
+  appropriateness and stability of speaking rate.
 - timing_pacing: score from 0 to 100 for naturalness and consistency
   of timing, rhythm, and pauses.
 
@@ -392,7 +393,7 @@ Return only one valid JSON object with exactly these keys:
 
 Use a boolean for speech_usable and a string for validation_reason.
 Percentages and timing_pacing must be between 0 and 100.
-speaking_rate must be a non-negative number representing words per 10 seconds.
+speaking_rate must be a number between 0 and 100.
 speaking_rate_wpm must be a non-negative number or null.
 Each speech_events item must contain exactly:
 {
