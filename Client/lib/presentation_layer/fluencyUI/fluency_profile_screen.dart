@@ -357,7 +357,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   JourneyStepper(currentStep: 4),
-                
+
 
                   Text(
                     'ملف طلاقتي',

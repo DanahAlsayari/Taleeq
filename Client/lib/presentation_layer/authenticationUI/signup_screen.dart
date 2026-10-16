@@ -3,12 +3,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
-import '../widgets/journey_stepper.dart';
 import '../../services/auth_storage.dart';
-
 import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
-
 import '../../services/api_config_service.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -26,10 +24,6 @@ class _SignupScreenState extends State<SignupScreen> {
   static const Color borderColor = Color(0xFFDDE8E6);
 
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  final _emailFieldKey = GlobalKey<FormFieldState<String>>();
-  final _phoneFieldKey = GlobalKey<FormFieldState<String>>();
-  final _passwordFieldKey = GlobalKey<FormFieldState<String>>();
-  final _confirmPasswordFieldKey = GlobalKey<FormFieldState<String>>();
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
@@ -46,13 +40,25 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _hidePassword = true;
   bool _hideConfirmPassword = true;
+  bool _showPasswordRequirements = false;
   bool _isLoading = false;
-  bool _showGenderError = false;
 
   String? _selectedGender;
-  String? _emailServerError;
-  String? _phoneServerError;
-  final Map<String, String> _backendFieldErrors = {};
+
+  @override
+  void initState() {
+    super.initState();
+
+    _passwordFocusNode.addListener(() {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _showPasswordRequirements = _passwordFocusNode.hasFocus;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -113,79 +119,18 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
-  bool _showBackendValidationErrors(http.Response response) {
-    final errors = <String, String>{};
-    const fieldMessages = {
-      'name': 'يرجى التحقق من الاسم المدخل',
-      'email':
-          'البريد الإلكتروني غير صالح. يرجى التحقق من اسم البريد واسم النطاق',
-      'phone_number': 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05',
-      'age': 'يجب إدخال عمر صحيح بين 13 و100 سنة',
-      'gender': 'يرجى اختيار الجنس',
-      'password': 'كلمة المرور لا تستوفي جميع الشروط',
-      'confirm_password': 'يرجى التحقق من تأكيد كلمة المرور',
-    };
-
-    try {
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map) return false;
-      final detail = decoded['detail'];
-
-      if (response.statusCode == 422 && detail is List) {
-        for (final error in detail) {
-          if (error is! Map) continue;
-          final location = error['loc'];
-          if (location is! List) continue;
-          for (final part in location) {
-            final field = part.toString();
-            final message = fieldMessages[field];
-            if (message != null) {
-              errors[field] = message;
-              break;
-            }
-          }
-        }
-      } else if (response.statusCode == 400 && detail is String) {
-        if (detail == 'Passwords do not match.' ||
-            detail == 'Passwords do not match') {
-          errors['confirm_password'] = 'كلمتا المرور غير متطابقتين';
-        } else if (detail.startsWith('Password ')) {
-          final translated = _translateBackendError(detail);
-          errors['password'] = translated == detail
-              ? 'كلمة المرور لا تستوفي جميع الشروط'
-              : translated;
-        } else if (detail == 'Account information cannot be used') {
-          errors['email'] = 'تعذر استخدام بيانات الحساب. يرجى التحقق منها';
-          errors['phone_number'] =
-              'تعذر استخدام بيانات الحساب. يرجى التحقق منها';
-        }
-      }
-    } catch (_) {
-      return false;
-    }
-
-    if (errors.isEmpty) return false;
-    setState(() {
-      _backendFieldErrors.addAll(errors);
-    });
-    return true;
-  }
-
   Future<void> _createAccount() async {
     FocusScope.of(context).unfocus();
-
-    setState(() {
-      _showGenderError = _selectedGender == null;
-    });
 
     final formIsValid = _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
-      _clearPasswordsOnNextFocus = !_passwordIsValid || !_passwordsMatch;
+      _clearPasswordsOnNextFocus = true;
       return;
     }
 
-    if (_showGenderError) {
+    if (_selectedGender == null) {
+      _showMessage('ظٹط±ط¬ظ‰ ط§ط®طھظٹط§ط± ط§ظ„ط¬ظ†ط³');
       return;
     }
 
@@ -196,8 +141,9 @@ class _SignupScreenState extends State<SignupScreen> {
     final normalizedEmail = _emailController.text.trim().toLowerCase();
 
     try {
+      // Create a new account.
       final signupResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/signup'),
+        Uri.parse('${ApiConfig.authBaseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
@@ -210,49 +156,23 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (!mounted) return;
-
-      if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
-        String? detail;
-
-        try {
-          final decoded = jsonDecode(signupResponse.body);
-          if (decoded is Map && decoded['detail'] is String) {
-            detail = decoded['detail'] as String;
-          }
-        } catch (_) {}
-
-        final emailUsed =
-            detail == 'Email already registered' ||
-            detail == 'Email and phone number already registered';
-
-        final phoneUsed =
-            detail == 'Phone number already registered' ||
-            detail == 'Email and phone number already registered';
-
-        if (emailUsed || phoneUsed) {
-          setState(() {
-            _emailServerError = emailUsed
-                ? 'البريد الإلكتروني مستخدم بالفعل'
-                : null;
-            _phoneServerError = phoneUsed ? 'رقم الهاتف مستخدم بالفعل' : null;
-          });
-
-          _formKey.currentState?.validate();
-          return;
-        }
-
-        if (_showBackendValidationErrors(signupResponse)) return;
+      if (signupResponse.statusCode < 200 ||
+          signupResponse.statusCode >= 300) {
+        _clearPasswordsOnNextFocus = true;
 
         _showMessage(
-          'تعذر إنشاء الحساب بسبب مشكلة في الخادم. يرجى المحاولة مرة أخرى',
+          _readErrorMessage(
+            signupResponse,
+            fallback: 'طھط¹ط°ط± ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨',
+          ),
         );
+
         return;
       }
 
       // Log the new user in automatically.
       final loginResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/login'),
+        Uri.parse('${ApiConfig.authBaseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
@@ -260,28 +180,28 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (!mounted) return;
-
-      if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
+      if (loginResponse.statusCode < 200 ||
+          loginResponse.statusCode >= 300) {
         _clearPasswordsOnNextFocus = true;
 
         _showMessage(
           _readErrorMessage(
             loginResponse,
-            fallback: 'تم إنشاء الحساب، ولكن تعذر تسجيل الدخول',
+            fallback: 'طھظ… ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨طŒ ظˆظ„ظƒظ† طھط¹ط°ط± طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„',
           ),
         );
 
         return;
       }
 
-      final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
+      final loginData =
+          jsonDecode(loginResponse.body) as Map<String, dynamic>;
 
       final token = loginData['access_token'] as String?;
 
       if (token == null || token.isEmpty) {
         _clearPasswordsOnNextFocus = true;
-        _showMessage('لم يرسل الخادم رمز تسجيل الدخول');
+        _showMessage('ظ„ظ… ظٹط±ط³ظ„ ط§ظ„ط®ط§ط¯ظ… ط±ظ…ط² طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„');
         return;
       }
 
@@ -300,7 +220,7 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     } catch (error) {
       _clearPasswordsOnNextFocus = true;
-      _showMessage('تعذر الاتصال بالخادم. تأكد من تشغيل الخادم .');
+      _showMessage('طھط¹ط°ط± ط§ظ„ط§طھطµط§ظ„ ط¨ط§ظ„ط®ط§ط¯ظ…. طھط£ظƒط¯ ظ…ظ† طھط´ط؛ظٹظ„ ط§ظ„ط®ط§ط¯ظ… .');
     } finally {
       if (mounted) {
         setState(() {
@@ -310,9 +230,13 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  String _readErrorMessage(http.Response response, {required String fallback}) {
+  String _readErrorMessage(
+    http.Response response, {
+    required String fallback,
+  }) {
     try {
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded =
+          jsonDecode(response.body) as Map<String, dynamic>;
 
       final detail = decoded['detail'];
 
@@ -324,7 +248,7 @@ class _SignupScreenState extends State<SignupScreen> {
         final firstError = detail.first;
 
         if (firstError is Map<String, dynamic>) {
-          return fallback;
+          return firstError['msg']?.toString() ?? fallback;
         }
       }
     } catch (_) {
@@ -337,38 +261,38 @@ class _SignupScreenState extends State<SignupScreen> {
   String _translateBackendError(String message) {
     switch (message) {
       case 'Email already registered':
-        return 'البريد الإلكتروني مستخدم بالفعل. جرّب تسجيل الدخول ';
+        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظ…ط³طھط®ط¯ظ… ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Phone number already registered':
-        return 'رقم الهاتف مستخدم بالفعل. جرّب تسجيل الدخول إلى حسابك السابق';
+        return 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظ…ط³طھط®ط¯ظ… ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ ط­ط³ط§ط¨ظƒ ط§ظ„ط³ط§ط¨ظ‚';
 
       case 'Email and phone number already registered':
-        return 'البريد الإلكتروني ورقم الهاتف مستخدمان بالفعل. جرّب تسجيل الدخول ';
+        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ظˆط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظ…ط³طھط®ط¯ظ…ط§ظ† ط¨ط§ظ„ظپط¹ظ„. ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Account information cannot be used':
-        return 'تعذر إنشاء الحساب. إذا كان لديك حساب سابق، جرّب تسجيل الدخول ';
+        return 'طھط¹ط°ط± ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨. ط¥ط°ط§ ظƒط§ظ† ظ„ط¯ظٹظƒ ط­ط³ط§ط¨ ط³ط§ط¨ظ‚طŒ ط¬ط±ظ‘ط¨ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„ ';
 
       case 'Passwords do not match.':
       case 'Passwords do not match':
-        return 'كلمتا المرور غير متطابقتين';
+        return 'ظƒظ„ظ…طھط§ ط§ظ„ظ…ط±ظˆط± ط؛ظٹط± ظ…طھط·ط§ط¨ظ‚طھظٹظ†';
 
       case 'Password must be at least 8 characters long.':
-        return 'يجب أن تتكون كلمة المرور من 8 أحرف على الأقل';
+        return 'ظٹط¬ط¨ ط£ظ† طھطھظƒظˆظ† ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظ…ظ† 8 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„';
 
       case 'Password must contain at least one uppercase letter.':
-        return 'يجب أن تحتوي كلمة المرور على حرف كبير';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط­ط±ظپ ظƒط¨ظٹط±';
 
       case 'Password must contain at least one lowercase letter.':
-        return 'يجب أن تحتوي كلمة المرور على حرف صغير';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط­ط±ظپ طµط؛ظٹط±';
 
       case 'Password must contain at least one number.':
-        return 'يجب أن تحتوي كلمة المرور على رقم';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ‚ظ…';
 
       case 'Password must contain at least one special character.':
-        return 'يجب أن تحتوي كلمة المرور على رمز خاص';
+        return 'ظٹط¬ط¨ ط£ظ† طھط­طھظˆظٹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ط¹ظ„ظ‰ ط±ظ…ط² ط®ط§طµ';
 
       default:
-        return 'يرجى التحقق من البيانات المدخلة';
+        return message;
     }
   }
 
@@ -395,7 +319,9 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
@@ -411,15 +337,20 @@ class _SignupScreenState extends State<SignupScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
-      errorMaxLines: 3,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 17,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: darkGreen, width: 1.5),
+        borderSide: const BorderSide(
+          color: darkGreen,
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -427,7 +358,10 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
       ),
     );
   }
@@ -438,7 +372,9 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Row(
         children: [
           Icon(
-            isSatisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+            isSatisfied
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
             color: isSatisfied ? darkGreen : Colors.grey,
             size: 19,
           ),
@@ -447,9 +383,13 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Text(
               text,
               style: TextStyle(
-                color: isSatisfied ? darkGreen : Colors.grey.shade700,
+                color: isSatisfied
+                    ? darkGreen
+                    : Colors.grey.shade700,
                 fontSize: 14,
-                fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSatisfied
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
             ),
           ),
@@ -458,7 +398,10 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _genderChoice({required String label, required String value}) {
+  Widget _genderChoice({
+    required String label,
+    required String value,
+  }) {
     final isSelected = _selectedGender == value;
 
     return Expanded(
@@ -466,8 +409,6 @@ class _SignupScreenState extends State<SignupScreen> {
         onTap: () {
           setState(() {
             _selectedGender = value;
-            _showGenderError = false;
-            _backendFieldErrors.remove('gender');
           });
         },
         borderRadius: BorderRadius.circular(14),
@@ -479,11 +420,7 @@ class _SignupScreenState extends State<SignupScreen> {
             color: isSelected ? darkGreen : Colors.white,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color:
-                  (_showGenderError ||
-                      _backendFieldErrors.containsKey('gender'))
-                  ? Colors.red
-                  : (isSelected ? darkGreen : borderColor),
+              color: isSelected ? darkGreen : borderColor,
               width: 1.3,
             ),
           ),
@@ -500,7 +437,10 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+  Widget _requiredLabel(
+    String text, {
+    Color color = Colors.grey,
+  }) {
     return Text.rich(
       TextSpan(
         children: [
@@ -529,42 +469,30 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Scaffold(
         backgroundColor: background,
         appBar: AppBar(
-          automaticallyImplyLeading: false,
           backgroundColor: background,
           elevation: 0,
           foregroundColor: darkText,
-
           title: const Text(
-            'إنشاء حساب',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            'ط¥ظ†ط´ط§ط، ط­ط³ط§ط¨',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           centerTitle: true,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 35),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch,
                 children: [
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: IconButton(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst);
-                            },
-                      icon: const Icon(Icons.arrow_back_ios_new),
-                    ),
-                  ),
-                  const JourneyStepper(currentStep: 1),
-
                   const Text(
-                    'مرحبًا بك في طليق',
+                    'ظ…ط±ط­ط¨ظ‹ط§ ط¨ظƒ ظپظٹ ط·ظ„ظٹظ‚',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: darkText,
@@ -576,7 +504,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 8),
 
                   const Text(
-                    'أنشئ حسابك للبدء في رحلة تحسين طلاقة الكلام',
+                    'ط£ظ†ط´ط¦ ط­ط³ط§ط¨ظƒ ظ„ظ„ط¨ط¯ط، ظپظٹ ط±ط­ظ„ط© طھط­ط³ظٹظ† ط·ظ„ط§ظ‚ط© ط§ظ„ظƒظ„ط§ظ…',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: lightGreen,
@@ -588,31 +516,25 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 28),
 
                   TextFormField(
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     controller: _nameController,
-                    onChanged: (_) {
-                      setState(() {
-                        _backendFieldErrors.remove('name');
-                      });
-                    },
-                    forceErrorText: _backendFieldErrors['name'],
                     keyboardType: TextInputType.name,
                     textDirection: TextDirection.rtl,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'الاسم',
+                      label: 'ط§ظ„ط§ط³ظ…',
                       icon: Icons.person_outline_rounded,
                     ),
                     validator: (value) {
                       final name = value?.trim() ?? '';
 
                       if (name.isEmpty) {
-                        return 'يرجى إدخال الاسم';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط§ط³ظ…';
                       }
 
-                      if (name.length < 2 || name.length > 50) {
-                        return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
+                      if (name.length < 2 ||
+                          name.length > 50) {
+                        return 'ظٹط¬ط¨ ط£ظ† ظٹطھظƒظˆظ† ط§ظ„ط§ط³ظ… ظ…ظ† 2 ط¥ظ„ظ‰ 50 ط­ط±ظپظ‹ط§';
                       }
 
                       final nameIsValid = RegExp(
@@ -620,7 +542,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       ).hasMatch(name);
 
                       if (!nameIsValid) {
-                        return 'يرجى استخدام الأحرف العربية أو الإنجليزية فقط';
+                        return 'ظٹط±ط¬ظ‰ ط§ط³طھط®ط¯ط§ظ… ط§ظ„ط£ط­ط±ظپ ط§ظ„ط¹ط±ط¨ظٹط© ط£ظˆ ط§ظ„ط¥ظ†ط¬ظ„ظٹط²ظٹط© ظپظ‚ط·';
                       }
 
                       return null;
@@ -630,121 +552,44 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 14),
 
                   TextFormField(
-                    key: _emailFieldKey,
-                    autovalidateMode:
-                        _emailFieldKey.currentState?.hasError == true
-                        ? AutovalidateMode.onUserInteraction
-                        : AutovalidateMode.onUnfocus,
                     controller: _emailController,
-                    forceErrorText:
-                        _backendFieldErrors['email'] ?? _emailServerError,
-                    onChanged: (_) {
-                      setState(() {
-                        _emailServerError = null;
-                        _backendFieldErrors.remove('email');
-                      });
-                    },
                     keyboardType: TextInputType.emailAddress,
                     textDirection: TextDirection.ltr,
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[\x21-\x7E]'),
+                      ),
                     ],
                     decoration: _fieldDecoration(
-                      label: 'البريد الإلكتروني',
+                      label: 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ',
                       icon: Icons.email_outlined,
                     ),
                     validator: (value) {
-                      final email = value ?? '';
+                      final email = value?.trim() ?? '';
 
-                      if (email.trim().isEmpty) {
-                        return 'يرجى إدخال البريد الإلكتروني';
+                      if (email.isEmpty) {
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ';
                       }
 
-                      if (RegExp(r'\s').hasMatch(email)) {
-                        return 'يجب ألا يحتوي البريد الإلكتروني على مسافات';
+                      final emailIsValid = RegExp(
+                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                      ).hasMatch(email);
+
+                      if (!emailIsValid) {
+                        return 'ط§ظ„ط¨ط±ظٹط¯ ط§ظ„ط¥ظ„ظƒطھط±ظˆظ†ظٹ ط؛ظٹط± طµط­ظٹط­';
                       }
 
-                      final atCount = '@'.allMatches(email).length;
-
-                      if (atCount == 0) {
-                        return 'يجب أن يحتوي البريد الإلكتروني على الرمز @';
-                      }
-
-                      if (atCount > 1) {
-                        return 'يجب أن يحتوي البريد الإلكتروني على رمز @ واحد فقط';
-                      }
-
-                      final parts = email.split('@');
-                      final username = parts[0];
-                      final domain = parts[1];
-
-                      if (username.isEmpty) {
-                        return 'يرجى إدخال اسم البريد قبل الرمز @';
-                      }
-
-                      if (domain.isEmpty) {
-                        return 'يرجى إدخال اسم النطاق بعد الرمز @';
-                      }
-
-                      if (!domain.contains('.')) {
-                        return 'يرجى إدخال نطاق كامل، مثل gmail.com';
-                      }
-
-                      final domainParts = domain.split('.');
-
-                      if (domainParts.any((part) => part.isEmpty)) {
-                        return 'اسم النطاق غير مكتمل، مثل gmail.com';
-                      }
-
-                      final domainIsValid = domainParts.every(
-                        (part) => RegExp(
-                          r'^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$',
-                        ).hasMatch(part),
-                      );
-
-                      if (!domainIsValid) {
-                        return 'اسم النطاق يحتوي على أحرف غير مسموحة';
-                      }
-
-                      if (username.startsWith('.') ||
-                          username.endsWith('.') ||
-                          username.contains('..')) {
-                        return 'اسم البريد يجب ألا يبدأ أو ينتهي بنقطة أو يحتوي على نقطتين متتاليتين';
-                      }
-
-                      final usernameIsValid = RegExp(
-                        r"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$",
-                      ).hasMatch(username);
-
-                      if (!usernameIsValid) {
-                        return 'اسم البريد يحتوي على أحرف غير مسموحة';
-                      }
-
-                      return _emailServerError;
+                      return null;
                     },
                   ),
 
                   const SizedBox(height: 14),
 
                   TextFormField(
-                    key: _phoneFieldKey,
-                    autovalidateMode:
-                        _phoneFieldKey.currentState?.hasError == true
-                        ? AutovalidateMode.onUserInteraction
-                        : AutovalidateMode.onUnfocus,
                     controller: _phoneController,
-                    forceErrorText:
-                        _backendFieldErrors['phone_number'] ??
-                        _phoneServerError,
-                    onChanged: (_) {
-                      setState(() {
-                        _phoneServerError = null;
-                        _backendFieldErrors.remove('phone_number');
-                      });
-                    },
                     keyboardType: TextInputType.phone,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -755,35 +600,28 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'رقم الهاتف',
+                      label: 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ',
                       icon: Icons.phone_outlined,
                     ),
                     validator: (value) {
                       final phone = value?.trim() ?? '';
 
                       if (phone.isEmpty) {
-                        return 'يرجى إدخال رقم الهاتف';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ';
                       }
 
                       if (!RegExp(r'^05\d{8}$').hasMatch(phone)) {
-                        return 'رقم الهاتف يجب أن يتكون من 10 أرقام ويبدأ بـ 05';
+                        return 'ط±ظ‚ظ… ط§ظ„ظ‡ط§طھظپ ظٹط¬ط¨ ط£ظ† ظٹطھظƒظˆظ† ظ…ظ† 10 ط£ط±ظ‚ط§ظ… ظˆظٹط¨ط¯ط£ ط¨ظ€ 05';
                       }
 
-                      return _phoneServerError;
+                      return null;
                     },
                   ),
 
                   const SizedBox(height: 14),
 
                   TextFormField(
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     controller: _ageController,
-                    onChanged: (_) {
-                      setState(() {
-                        _backendFieldErrors.remove('age');
-                      });
-                    },
-                    forceErrorText: _backendFieldErrors['age'],
                     keyboardType: TextInputType.number,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
@@ -793,24 +631,24 @@ class _SignupScreenState extends State<SignupScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.next,
                     decoration: _fieldDecoration(
-                      label: 'العمر',
+                      label: 'ط§ظ„ط¹ظ…ط±',
                       icon: Icons.cake_outlined,
                     ),
                     validator: (value) {
                       final ageText = value?.trim() ?? '';
 
                       if (ageText.isEmpty) {
-                        return 'يرجى إدخال العمر';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط§ظ„ط¹ظ…ط±';
                       }
 
                       final age = int.tryParse(ageText);
 
                       if (age == null) {
-                        return 'يرجى إدخال عمر صحيح';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ط¹ظ…ط± طµط­ظٹط­';
                       }
 
                       if (age < 13 || age > 100) {
-                        return 'يجب أن يكون العمر بين 13 و100 سنة';
+                        return 'ظٹط¬ط¨ ط£ظ† ظٹظƒظˆظ† ط§ظ„ط¹ظ…ط± ط¨ظٹظ† 13 ظˆ100 ط³ظ†ط©';
                       }
 
                       return null;
@@ -819,38 +657,31 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 18),
 
-                  _requiredLabel('الجنس', color: darkText),
+                  _requiredLabel(
+                    'ط§ظ„ط¬ظ†ط³',
+                    color: darkText,
+                  ),
 
                   const SizedBox(height: 9),
 
                   Row(
                     children: [
-                      _genderChoice(label: 'أنثى', value: 'female'),
+                      _genderChoice(
+                        label: 'ط£ظ†ط«ظ‰',
+                        value: 'female',
+                      ),
                       const SizedBox(width: 12),
-                      _genderChoice(label: 'ذكر', value: 'male'),
+                      _genderChoice(
+                        label: 'ط°ظƒط±',
+                        value: 'male',
+                      ),
                     ],
                   ),
-                  if (_showGenderError ||
-                      _backendFieldErrors.containsKey('gender'))
-                    const Padding(
-                      padding: EdgeInsetsDirectional.only(start: 12, top: 8),
-                      child: Text(
-                        'يرجى اختيار الجنس',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(color: Colors.red, fontSize: 12),
-                      ),
-                    ),
 
                   const SizedBox(height: 18),
 
                   TextFormField(
-                    key: _passwordFieldKey,
-                    autovalidateMode:
-                        _passwordFieldKey.currentState?.hasError == true
-                        ? AutovalidateMode.onUserInteraction
-                        : AutovalidateMode.onUnfocus,
                     controller: _passwordController,
-                    forceErrorText: _backendFieldErrors['password'],
                     textAlign: TextAlign.right,
                     focusNode: _passwordFocusNode,
                     obscureText: _hidePassword,
@@ -866,12 +697,10 @@ class _SignupScreenState extends State<SignupScreen> {
                       LengthLimitingTextInputFormatter(20),
                     ],
                     onChanged: (_) {
-                      setState(() {
-                        _backendFieldErrors.remove('password');
-                      });
+                      setState(() {});
                     },
                     decoration: _fieldDecoration(
-                      label: 'كلمة المرور',
+                      label: 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                       icon: Icons.lock_outline_rounded,
                       suffixIcon: IconButton(
                         onPressed: () {
@@ -889,31 +718,34 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى إدخال كلمة المرور';
+                        return 'ظٹط±ط¬ظ‰ ط¥ط¯ط®ط§ظ„ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±';
                       }
 
                       if (!_passwordIsValid) {
-                        return 'كلمة المرور لا تستوفي جميع الشروط';
+                        return 'ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظ„ط§ طھط³طھظˆظپظٹ ط¬ظ…ظٹط¹ ط§ظ„ط´ط±ظˆط·';
                       }
 
                       return null;
                     },
                   ),
 
-                  ...[
+                  if (_showPasswordRequirements) ...[
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(15),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F7F6),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: borderColor),
+                        border: Border.all(
+                          color: borderColor,
+                        ),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'متطلبات كلمة المرور',
+                            'ظ…طھط·ظ„ط¨ط§طھ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                             style: TextStyle(
                               color: darkText,
                               fontSize: 15,
@@ -921,18 +753,24 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 7),
-                          _requirement('8 أحرف على الأقل', _hasEightCharacters),
                           _requirement(
-                            'حرف كبير واحد على الأقل (A-Z)',
+                            '8 ط£ط­ط±ظپ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„',
+                            _hasEightCharacters,
+                          ),
+                          _requirement(
+                            'ط­ط±ظپ ظƒط¨ظٹط± ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (A-Z)',
                             _hasUppercase,
                           ),
                           _requirement(
-                            'حرف صغير واحد على الأقل (a-z)',
+                            'ط­ط±ظپ طµط؛ظٹط± ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (a-z)',
                             _hasLowercase,
                           ),
-                          _requirement('رقم واحد على الأقل (0-9)', _hasNumber),
                           _requirement(
-                            'رمز خاص واحد (! @ # \$ % ^ & *)',
+                            'ط±ظ‚ظ… ظˆط§ط­ط¯ ط¹ظ„ظ‰ ط§ظ„ط£ظ‚ظ„ (0-9)',
+                            _hasNumber,
+                          ),
+                          _requirement(
+                            'ط±ظ…ط² ط®ط§طµ ظˆط§ط­ط¯ (! @ # \$ % ^ & *)',
                             _hasSpecialCharacter,
                           ),
                         ],
@@ -943,13 +781,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 14),
 
                   TextFormField(
-                    key: _confirmPasswordFieldKey,
-                    autovalidateMode:
-                        _confirmPasswordFieldKey.currentState?.hasError == true
-                        ? AutovalidateMode.onUserInteraction
-                        : AutovalidateMode.onUnfocus,
                     controller: _confirmPasswordController,
-                    forceErrorText: _backendFieldErrors['confirm_password'],
                     focusNode: _confirmPasswordFocusNode,
                     obscureText: _hideConfirmPassword,
                     autocorrect: false,
@@ -965,9 +797,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                     onTap: _clearPasswordsForRetry,
                     onChanged: (_) {
-                      setState(() {
-                        _backendFieldErrors.remove('confirm_password');
-                      });
+                      setState(() {});
                     },
                     onFieldSubmitted: (_) {
                       if (!_isLoading) {
@@ -975,12 +805,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       }
                     },
                     decoration: _fieldDecoration(
-                      label: 'تأكيد كلمة المرور',
+                      label: 'طھط£ظƒظٹط¯ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±',
                       icon: Icons.lock_reset_rounded,
                       suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            _hideConfirmPassword = !_hideConfirmPassword;
+                            _hideConfirmPassword =
+                                !_hideConfirmPassword;
                           });
                         },
                         icon: Icon(
@@ -993,13 +824,15 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return 'يرجى تأكيد كلمة المرور';
+                        return 'ظٹط±ط¬ظ‰ طھط£ظƒظٹط¯ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط±';
                       }
 
                       if (!_passwordsMatch) {
-                        return 'كلمتا المرور غير متطابقتين';
+                        _clearPasswordsOnNextFocus = true;
+                        return 'ظƒظ„ظ…طھط§ ط§ظ„ظ…ط±ظˆط± ط؛ظٹط± ظ…طھط·ط§ط¨ظ‚طھظٹظ†';
                       }
 
+                      _clearPasswordsOnNextFocus = false;
                       return null;
                     },
                   ),
@@ -1009,16 +842,17 @@ class _SignupScreenState extends State<SignupScreen> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _createAccount,
+                      onPressed:
+                          _isLoading ? null : _createAccount,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: darkGreen,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: darkGreen.withValues(
-                          alpha: 0.55,
-                        ),
+                        disabledBackgroundColor:
+                            darkGreen.withValues(alpha: 0.55),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius:
+                              BorderRadius.circular(16),
                         ),
                       ),
                       child: _isLoading
@@ -1031,7 +865,7 @@ class _SignupScreenState extends State<SignupScreen> {
                               ),
                             )
                           : const Text(
-                              'إنشاء الحساب',
+                              'ط¥ظ†ط´ط§ط، ط§ظ„ط­ط³ط§ط¨',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
