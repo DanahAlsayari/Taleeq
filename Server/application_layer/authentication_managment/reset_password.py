@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
-from email.message import EmailMessage
 from urllib.parse import quote
 import os
 import re
 import smtplib
+import ssl
+from email.message import EmailMessage
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
@@ -33,24 +34,25 @@ PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")
 
 
 # =========================================================
-# Gmail / SMTP Settings
+# Gmail SMTP Settings
 # =========================================================
 
-SMTP_HOST = os.getenv("SMTP_HOST")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
 SMTP_USER = os.getenv("SMTP_USER")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER)
 
 
 # =========================================================
 # Public HTTPS URL
 # =========================================================
 
-# Temporary Cloudflare URL.
-# Keep the Cloudflare tunnel terminal running while testing.
-PUBLIC_BASE_URL = (
-    "https://mile-distances-acoustic-corporate.trycloudflare.com"
-)
+# Public HTTPS URL (configure PUBLIC_BASE_URL on Render).
+PUBLIC_BASE_URL = os.getenv(
+    "PUBLIC_BASE_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 
 
 # =========================================================
@@ -122,18 +124,12 @@ def send_reset_email(email: str, reset_token: str) -> None:
     encoded_token = quote(reset_token, safe="")
 
     reset_link = (
-        f"{PUBLIC_BASE_URL}/open-reset"
+        f"{PUBLIC_BASE_URL.rstrip('/')}/auth/open-reset"
         f"?token={encoded_token}"
     )
 
-    message = EmailMessage()
-
-    message["Subject"] = "Taleeq - Reset Password"
-    message["From"] = SMTP_USER
-    message["To"] = email
-
     # Plain text version
-    message.set_content(
+    plain_text = (
         f"""Hello,
 
 We received a request to reset your Taleeq password.
@@ -151,7 +147,7 @@ Taleeq Team
     )
 
     # HTML version
-    message.add_alternative(
+    html_content = (
         f"""
 <!DOCTYPE html>
 <html>
@@ -214,22 +210,37 @@ Taleeq Team
 
 </body>
 </html>
-""",
-        subtype="html",
+"""
     )
 
-    with smtplib.SMTP(
-        SMTP_HOST,
-        SMTP_PORT,
-    ) as server:
-        server.starttls()
+    if not SMTP_USER or not SMTP_PASSWORD or not SMTP_FROM_EMAIL:
+        raise RuntimeError("SMTP credentials are not configured.")
 
-        server.login(
-            SMTP_USER,
-            SMTP_PASSWORD,
-        )
+    message = EmailMessage()
+    message["From"] = SMTP_FROM_EMAIL
+    message["To"] = email
+    message["Subject"] = "Taleeq | Reset Password"
+    message.set_content(plain_text)
+    message.add_alternative(html_content, subtype="html")
 
-        server.send_message(message)
+    try:
+        context = ssl.create_default_context()
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(message)
+        elif SMTP_PORT == 587:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+                server.starttls(context=context)
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(message)
+        else:
+            raise RuntimeError("Use SMTP port 465 or 587 with Gmail.")
+    except (smtplib.SMTPException, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to send password reset email. Please try again later.",
+        ) from exc
 
 
 # =========================================================
