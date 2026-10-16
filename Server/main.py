@@ -11,6 +11,7 @@ from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
 from api.speech_exercises import router as speech_exercises_router
+from api.exercise import router as exercise_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -43,6 +44,10 @@ app.mount("/auth", authentication_app)
 
 # Adds the speech exercises endpoints.
 app.include_router(speech_exercises_router)
+
+# Adds exercise audio analysis endpoints.
+app.include_router(exercise_router)
+
 # Adds the naming challenge endpoints.
 app.include_router(naming_challenge_router)
 

@@ -11,6 +11,9 @@ import 'presentation_layer/authenticationUI/signup_screen.dart';
 import 'presentation_layer/HomepageUI/home_screen.dart';
 import 'presentation_layer/widgets/assesmentWidgets/pre_assesment_success_screen.dart';
 import 'presentation_layer/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
+import 'presentation_layer/exerciseUI/exercise_screen.dart';
+import 'presentation_layer/exerciseUI/exercise_result_screen.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
