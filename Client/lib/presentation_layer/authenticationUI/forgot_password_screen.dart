@@ -60,7 +60,7 @@ static const Color ivory = Color(0xFFFFFBF6);
     try {
 
       final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/forgot-password'),
+        Uri.parse('${ApiConfig.authBaseUrl}/forgot-password'),
         headers: {
           'Content-Type': 'application/json',
         },

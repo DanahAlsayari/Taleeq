@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../../services/auth_storage.dart';
 import '../profileUI/widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 import '../../services/api_config_service.dart';
+
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -16,8 +17,6 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-
-
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFF6FA7A3);
   static const Color background = Color(0xFFFFFBF6);
@@ -142,8 +141,9 @@ class _SignupScreenState extends State<SignupScreen> {
     final normalizedEmail = _emailController.text.trim().toLowerCase();
 
     try {
+      // Create a new account.
       final signupResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/signup'),
+        Uri.parse('${ApiConfig.authBaseUrl}/signup'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'name': _nameController.text.trim(),
@@ -156,11 +156,15 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (signupResponse.statusCode < 200 || signupResponse.statusCode >= 300) {
+      if (signupResponse.statusCode < 200 ||
+          signupResponse.statusCode >= 300) {
         _clearPasswordsOnNextFocus = true;
 
         _showMessage(
-          _readErrorMessage(signupResponse, fallback: 'تعذر إنشاء الحساب'),
+          _readErrorMessage(
+            signupResponse,
+            fallback: 'تعذر إنشاء الحساب',
+          ),
         );
 
         return;
@@ -168,7 +172,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // Log the new user in automatically.
       final loginResponse = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/login'),
+        Uri.parse('${ApiConfig.authBaseUrl}/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
@@ -176,7 +180,8 @@ class _SignupScreenState extends State<SignupScreen> {
         }),
       );
 
-      if (loginResponse.statusCode < 200 || loginResponse.statusCode >= 300) {
+      if (loginResponse.statusCode < 200 ||
+          loginResponse.statusCode >= 300) {
         _clearPasswordsOnNextFocus = true;
 
         _showMessage(
@@ -189,7 +194,8 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      final loginData = jsonDecode(loginResponse.body) as Map<String, dynamic>;
+      final loginData =
+          jsonDecode(loginResponse.body) as Map<String, dynamic>;
 
       final token = loginData['access_token'] as String?;
 
@@ -224,9 +230,13 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  String _readErrorMessage(http.Response response, {required String fallback}) {
+  String _readErrorMessage(
+    http.Response response, {
+    required String fallback,
+  }) {
     try {
-      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final decoded =
+          jsonDecode(response.body) as Map<String, dynamic>;
 
       final detail = decoded['detail'];
 
@@ -309,7 +319,9 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
@@ -325,14 +337,20 @@ class _SignupScreenState extends State<SignupScreen> {
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 17,
+      ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: borderColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: darkGreen, width: 1.5),
+        borderSide: const BorderSide(
+          color: darkGreen,
+          width: 1.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -340,7 +358,10 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+        borderSide: const BorderSide(
+          color: Colors.red,
+          width: 1.5,
+        ),
       ),
     );
   }
@@ -351,7 +372,9 @@ class _SignupScreenState extends State<SignupScreen> {
       child: Row(
         children: [
           Icon(
-            isSatisfied ? Icons.check_circle : Icons.radio_button_unchecked,
+            isSatisfied
+                ? Icons.check_circle
+                : Icons.radio_button_unchecked,
             color: isSatisfied ? darkGreen : Colors.grey,
             size: 19,
           ),
@@ -360,9 +383,13 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Text(
               text,
               style: TextStyle(
-                color: isSatisfied ? darkGreen : Colors.grey.shade700,
+                color: isSatisfied
+                    ? darkGreen
+                    : Colors.grey.shade700,
                 fontSize: 14,
-                fontWeight: isSatisfied ? FontWeight.w600 : FontWeight.normal,
+                fontWeight: isSatisfied
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
             ),
           ),
@@ -371,7 +398,10 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _genderChoice({required String label, required String value}) {
+  Widget _genderChoice({
+    required String label,
+    required String value,
+  }) {
     final isSelected = _selectedGender == value;
 
     return Expanded(
@@ -407,7 +437,10 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
+  Widget _requiredLabel(
+    String text, {
+    Color color = Colors.grey,
+  }) {
     return Text.rich(
       TextSpan(
         children: [
@@ -441,18 +474,22 @@ class _SignupScreenState extends State<SignupScreen> {
           foregroundColor: darkText,
           title: const Text(
             'إنشاء حساب',
-            style: TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           centerTitle: true,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            keyboardDismissBehavior:
+                ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 35),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment:
+                    CrossAxisAlignment.stretch,
                 children: [
                   const Text(
                     'مرحبًا بك في طليق',
@@ -495,7 +532,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال الاسم';
                       }
 
-                      if (name.length < 2 || name.length > 50) {
+                      if (name.length < 2 ||
+                          name.length > 50) {
                         return 'يجب أن يتكون الاسم من 2 إلى 50 حرفًا';
                       }
 
@@ -521,7 +559,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     textInputAction: TextInputAction.next,
                     autocorrect: false,
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'[\x21-\x7E]'),
+                      ),
                     ],
                     decoration: _fieldDecoration(
                       label: 'البريد الإلكتروني',
@@ -534,8 +574,9 @@ class _SignupScreenState extends State<SignupScreen> {
                         return 'يرجى إدخال البريد الإلكتروني';
                       }
 
-                      final emailIsValid = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
-                          .hasMatch(email);
+                      final emailIsValid = RegExp(
+                        r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                      ).hasMatch(email);
 
                       if (!emailIsValid) {
                         return 'البريد الإلكتروني غير صحيح';
@@ -616,15 +657,24 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   const SizedBox(height: 18),
 
-                  _requiredLabel('الجنس', color: darkText),
+                  _requiredLabel(
+                    'الجنس',
+                    color: darkText,
+                  ),
 
                   const SizedBox(height: 9),
 
                   Row(
                     children: [
-                      _genderChoice(label: 'أنثى', value: 'female'),
+                      _genderChoice(
+                        label: 'أنثى',
+                        value: 'female',
+                      ),
                       const SizedBox(width: 12),
-                      _genderChoice(label: 'ذكر', value: 'male'),
+                      _genderChoice(
+                        label: 'ذكر',
+                        value: 'male',
+                      ),
                     ],
                   ),
 
@@ -686,10 +736,13 @@ class _SignupScreenState extends State<SignupScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFFF1F7F6),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: borderColor),
+                        border: Border.all(
+                          color: borderColor,
+                        ),
                       ),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.stretch,
                         children: [
                           const Text(
                             'متطلبات كلمة المرور',
@@ -700,7 +753,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 7),
-                          _requirement('8 أحرف على الأقل', _hasEightCharacters),
+                          _requirement(
+                            '8 أحرف على الأقل',
+                            _hasEightCharacters,
+                          ),
                           _requirement(
                             'حرف كبير واحد على الأقل (A-Z)',
                             _hasUppercase,
@@ -709,7 +765,10 @@ class _SignupScreenState extends State<SignupScreen> {
                             'حرف صغير واحد على الأقل (a-z)',
                             _hasLowercase,
                           ),
-                          _requirement('رقم واحد على الأقل (0-9)', _hasNumber),
+                          _requirement(
+                            'رقم واحد على الأقل (0-9)',
+                            _hasNumber,
+                          ),
                           _requirement(
                             'رمز خاص واحد (! @ # \$ % ^ & *)',
                             _hasSpecialCharacter,
@@ -751,7 +810,8 @@ class _SignupScreenState extends State<SignupScreen> {
                       suffixIcon: IconButton(
                         onPressed: () {
                           setState(() {
-                            _hideConfirmPassword = !_hideConfirmPassword;
+                            _hideConfirmPassword =
+                                !_hideConfirmPassword;
                           });
                         },
                         icon: Icon(
@@ -769,12 +829,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
                       if (!_passwordsMatch) {
                         _clearPasswordsOnNextFocus = true;
-
                         return 'كلمتا المرور غير متطابقتين';
                       }
 
                       _clearPasswordsOnNextFocus = false;
-
                       return null;
                     },
                   ),
@@ -784,16 +842,17 @@ class _SignupScreenState extends State<SignupScreen> {
                   SizedBox(
                     height: 56,
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _createAccount,
+                      onPressed:
+                          _isLoading ? null : _createAccount,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: darkGreen,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: darkGreen.withValues(
-                          alpha: 0.55,
-                        ),
+                        disabledBackgroundColor:
+                            darkGreen.withValues(alpha: 0.55),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius:
+                              BorderRadius.circular(16),
                         ),
                       ),
                       child: _isLoading

@@ -1,548 +1,484 @@
-import 'dart:convert';
+from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
+import os
+import re
+import smtplib
+import ssl
+from email.message import EmailMessage
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:flutter/foundation.dart';
-import '../../services/api_config_service.dart';
-import 'login_screen.dart';
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import HTMLResponse
+from jose import ExpiredSignatureError, JWTError, jwt
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
-class ResetPasswordScreen extends StatefulWidget {
-  final String token;
+from data_and_integration_layer.database.connection import get_db
+from data_and_integration_layer.database.models.user import User
+from . import auth
 
-  const ResetPasswordScreen({super.key, required this.token});
 
-  @override
-  State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
-}
+# =========================================================
+# Reset Password Settings
+# =========================================================
 
-class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+SECRET_KEY = os.getenv("SECRET_KEY")
 
-  final FocusNode _passwordFocusNode = FocusNode();
-  final FocusNode _confirmPasswordFocusNode = FocusNode();
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not configured.")
 
-  bool _hidePassword = true;
-  bool _hideConfirmPassword = true;
-  bool _isLoading = false;
-  bool _showValidation = false;
-  bool _showPasswordRequirements = false;
+ALGORITHM = "HS256"
+RESET_TOKEN_EXPIRE_MINUTES = 15
+SPECIAL_CHARACTERS = "!@#$%^&*"
+PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")
 
-  String? _errorMessage;
-  String? _successMessage;
 
-  static const Color ivory = Color(0xFFFCFAF6);
-  static const Color teal = Color(0xFF1F5F5A);
-  static const Color tealLight = Color(0xFF2A7A74);
-  static const Color aquaLight = Color(0xFFEAF4F2);
-  static const Color dark = Color(0xFF233330);
-  static const Color muted = Color(0xFF8FA39F);
-  static const Color border = Color(0xFFE3EEEB);
-  static const Color errorRed = Color(0xFFD9534F);
+# =========================================================
+# Gmail SMTP Settings
+# =========================================================
 
-  @override
-  void initState() {
-    super.initState();
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", SMTP_USER)
 
-    _passwordFocusNode.addListener(() {
-      if (!mounted) return;
 
-      setState(() {
-        _showPasswordRequirements = _passwordFocusNode.hasFocus;
-      });
-    });
-  }
+# =========================================================
+# Public HTTPS URL
+# =========================================================
 
-  bool get _hasEightCharacters => _passwordController.text.length >= 8;
+# Public HTTPS URL (configure PUBLIC_BASE_URL on Render).
+PUBLIC_BASE_URL = os.getenv(
+    "PUBLIC_BASE_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 
-  bool get _hasUppercase => RegExp(r'[A-Z]').hasMatch(_passwordController.text);
 
-  bool get _hasLowercase => RegExp(r'[a-z]').hasMatch(_passwordController.text);
+# =========================================================
+# Authentication Router
+# =========================================================
 
-  bool get _hasNumber => RegExp(r'[0-9]').hasMatch(_passwordController.text);
+router = APIRouter(
+    tags=["Authentication"],
+)
 
-  bool get _hasSpecialCharacter =>
-      RegExp(r'[!@#$%^&*]').hasMatch(_passwordController.text);
 
-  bool get _passwordIsValid =>
-      _hasEightCharacters &&
-      _hasUppercase &&
-      _hasLowercase &&
-      _hasNumber &&
-      _hasSpecialCharacter;
+# =========================================================
+# Request Models
+# =========================================================
 
-  bool get _passwordsMatch =>
-      _passwordController.text == _confirmPasswordController.text &&
-      _confirmPasswordController.text.isNotEmpty;
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
 
-  Future<void> _resetPassword() async {
-    FocusScope.of(context).unfocus();
+    @field_validator("email")
+    @classmethod
+    def validate_email_characters(cls, value: EmailStr) -> EmailStr:
+        if not str(value).isascii():
+            raise ValueError("Email contains invalid characters.")
 
-    setState(() {
-      _showValidation = true;
-      _errorMessage = null;
-      _successMessage = null;
-    });
+        return value
 
-   if (!_passwordIsValid) {
-  setState(() {
-    _errorMessage = 'كلمة المرور لا تستوفي جميع الشروط';
-  });
-  return;
-}
-    if (!_passwordsMatch) {
-      _confirmPasswordController.clear();
 
-      setState(() {
-        _errorMessage = 'كلمتا المرور غير متطابقتين.';
-      });
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=20)
+    confirm_password: str = Field(min_length=8, max_length=20)
 
-      _confirmPasswordFocusNode.requestFocus();
-      return;
+    @field_validator("new_password", "confirm_password")
+    @classmethod
+    def validate_password_characters(cls, value: str) -> str:
+        if not PASSWORD_PATTERN.fullmatch(value):
+            raise ValueError("Password contains invalid characters.")
+
+        return value
+
+
+# =========================================================
+# Create Reset Token
+# =========================================================
+
+def create_reset_token(email: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(
+        minutes=RESET_TOKEN_EXPIRE_MINUTES
+    )
+
+    payload = {
+        "sub": email,
+        "purpose": "password_reset",
+        "exp": expire,
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    return jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
 
-    try {
-      final response = await http.post(
-        Uri.parse('${ApiConfig.baseUrl}/reset-password'), 
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'token': widget.token,
-          'new_password': _passwordController.text,
-          'confirm_password': _confirmPasswordController.text,
-        }),
-      );
 
-      if (!mounted) return;
+# =========================================================
+# Send Reset Password Email
+# =========================================================
 
-      if (response.statusCode == 200) {
-        setState(() {
-          _successMessage = 'تم تغيير كلمة المرور بنجاح.';
-          _errorMessage = null;
-        });
+def send_reset_email(email: str, reset_token: str) -> None:
+    encoded_token = quote(reset_token, safe="")
 
-        await Future.delayed(const Duration(seconds: 1));
+    reset_link = (
+        f"{PUBLIC_BASE_URL.rstrip('/')}/auth/open-reset"
+        f"?token={encoded_token}"
+    )
 
-        if (!mounted) return;
+    # Plain text version
+    plain_text = (
+        f"""Hello,
 
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-          (route) => false,
-        );
+We received a request to reset your Taleeq password.
 
-        return;
-      } else {
-        String message = 'تعذر تغيير كلمة المرور. يرجى المحاولة مرة أخرى.';
+Reset your password using this link:
 
-        try {
-          final data = jsonDecode(response.body);
-          message = data['detail']?.toString() ?? message;
-        } catch (_) {
-          // Keep the Arabic fallback if the response is not JSON.
-        }
+{reset_link}
 
-        setState(() {
-          _errorMessage = message;
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
+This link will expire in 15 minutes.
 
-      setState(() {
-        _errorMessage = 'تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+If you did not request a password reset, you can ignore this email.
+
+Taleeq Team
+"""
+    )
+
+    # HTML version
+    html_content = (
+        f"""
+<!DOCTYPE html>
+<html>
+<body style="
+    font-family: Arial, sans-serif;
+    background-color: #f5f5f5;
+    padding: 30px;
+">
+
+    <div style="
+        max-width: 500px;
+        margin: auto;
+        background-color: white;
+        padding: 30px;
+        border-radius: 12px;
+    ">
+
+        <h2>Taleeq - Reset Password</h2>
+
+        <p>
+            We received a request to reset your Taleeq password.
+        </p>
+
+        <p>
+            Click the button below to create a new password.
+        </p>
+
+        <div style="
+            text-align: center;
+            margin: 30px 0;
+        ">
+            <a
+                href="{reset_link}"
+                style="
+                    display: inline-block;
+                    background-color: #2563eb;
+                    color: white;
+                    padding: 14px 28px;
+                    text-decoration: none;
+                    border-radius: 8px;
+                    font-weight: bold;
+                "
+            >
+                Reset Password
+            </a>
+        </div>
+
+        <p>
+            This link will expire in 15 minutes.
+        </p>
+
+        <p>
+            If you did not request a password reset,
+            you can ignore this email.
+        </p>
+
+        <p>Taleeq Team</p>
+
+    </div>
+
+</body>
+</html>
+"""
+    )
+
+    if not SMTP_USER or not SMTP_PASSWORD or not SMTP_FROM_EMAIL:
+        raise RuntimeError("SMTP credentials are not configured.")
+
+    message = EmailMessage()
+    message["From"] = SMTP_FROM_EMAIL
+    message["To"] = email
+    message["Subject"] = "Taleeq | Reset Password"
+    message.set_content(plain_text)
+    message.add_alternative(html_content, subtype="html")
+
+    try:
+        context = ssl.create_default_context()
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=15) as server:
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(message)
+        elif SMTP_PORT == 587:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+                server.starttls(context=context)
+                server.login(SMTP_USER, SMTP_PASSWORD)
+                server.send_message(message)
+        else:
+            raise RuntimeError("Use SMTP port 465 or 587 with Gmail.")
+    except (smtplib.SMTPException, OSError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to send password reset email. Please try again later.",
+        ) from exc
+
+
+# =========================================================
+# Open Taleeq Reset Screen
+# =========================================================
+
+@router.get("/open-reset", response_class=HTMLResponse)
+def open_reset(token: str):
+    encoded_token = quote(token, safe="")
+
+    deep_link = (
+        f"taleeq://reset-password?token={encoded_token}"
+    )
+
+    return HTMLResponse(
+        content=f"""
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Opening Taleeq</title>
+</head>
+
+<body style="
+    font-family: Arial, sans-serif;
+    text-align: center;
+    padding: 40px;
+">
+
+    <h2>Opening Taleeq...</h2>
+
+    <p>
+        If Taleeq does not open automatically,
+        click the button below.
+    </p>
+
+    <a
+        href="{deep_link}"
+        style="
+            display: inline-block;
+            background-color: #2563eb;
+            color: white;
+            padding: 14px 28px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        "
+    >
+        Open Taleeq
+    </a>
+
+    <script>
+        setTimeout(function() {{
+            window.location.href = "{deep_link}";
+        }}, 500);
+    </script>
+
+</body>
+</html>
+"""
+    )
+
+
+# =========================================================
+# Forgot Password Endpoint
+# =========================================================
+
+@router.post("/forgot-password")
+def forgot_password(
+    request: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    normalized_email = str(request.email).strip().lower()
+
+    user = (
+        db.query(User)
+        .filter(
+            func.lower(User.email) == normalized_email
+        )
+        .first()
+    )
+
+    if user:
+        reset_token = create_reset_token(user.email)
+
+        send_reset_email(
+            user.email,
+            reset_token,
+        )
+
+    return {
+        "message": (
+            "If an account exists with this email, "
+            "a password reset link will be sent."
+        )
     }
-  }
 
-  Widget _requirement(String text, bool isValid) {
-    final Color color;
 
-    if (isValid) {
-      color = teal;
-    } else if (_showValidation) {
-      color = errorRed;
-    } else {
-      color = muted;
-    }
+# =========================================================
+# Reset Password Endpoint
+# =========================================================
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Icon(
-            isValid ? Icons.check_circle_rounded : Icons.circle_outlined,
-            size: 18,
-            color: color,
-          ),
-          const SizedBox(width: 9),
-          Expanded(
-            child: Text(text, style: TextStyle(color: color, fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
+@router.post("/reset-password")
+def reset_password(
+    request: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    # -----------------------------------------------------
+    # Check Password Match
+    # -----------------------------------------------------
 
-  @override
-  void dispose() {
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    _passwordFocusNode.dispose();
-    _confirmPasswordFocusNode.dispose();
-    super.dispose();
-  }
+    if request.new_password != request.confirm_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Passwords do not match.",
+        )
 
-  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
-    return Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: '$text ',
-            style: TextStyle(color: color),
-          ),
-          const TextSpan(
-            text: '*',
-            style: TextStyle(
-              color: Color(0xFF6FA7A3),
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+    # -----------------------------------------------------
+    # Password Requirements
+    # -----------------------------------------------------
+
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be at least 8 characters.",
+        )
+
+    if not any(
+        char.isupper()
+        for char in request.new_password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Password must contain at least "
+                "one uppercase letter."
             ),
-          ),
-        ],
-      ),
-      textDirection: TextDirection.rtl,
-    );
-  }
+        )
 
-  @override
-  Widget build(BuildContext context) {
-    final bool confirmError =
-        _showValidation &&
-        _confirmPasswordController.text.isNotEmpty &&
-        !_passwordsMatch;
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-backgroundColor: const Color(0xFFFFFBF6),        body: SafeArea(
-          child: SingleChildScrollView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: border, width: 2),
-                    ),
-                    child: IconButton(
-                      onPressed: () {
-                        if (Navigator.canPop(context)) {
-                          Navigator.pop(context);
-                        }
-                      },
-                      icon: const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: dark,
-                        size: 21,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 42),
-                Center(
-                  child: Container(
-                    width: 120,
-                    height: 105,
-                    decoration: BoxDecoration(
-                      color: aquaLight,
-                      borderRadius: BorderRadius.circular(42),
-                    ),
-                    child: const Icon(
-                      Icons.lock_reset_rounded,
-                      size: 65,
-                      color: teal,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 35),
-                const Text(
-                  'تعيين كلمة مرور جديدة',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: dark,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'أدخل كلمة المرور الجديدة لحسابك.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: muted, fontSize: 16),
-                ),
-                const SizedBox(height: 35),
-                TextField(
-                  controller: _passwordController,
-                  focusNode: _passwordFocusNode,
-                  obscureText: _hidePassword,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.right,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
-                    ),
-                    LengthLimitingTextInputFormatter(20),
-                  ],
-                  onChanged: (_) {
-                    setState(() {
-                      _showValidation = false;
-                      _errorMessage = null;
-                      _successMessage = null;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    label: _requiredLabel('كلمة المرور الجديدة', color: muted),
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    filled: true,
-                    fillColor: aquaLight,
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _hidePassword = !_hidePassword;
-                        });
-                      },
-                      icon: Icon(
-                        _hidePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: muted,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 20,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide(
-                        color: _showValidation && !_passwordIsValid
-                            ? errorRed
-                            : Colors.transparent,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide(
-                        color: _showValidation && !_passwordIsValid
-                            ? errorRed
-                            : teal,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-                if (_showPasswordRequirements) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: aquaLight,
-                      borderRadius: BorderRadius.circular(22),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'يجب أن تحتوي كلمة المرور على:',
-                          style: TextStyle(
-                            color: dark,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _requirement('8 أحرف على الأقل', _hasEightCharacters),
-                        _requirement(
-                          'حرف كبير واحد على الأقل (A-Z)',
-                          _hasUppercase,
-                        ),
-                        _requirement(
-                          'حرف صغير واحد على الأقل (a-z)',
-                          _hasLowercase,
-                        ),
-                        _requirement('رقم واحد على الأقل (0-9)', _hasNumber),
-                        _requirement(
-                          'رمز خاص واحد (! @ # \$ % ^ & *)',
-                          _hasSpecialCharacter,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _confirmPasswordController,
-                  focusNode: _confirmPasswordFocusNode,
-                  obscureText: _hideConfirmPassword,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  textDirection: TextDirection.ltr,
-                  textAlign: TextAlign.right,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
-                    ),
-                    LengthLimitingTextInputFormatter(20),
-                  ],
-                  onChanged: (_) {
-                    setState(() {
-                      _errorMessage = null;
-                      _successMessage = null;
-                    });
-                  },
-                  decoration: InputDecoration(
-                    label: _requiredLabel('تأكيد كلمة المرور', color: muted),
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    filled: true,
-                    fillColor: aquaLight,
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          _hideConfirmPassword = !_hideConfirmPassword;
-                        });
-                      },
-                      icon: Icon(
-                        _hideConfirmPassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        color: muted,
-                      ),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 20,
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide(
-                        color: confirmError ? errorRed : Colors.transparent,
-                        width: 1.5,
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(22),
-                      borderSide: BorderSide(
-                        color: confirmError ? errorRed : teal,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-                if (confirmError) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'كلمتا المرور غير متطابقتين.',
-                    style: TextStyle(color: errorRed, fontSize: 13),
-                  ),
-                ],
-                if (_errorMessage != null) ...[
-                  const SizedBox(height: 15),
-                  Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: errorRed, fontSize: 13),
-                  ),
-                ],
-                if (_successMessage != null) ...[
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: teal,
-                        size: 21,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          _successMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: teal,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                const SizedBox(height: 25),
-                Container(
-                  height: 62,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                      colors: [teal, tealLight],
-                    ),
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _resetPassword,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      disabledBackgroundColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(22),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.5,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'تعيين كلمة المرور',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+    if not any(
+        char.islower()
+        for char in request.new_password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Password must contain at least "
+                "one lowercase letter."
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+        )
+
+    if not any(
+        char.isdigit()
+        for char in request.new_password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Password must contain at least one number.",
+        )
+
+    if not any(
+        char in SPECIAL_CHARACTERS
+        for char in request.new_password
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Password must contain at least one special "
+                "character (!@#$%^&*)."
+            ),
+        )
+
+    # -----------------------------------------------------
+    # Verify Reset Token
+    # -----------------------------------------------------
+
+    try:
+        payload = jwt.decode(
+            request.token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+
+        if payload.get("purpose") != "password_reset":
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid reset token.",
+            )
+
+        email = payload.get("sub")
+
+        if not email:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid reset token.",
+            )
+
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=400,
+            detail="Reset link has expired.",
+        )
+
+    except JWTError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid reset token.",
+        )
+
+    # -----------------------------------------------------
+    # Find User
+    # -----------------------------------------------------
+
+    user = db.query(User).filter(
+        User.email == email
+    ).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid reset request.",
+        )
+
+    # -----------------------------------------------------
+    # Hash + Save New Password
+    # -----------------------------------------------------
+
+    user.password_hash = auth.hash_password(
+        request.new_password
+    )
+
+    db.commit()
+
+    return {
+        "message": "Password reset successfully."
+    }
