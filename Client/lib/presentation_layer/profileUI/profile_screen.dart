@@ -518,33 +518,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 10),
 
               AccountCard(name: _name, email: _email),
-              ////////////////////////////////////////////////////////////////
-              
-              const SizedBox(height: 16),
-
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TrainingScreen(
-                        onStartExercise: (_) {},
-                        showBottomNav: false,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.fitness_center),
-                label: const Text('عرض التمارين'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: darkGreen,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-
-
-              /////////////////////////////////////////////////////////////////
 
               const SizedBox(height: 24),
 
