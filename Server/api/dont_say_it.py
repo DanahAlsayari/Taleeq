@@ -441,7 +441,7 @@ def get_random_challenge(
     if difficulty not in allowed_difficulties:
         raise HTTPException(
             status_code=422,
-            detail="Invalid difficulty. Use easy, medium, or advanced.",
+            detail="Invalid difficulty. Use easy, medium, or hard.",
         )
 
     query = text("""

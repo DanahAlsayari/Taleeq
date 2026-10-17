@@ -45,7 +45,7 @@ const List<TrainingCategory> kTrainingCategories = [
         titleEn: 'Storytelling',
         descriptionAr: 'احكِ قصة من خلال صورة أو موضوع محدد.',
         durationMinutes: 6,
-        defaultDifficulty: Difficulty.advanced,
+        defaultDifficulty: Difficulty.hard,
       ),
       TrainingExercise(
         id: 'free_speech',

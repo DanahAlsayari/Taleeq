@@ -111,7 +111,7 @@ class _TaleeqAppState extends State<TaleeqApp> {
       routes: {
         '/signup': (context) => const SignupScreen(),
         '/home': (context) => const MainNavigationScreen(),
-        '/naming-challenge': (context) => const NamingChallengeScreen(),
+       
       },
     );
   }

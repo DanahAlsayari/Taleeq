@@ -313,16 +313,17 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
                           const SizedBox(height: 18),
 
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => const HomeScreen(),
-                                  ),
-                                ),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 56,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (context) => const HomeScreen(),
+                                    ),
+                                  );
+                                },
                                 child: Text(
                                   'ابدأ خطتي',
                                   style: GoogleFonts.cairo(

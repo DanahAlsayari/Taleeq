@@ -46,7 +46,7 @@ class TrainingApiService {
       case Difficulty.medium:
         return 'Medium';
 
-      case Difficulty.advanced:
+      case Difficulty.hard:
         return 'Hard';
     }
   }
