@@ -39,7 +39,7 @@ VALIDATION_MODEL = "gpt-audio-1.5"
 # ---------------------------------------------------------
 
 PREDICT_WORD_PROMPT = """
-أنت تلعب دور المقيّم في لعبة «لا تقلها» (Don't Say It).
+أنت تلعب دور المقيّم في لعبة «لا تقولها» (Don't Say It).
 
 ستستقبل وصفًا نصيًا كتبه نظام آخر اعتمادًا على كلام المستخدم
 في التسجيل الصوتي. مهمتك هي استنتاج الكلمة أو المفهوم الذي
@@ -76,7 +76,7 @@ PREDICT_WORD_PROMPT = """
 # ---------------------------------------------------------
 
 VALIDATE_GAME_PROMPT = """
-أنت مسؤول عن التحقق من نتيجة لعبة «لا تقلها» (Don't Say It).
+أنت مسؤول عن التحقق من نتيجة لعبة «لا تقولها» (Don't Say It).
 
 ستستقبل المعلومات التالية:
 - الكلمة الأصلية التي كان على المستخدم وصفها.
@@ -431,13 +431,20 @@ def validate_game(
 # GET: Fetch a random active challenge.
 # Existing endpoint behavior is preserved.
 # ---------------------------------------------------------
-
 @router.get("/challenges/random")
 def get_random_challenge(
+    difficulty: str,
     db: Session = Depends(get_db),
 ):
-    query = text(
-        """
+    allowed_difficulties = {"easy", "medium", "hard"}
+
+    if difficulty not in allowed_difficulties:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid difficulty. Use easy, medium, or advanced.",
+        )
+
+    query = text("""
         SELECT
             id,
             target_word_ar,
@@ -450,24 +457,26 @@ def get_random_challenge(
             duration_seconds
         FROM dont_say_it_challenges
         WHERE is_active = TRUE
+          AND difficulty = :difficulty
         ORDER BY RANDOM()
         LIMIT 1
-        """
-    )
+    """)
 
-    challenge = db.execute(query).mappings().first()
+    challenge = db.execute(
+        query,
+        {"difficulty": difficulty},
+    ).mappings().first()
 
     if not challenge:
         raise HTTPException(
             status_code=404,
-            detail="No active Don't Say It challenges were found.",
+            detail="No active Don't Say It challenges found for this difficulty.",
         )
 
     forbidden_words = normalize_word_list(
         challenge.get("forbidden_words")
     )
 
-    # Backward compatibility with the legacy forbidden-word columns.
     if not forbidden_words:
         forbidden_words = [
             str(word).strip()
@@ -486,8 +495,6 @@ def get_random_challenge(
         "difficulty": challenge["difficulty"],
         "duration_seconds": challenge["duration_seconds"],
     }
-
-
 # ---------------------------------------------------------
 # POST: Analyze the attempt, evaluate the game, and save it.
 # ---------------------------------------------------------

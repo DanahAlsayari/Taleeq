@@ -7,6 +7,8 @@ from fastapi.staticfiles import StaticFiles
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
+from api.naming_game import router as naming_game_router
+from api.dont_say_it import router as dont_say_it_router
 
 
 app = FastAPI(
@@ -33,6 +35,10 @@ app.include_router(training_router)
 
 # Adds the authentication application under /auth.
 app.mount("/auth", authentication_app)
+
+# Adds game endpoints.
+app.include_router(naming_game_router)
+app.include_router(dont_say_it_router)
 
 
 @app.get("/")

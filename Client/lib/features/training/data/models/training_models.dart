@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 enum Difficulty {
   easy('easy', 'سهل', 1),
   medium('medium', 'متوسط', 2),
-  advanced('advanced', 'متقدم', 3);
+  advanced('hard', 'متقدم', 3);
 
   const Difficulty(this.id, this.labelAr, this.bars);
   final String id;

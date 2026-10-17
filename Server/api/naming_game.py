@@ -100,22 +100,44 @@ Return ONLY JSON: {{"valid_items": ["answer 1", "answer 2"]}}
                 seen.add(normalized)
                 valid_items.append(item)
     return valid_items
-
-
 @router.get("/prompts/random")
-def get_random_prompt(current_user: User = Depends(auth.get_current_user),
-                      db: Session = Depends(get_db)):
-    prompt = db.execute(text("""
-        SELECT id, prompt_ar, prompt_en, category, challenge_type, duration_seconds
-        FROM naming_challenge_prompts
-        WHERE is_active = TRUE
-        ORDER BY RANDOM()
-        LIMIT 1
-    """)).mappings().first()
-    if prompt is None:
-        raise HTTPException(status_code=404, detail="No active Naming Challenge questions found.")
-    return dict(prompt)
+def get_random_prompt(
+    difficulty: str,
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    if difficulty not in {"easy", "medium", "hard"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid difficulty.",
+        )
 
+    prompt = db.execute(
+        text("""
+            SELECT
+                id,
+                prompt_ar,
+                prompt_en,
+                category,
+                challenge_type,
+                duration_seconds,
+                difficulty
+            FROM naming_challenge_prompts
+            WHERE is_active = TRUE
+              AND difficulty = :difficulty
+            ORDER BY RANDOM()
+            LIMIT 1
+        """),
+        {"difficulty": difficulty},
+    ).mappings().first()
+
+    if prompt is None:
+        raise HTTPException(
+            status_code=404,
+            detail="No active questions found for this difficulty.",
+        )
+
+    return dict(prompt)
 
 @router.post("/analyze")
 async def analyze_naming_challenge(

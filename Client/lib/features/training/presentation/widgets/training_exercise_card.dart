@@ -281,16 +281,18 @@ class _StartButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const TaleeqSvgIcon(
-                  TaleeqIcons.arrowLeft,
-                  size: 18,
-                  color: Colors.white,
-                  strokeWidth: 2.2,
-                ),
+
                 const SizedBox(width: 8),
                 Text(
                   'ابدأ التمرين',
                   style: TrainingText.startButton,
+                ),
+                 const SizedBox(width: 8),
+                  const TaleeqSvgIcon(
+                  TaleeqIcons.arrowLeft,
+                  size: 18,
+                  color: Colors.white,
+                  strokeWidth: 2.2,
                 ),
               ],
             ),

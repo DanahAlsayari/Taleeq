@@ -43,28 +43,37 @@ class DontSayItApiService {
     return fallback;
   }
 
-  Future<Map<String, dynamic>> getRandomChallenge() async {
-    final response = await http.get(
-      Uri.parse('$_baseUrl/games/dont-say-it/challenges/random'),
-      headers: await _headers(),
-    );
 
-    if (response.statusCode == 200) {
-      return _decodeResponse(response);
+    Future<Map<String, dynamic>> getRandomChallenge({
+      required String difficulty,
+    }) async {
+      final uri = Uri.parse(
+        '$_baseUrl/games/dont-say-it/challenges/random',
+      ).replace(
+        queryParameters: {'difficulty': difficulty},
+      );
+
+      final response = await http.get(
+        uri,
+        headers: await _headers(),
+      );
+
+      if (response.statusCode == 200) {
+        return _decodeResponse(response);
+      }
+
+      if (response.statusCode == 401) {
+        throw Exception('انتهت جلسة تسجيل الدخول.');
+      }
+
+      if (response.statusCode == 404) {
+        throw Exception('لا توجد تحديات متاحة لهذا المستوى حاليًا.');
+      }
+
+      throw Exception(
+        _errorMessage(response, 'تعذر تحميل التحدي.'),
+      );
     }
-
-    if (response.statusCode == 401) {
-      throw Exception('انتهت جلسة تسجيل الدخول.');
-    }
-
-    if (response.statusCode == 404) {
-      throw Exception('لا توجد تحديات متاحة حاليًا.');
-    }
-
-    throw Exception(
-      _errorMessage(response, 'تعذر تحميل التحدي.'),
-    );
-  }
 
   Future<Map<String, dynamic>> analyzeRecording({
     required int challengeId,

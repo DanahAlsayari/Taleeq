@@ -8,10 +8,16 @@ import '../../../services/recording_service.dart';
 import 'game_stuttering_analysis.dart';
 
 class DontSayItScreen extends StatefulWidget {
-  const DontSayItScreen({super.key});
+  const DontSayItScreen({
+    super.key,
+    required this.difficulty,
+  });
+
+  final String difficulty;
 
   @override
-  State<DontSayItScreen> createState() => _DontSayItScreenState();
+  State<DontSayItScreen> createState() =>
+      _DontSayItScreenState();
 }
 
 class _DontSayItScreenState extends State<DontSayItScreen> {
@@ -58,7 +64,9 @@ class _DontSayItScreenState extends State<DontSayItScreen> {
     }
 
     try {
-      final challenge = await _api.getRandomChallenge();
+      final challenge = await _api.getRandomChallenge(
+        difficulty: widget.difficulty,
+      );
 
       if (!mounted) return;
 
@@ -251,7 +259,7 @@ class _DontSayItScreenState extends State<DontSayItScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: _teal),
         title: const Text(
-          'لا تقلها',
+          'لا تقولها',
           style: TextStyle(
             color: _teal,
             fontWeight: FontWeight.bold,

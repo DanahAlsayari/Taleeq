@@ -100,7 +100,7 @@ const List<TrainingCategory> kTrainingCategories = [
       TrainingExercise(
         id: 'dont_say_it',
         type: ExerciseType.dontSayIt,
-        titleAr: 'الكلمة الممنوعة',
+        titleAr: 'لا تقولها',
         titleEn: "Don't Say It",
         descriptionAr:
             'صف الشيء المطلوب دون نطق الكلمات الممنوعة، '

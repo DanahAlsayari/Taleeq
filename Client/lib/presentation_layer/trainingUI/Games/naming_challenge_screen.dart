@@ -7,10 +7,16 @@ import '../../../services/naming_challenge_api_service.dart';
 import '../../../services/recording_service.dart';
 
 class NamingChallengeScreen extends StatefulWidget {
-  const NamingChallengeScreen({super.key});
+  const NamingChallengeScreen({
+    super.key,
+    required this.difficulty,
+  });
+
+  final String difficulty;
 
   @override
-  State<NamingChallengeScreen> createState() => _NamingChallengeScreenState();
+  State<NamingChallengeScreen> createState() =>
+      _NamingChallengeScreenState();
 }
 
 class _NamingChallengeScreenState extends State<NamingChallengeScreen>
@@ -62,7 +68,9 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     }
 
     try {
-      final prompt = await _apiService.getRandomPrompt();
+      final prompt = await _apiService.getRandomPrompt(
+  difficulty: widget.difficulty,
+);
       if (!mounted) return;
 
       _gameTimer?.cancel();
@@ -645,7 +653,7 @@ Widget build(BuildContext context) {
       title: Text(
         _showingResultPage
             ? 'نتيجة التحدي'
-            : 'تحدي التسمية',
+            : 'تحدي التعداد',
         style: const TextStyle(
           color: _teal,
           fontWeight: FontWeight.bold,
