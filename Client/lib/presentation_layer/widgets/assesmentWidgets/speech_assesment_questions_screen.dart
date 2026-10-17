@@ -899,19 +899,18 @@ List<Map<String, dynamic>> questions = [];
               }
               try {
                 if (currentQuestionIndex < questions.length - 1) {
-                  print('1. بدأ التحقق من التسجيل');
 
+                  print('started validating audio for question ${currentQuestionIndex + 1}');
                   await recordingService.stopAudio();
                   await player.seek(Duration.zero);
 
-                  print('2. إرسال التسجيل للتحقق');
+                  print('sending audio file for assessmentId: $_assessmentId');
 
                   await _assessmentApiService.validateAssessmentAudio(
                     assessmentId: _assessmentId!,
                     recordingPath: path,
                   );
-
-                  print('3. التسجيل اجتاز التحقق');
+                  print('audio file validated successfully for question ${currentQuestionIndex + 1}');
 
                   if (!mounted) return;
 
@@ -923,10 +922,21 @@ List<Map<String, dynamic>> questions = [];
                     hasStartedPlaying = false;
                   });
                 } else {
-                  await recordingService.stopAudio();
-                  await player.seek(Duration.zero);
-                  await _submitAssessment();
-                }
+                    await recordingService.stopAudio();
+                    await player.seek(Duration.zero);
+
+                    print('started validating audio for question ${currentQuestionIndex + 1}');
+                  
+
+                    await _assessmentApiService.validateAssessmentAudio(
+                      assessmentId: _assessmentId!,
+                      recordingPath: path,
+                    );
+
+                    print('audio file validated successfully for question ${currentQuestionIndex + 1}');
+
+                    await _submitAssessment();
+                  }
               } catch (e) {
                 if (!mounted) return;
 

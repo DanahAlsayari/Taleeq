@@ -21,12 +21,12 @@ from data_and_integration_layer.database.models.assessment import (
 )
 from data_and_integration_layer.database.models.training_goal import TrainingGoal
 from data_and_integration_layer.database.models.reminder_setting import ReminderSetting
+from data_and_integration_layer.database.models.technique import Technique
 
 from data_and_integration_layer.database.models.pre_assessment import (
     PreAssessmentSubmission,
 )
-
-
+from data_and_integration_layer.database.models.speech_exercise import SpeechExercise
 target_metadata = Base.metadata
 
 config = context.config

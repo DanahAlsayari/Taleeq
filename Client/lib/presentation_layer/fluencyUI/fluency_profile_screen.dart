@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import '../profileUI/profile_screen.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../theme/taleeq_theme.dart';
 
@@ -13,6 +12,7 @@ import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../services/fluency_profile_service.dart';
 import '../widgets/journey_stepper.dart';
+import'../HomepageUI/home_screen.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -308,7 +308,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                               onPressed: () {
                                 Navigator.of(context).push(
                                   MaterialPageRoute(
-                                    builder: (context) => const ProfileScreen(),
+                                    builder: (context) => const HomeScreen(),
                                   ),
                                 );
                               },
@@ -429,7 +429,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
     _showTaleeqModal(
       context,
       title: patternName,
-      category: 'نمط عدم الطلاقة',
+      category: 'نمط التأتأة',
       description: description,
       icon: Icons.hearing_rounded,
     );
@@ -837,7 +837,7 @@ class _StutteringPatternsChartState extends State<_StutteringPatternsChart> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'مقارنة أنماط عدم الطلاقة',
+                      'مقارنة أنماط التأتأة',
                       style: GoogleFonts.cairo(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,
@@ -1273,10 +1273,12 @@ class _SimpleSpeechMetricsCard extends StatelessWidget {
   }
 }
 
+
 class _TaskResultsCard extends StatelessWidget {
   final List<TaskResultData> tasks;
 
   const _TaskResultsCard({required this.tasks});
+
   String _getTaskName(String taskType) {
     switch (taskType) {
       case 'task_1':
@@ -1289,35 +1291,32 @@ class _TaskResultsCard extends StatelessWidget {
         return taskType;
     }
   }
-  String _getPatternName(String pattern) {
-  switch (pattern.toLowerCase()) {
-    case 'repetition':
-      return 'التكرار';
-    case 'prolongation':
-      return 'الإطالة';
-    case 'block':
-      return 'التوقف';
-    default:
-      return pattern;
-  }
-}
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('TASK RESULTS COUNT: ${tasks.length}');
+    const taskOrder = {
+      'task_1': 0,
+      'task_2': 1,
+      'task_3': 2,
+    };
 
-    final highestPercent = tasks.isEmpty
-        ? 0.0
-        : tasks.map((task) => task.percent).reduce(math.max);
+    final orderedTasks = [...tasks]
+      ..sort(
+        (a, b) => (taskOrder[a.taskType] ?? 999)
+            .compareTo(taskOrder[b.taskType] ?? 999),
+      );
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22.0),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: TaleeqTheme.cardShadow,
-        border: Border.all(color: TaleeqTheme.borderSubtle, width: 1.2),
+        border: Border.all(
+          color: TaleeqTheme.borderSubtle,
+          width: 1.2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1336,9 +1335,7 @@ class _TaskResultsCard extends StatelessWidget {
                   size: 22,
                 ),
               ),
-
               const SizedBox(width: 12),
-
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1352,7 +1349,7 @@ class _TaskResultsCard extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      'مقارنة أبرز نمط بين مهام التقييم',
+                      'نسبة التأتأة والكلمات والأصوات المكتشفة',
                       style: GoogleFonts.cairo(
                         fontSize: 12,
                         color: TaleeqTheme.textMuted,
@@ -1363,24 +1360,18 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          ...List.generate(tasks.length, (index) {
-            final task = tasks[index];
-            final percent = task.percent;
+          ...List.generate(orderedTasks.length, (index) {
+            final task = orderedTasks[index];
 
             return Padding(
               padding: EdgeInsets.only(
-                bottom: index == tasks.length - 1 ? 0 : 16,
+                bottom: index == orderedTasks.length - 1 ? 0 : 16,
               ),
               child: _buildTaskResult(
                 taskName: _getTaskName(task.taskType),
-               patternName: _getPatternName(task.pattern),
-                percent: percent,
-                relativePercent: highestPercent == 0
-                    ? 0
-                    : percent / highestPercent,
+                percent: task.percent,
+                speechEvents: task.speechEvents,
               ),
             );
           }),
@@ -1391,10 +1382,11 @@ class _TaskResultsCard extends StatelessWidget {
 
   Widget _buildTaskResult({
     required String taskName,
-    required String patternName,
     required double percent,
-    required double relativePercent,
+    required List<String>? speechEvents,
   }) {
+    final safePercent = percent.clamp(0.0, 100.0);
+    final safeSpeechEvents = speechEvents ?? const <String>[];      
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1417,9 +1409,8 @@ class _TaskResultsCard extends StatelessWidget {
                   ),
                 ),
               ),
-
               Text(
-                '${percent.toStringAsFixed(0)}%',
+                '${safePercent.toStringAsFixed(0)}%',
                 style: GoogleFonts.cairo(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -1428,48 +1419,77 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
-
-          const SizedBox(height: 4),
-
-          if (percent > 0)
+          const SizedBox(height: 12),
+          LinearPercentIndicator(
+            lineHeight: 12,
+            animation: true,
+            animationDuration: 1000,
+            isRTL: true,
+            percent: safePercent / 100,
+            barRadius: const Radius.circular(8),
+            backgroundColor:
+                TaleeqTheme.softTeal.withValues(alpha: 0.35),
+            linearGradient: const LinearGradient(
+              colors: [
+                TaleeqTheme.mediumTeal,
+                TaleeqTheme.primaryTeal,
+              ],
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'الكلمات والأصوات المكتشفة',
+            style: GoogleFonts.cairo(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: TaleeqTheme.darkSlate,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (safeSpeechEvents.isEmpty)
             Text(
-              'أبرز نمط: $patternName',
+              'لم تُرصد كلمات أو أصوات متعثرة في هذه المهمة',
               style: GoogleFonts.cairo(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
                 color: TaleeqTheme.textMuted,
               ),
             )
           else
-            Text(
-              'لم يتم رصد أي نمط تأتأة',
-              style: GoogleFonts.cairo(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: TaleeqTheme.textMuted,
-              ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:  safeSpeechEvents.map((word) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: TaleeqTheme.softTeal.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: TaleeqTheme.mediumTeal.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Text(
+                    word,
+                    textDirection: TextDirection.rtl,
+                    style: GoogleFonts.cairo(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: TaleeqTheme.darkSlate,
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-
-          const SizedBox(height: 12),
-
-          LinearPercentIndicator(
-            lineHeight: 12.0,
-            animation: true,
-            animationDuration: 1400,
-            isRTL: true,
-            percent: relativePercent.clamp(0.0, 1.0),
-            barRadius: const Radius.circular(8),
-            backgroundColor: TaleeqTheme.softTeal.withValues(alpha: 0.35),
-            linearGradient: const LinearGradient(
-              colors: [TaleeqTheme.mediumTeal, TaleeqTheme.primaryTeal],
-            ),
-            padding: EdgeInsets.zero,
-          ),
         ],
       ),
     );
   }
 }
+
 
 class SlowBouncingScrollPhysics extends BouncingScrollPhysics {
   final double speedFactor;

@@ -62,7 +62,7 @@ class TrainingApiService {
     }
 
     final uri = Uri.parse(
-      '${ApiConfig.getBaseUrl}/training/random-exercise',
+      '${ApiConfig.baseUrl}/training/random-exercise',
     ).replace(
       queryParameters: {
         'exercise_type': _backendExerciseType(selection.type),
