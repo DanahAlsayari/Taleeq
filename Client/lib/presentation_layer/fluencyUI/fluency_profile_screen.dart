@@ -12,8 +12,7 @@ import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../services/fluency_profile_service.dart';
 import '../widgets/journey_stepper.dart';
-import'../HomepageUI/home_screen.dart';
-
+import '../HomepageUI/home_screen.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -313,26 +312,34 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
                           const SizedBox(height: 18),
 
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (context) => const HomeScreen(),
-                                    ),
-                                  );
-                                },
-                                child: Text(
-                                  'ابدأ خطتي',
-                                  style: GoogleFonts.cairo(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/home',
+                                  (route) => false,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: TaleeqTheme.primaryTeal,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                              ),
+                              child: Text(
+                                'ابدأ خطتي',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
+                          ),
                         ],
                       ).animate().fadeIn(duration: 500.ms, delay: 450.ms),
 
@@ -1264,7 +1271,6 @@ class _SimpleSpeechMetricsCard extends StatelessWidget {
   }
 }
 
-
 class _TaskResultsCard extends StatelessWidget {
   final List<TaskResultData> tasks;
 
@@ -1285,16 +1291,13 @@ class _TaskResultsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const taskOrder = {
-      'task_1': 0,
-      'task_2': 1,
-      'task_3': 2,
-    };
+    const taskOrder = {'task_1': 0, 'task_2': 1, 'task_3': 2};
 
     final orderedTasks = [...tasks]
       ..sort(
-        (a, b) => (taskOrder[a.taskType] ?? 999)
-            .compareTo(taskOrder[b.taskType] ?? 999),
+        (a, b) => (taskOrder[a.taskType] ?? 999).compareTo(
+          taskOrder[b.taskType] ?? 999,
+        ),
       );
 
     return Container(
@@ -1304,10 +1307,7 @@ class _TaskResultsCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: TaleeqTheme.cardShadow,
-        border: Border.all(
-          color: TaleeqTheme.borderSubtle,
-          width: 1.2,
-        ),
+        border: Border.all(color: TaleeqTheme.borderSubtle, width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1377,7 +1377,7 @@ class _TaskResultsCard extends StatelessWidget {
     required List<String>? speechEvents,
   }) {
     final safePercent = percent.clamp(0.0, 100.0);
-    final safeSpeechEvents = speechEvents ?? const <String>[];      
+    final safeSpeechEvents = speechEvents ?? const <String>[];
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1418,13 +1418,9 @@ class _TaskResultsCard extends StatelessWidget {
             isRTL: true,
             percent: safePercent / 100,
             barRadius: const Radius.circular(8),
-            backgroundColor:
-                TaleeqTheme.softTeal.withValues(alpha: 0.35),
+            backgroundColor: TaleeqTheme.softTeal.withValues(alpha: 0.35),
             linearGradient: const LinearGradient(
-              colors: [
-                TaleeqTheme.mediumTeal,
-                TaleeqTheme.primaryTeal,
-              ],
+              colors: [TaleeqTheme.mediumTeal, TaleeqTheme.primaryTeal],
             ),
             padding: EdgeInsets.zero,
           ),
@@ -1521,7 +1517,6 @@ class _TaskResultsCard extends StatelessWidget {
     );
   }
 }
-
 
 class SlowBouncingScrollPhysics extends BouncingScrollPhysics {
   final double speedFactor;

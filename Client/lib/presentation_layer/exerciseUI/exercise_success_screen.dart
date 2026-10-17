@@ -1,12 +1,10 @@
-
 import 'package:flutter/material.dart';
 import 'package:client/features/training/presentation/training_screen.dart';
 
 import 'package/../../widgets/main_navigation_screen.dart';
+
 class ExerciseSuccessScreen extends StatelessWidget {
-const ExerciseSuccessScreen({super.key});
-
-
+  const ExerciseSuccessScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +35,7 @@ const ExerciseSuccessScreen({super.key});
               const Text(
                 'أحسنت! تم حفظ نتيجتك، وتقدر تشوف تفاصيل أدائك من صفحة تقدمي.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Color(0xFF7A8E8B),
-                ),
+                style: TextStyle(fontSize: 16, color: Color(0xFF7A8E8B)),
               ),
               const SizedBox(height: 36),
               SizedBox(
@@ -48,16 +43,16 @@ const ExerciseSuccessScreen({super.key});
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () {
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(
-                          builder: (_) => const MainNavigationScreen(
-                            initialIndex: 3,
-                            initialProgressTab: 2,
-                          ),
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const MainNavigationScreen(
+                          initialIndex: 2,
+                          initialProgressTab: 2,
                         ),
-                        (route) => false,
-                      );
-                    },
+                      ),
+                      (route) => false,
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF287D78),
                     foregroundColor: Colors.white,
@@ -67,48 +62,41 @@ const ExerciseSuccessScreen({super.key});
                   ),
                   child: const Text(
                     'عرض نتائجي',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
 
+              const SizedBox(height: 24),
 
-             const SizedBox(height: 24),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(context).pushReplacement(
-                              MaterialPageRoute(
-                                builder: (_) => TrainingScreen(
-                                  onStartExercise: (_) {},
-                                  showBottomNav: false,
-                                ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text(
-                            'الرجوع إلى التمارين',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF287D78),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
+              SizedBox(
+                width: double.infinity,
+                height: 54,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => TrainingScreen(
+                          onStartExercise: (_) {},
+                          showBottomNav: false,
                         ),
                       ),
+                    );
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text(
+                    'الرجوع إلى التمارين',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF287D78),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
