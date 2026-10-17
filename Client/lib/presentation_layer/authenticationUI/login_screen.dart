@@ -17,7 +17,8 @@ import '../profileUI/profile_screen.dart';
 import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 import '../../services/api_config_service.dart';
-
+import '../HomepageUI/home_screen.dart';
+import '../../features/training/presentation/training_screen.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -104,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(
             builder: (context) =>
-                const ProfileScreen(),
+                TrainingScreen(  onStartExercise: (_) {},),
           ),
           (route) => false,
         );
