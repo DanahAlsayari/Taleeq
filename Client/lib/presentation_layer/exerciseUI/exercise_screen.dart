@@ -8,8 +8,8 @@ import 'package:client/presentation_layer/widgets/audio_waveform.dart';
 
 import 'package:client/presentation_layer/exerciseUI/exercise_result_screen.dart' ;
 import '../../services/exercise_api_service.dart';
-
-
+import 'exercise_success_screen.dart';
+import '../widgets/main_navigation_screen.dart';
 class ExerciseScreen extends StatefulWidget {
   final TechniqueModel? technique;
   final Map<String, dynamic> exercise;
@@ -155,8 +155,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   }
 
 
-
- Future<void> _submitExercise() async {
+Future<void> _submitExercise() async {
   if (isRecording) {
     ErrorSnackBar.show(context, 'أوقفي التسجيل أولًا قبل الإرسال');
     return;
@@ -181,20 +180,21 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     debugPrint('Exercise analysis result: $result');
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => ExerciseResultScreen(result: result, exercise: widget.exercise))
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const ExerciseSuccessScreen(),
+      ),
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم تحليل التمرين بنجاح')),
-    );
   } catch (e) {
     if (!mounted) return;
 
     debugPrint('Exercise analysis error: $e');
 
-    ErrorSnackBar.show(context, 'تعذر تحليل التسجيل، حاولي مرة ثانية');
+    ErrorSnackBar.show(
+      context,
+      'تعذر تحليل التسجيل، حاولي مرة ثانية',
+    );
   } finally {
     if (mounted) {
       setState(() {
@@ -227,13 +227,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                         child: IconButton(
                           icon: const Icon(Icons.arrow_back),
                           onPressed: () async {
-                            if (isRecording) {
-                              ErrorSnackBar.show(
-                                context,
-                                "أوقف التسجيل أولًا قبل الرجوع",
-                              );
-                              return;
-                            } }
+                              if (isRecording) {
+                                ErrorSnackBar.show(
+                                  context,
+                                  "أوقف التسجيل أولًا قبل الرجوع",
+                                );
+                                return;
+                              }
+
+                              await recordingService.stopAudio();
+
+                              if (!mounted) return;
+
+                              Navigator.pop(context);
+                            },
                         )
                       ),
                       Align(
@@ -275,13 +282,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                           ),
                           
                             child: Text(
-                              exerciseData['title'],
-                                style: const TextStyle(
-                                color: Color(0xFF1F5F5A),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
+                          switch (exerciseData['type']?.toString().trim().toLowerCase()) {
+                            'reading' => 'القراءة',
+                            'picture description' => 'وصف الصورة',
+                            'question & answer' => 'سؤال وجواب',
+                            'storytelling' => 'سرد القصص',
+                            'free speech' => 'التحدث الحر',
+                            _ => exerciseData['type']?.toString() ?? '',
+                          },
+                          style: const TextStyle(
+                            color: Color(0xFF1F5F5A),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                           ),
                       Container(
                          padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
@@ -328,7 +342,8 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Text(
-                      exerciseData['instructions'],
+                      exerciseData['title'],
+                      
                       style: const TextStyle(
                         color: Color.fromARGB(255, 8, 8, 8),
                         fontWeight: FontWeight.bold,
@@ -405,73 +420,73 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                             )
 
 
-                                                    // Storytelling
-                            : exerciseData['type'] == 'Storytelling'
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.auto_stories_outlined,
-                                        size: 42,
-                                        color: Color(0xFF6FA7A3),
+                                                  // Storytelling
+                          : exerciseData['type'] == 'Storytelling'
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.auto_stories_outlined,
+                                      size: 42,
+                                      color: Color(0xFF6FA7A3),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'احكِ لنا قصة',
+                                      style: TextStyle(
+                                        color: Color(0xFF1F5F5A),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
                                       ),
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'احكِ لنا قصة',
-                                        style: TextStyle(
-                                          color: Color(0xFF1F5F5A),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      exerciseData['content']['prompt'] ??
+                                          exerciseData['content']['topic'] ??
+                                          '',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Color(0xFF2E3A38),
+                                        fontSize: 17,
+                                        height: 1.6,
                                       ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        exerciseData['content']['prompt'] ??
-                                            exerciseData['content']['topic'] ??
-                                            '',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Color(0xFF2E3A38),
-                                          fontSize: 17,
-                                          height: 1.6,
-                                        ),
-                                      ),
-                                    ],
-                                  )
+                                    ),
+                                  ],
+                                )
 
-                            // Free Speech
-                            : exerciseData['type'] == 'Free Speech'
-                                ? Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.record_voice_over_outlined,
-                                        size: 42,
-                                        color: Color(0xFF6FA7A3),
+                          // Free Speech
+                          : exerciseData['type'] == 'Free Speech'
+                              ? Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.record_voice_over_outlined,
+                                      size: 42,
+                                      color: Color(0xFF6FA7A3),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      'تحدث بحرية',
+                                      style: TextStyle(
+                                        color: Color(0xFF1F5F5A),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
                                       ),
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'تحدث بحرية',
-                                        style: TextStyle(
-                                          color: Color(0xFF1F5F5A),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      exerciseData['content']['prompt'] ??
+                                          exerciseData['content']['topic'] ??
+                                          '',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Color(0xFF2E3A38),
+                                        fontSize: 17,
+                                        height: 1.6,
                                       ),
-                                      const SizedBox(height: 12),
-                                      Text(
-                                        exerciseData['content']['prompt'] ??
-                                            exerciseData['content']['topic'] ??
-                                            '',
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Color(0xFF2E3A38),
-                                          fontSize: 17,
-                                          height: 1.6,
-                                        ),
-                                      ),
-                                    ],
-                                  )
+                                    ),
+                                  ],
+                                )
                           : const SizedBox.shrink(),
                     ),
                   ),

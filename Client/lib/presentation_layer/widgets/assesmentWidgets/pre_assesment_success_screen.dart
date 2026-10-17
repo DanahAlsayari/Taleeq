@@ -5,7 +5,7 @@ import '../../widgets/skip_assessment_button.dart';
 import '../../HomepageUI/home_screen.dart';
 class PreAssessmentSuccessScreen extends StatelessWidget {
  const PreAssessmentSuccessScreen({super.key});
-
+                          
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,8 +15,8 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20.0),
             child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
-
-
+            
+            
             children: [
                const SizedBox(height:110),
               JourneyStepper(currentStep: 2),
@@ -35,14 +35,14 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
                     width: double.infinity ,
                     child: ElevatedButton(
                   onPressed: () {
-
+ 
                       Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SpeechAssesmentIntroScreen()), );
 
-
+      
                     } ,
-
+                  
                   style: ElevatedButton.styleFrom(
 
                     backgroundColor: const Color(0xFF6FA7A3),
@@ -50,8 +50,8 @@ class PreAssessmentSuccessScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12.0),
 
                     ),
-
-
+        
+                
                   ), child: Text( "المتابعة إلى تقييم الكلام", style: TextStyle(fontSize: 18.0, color: Colors.white),),
                   ),
                   ),

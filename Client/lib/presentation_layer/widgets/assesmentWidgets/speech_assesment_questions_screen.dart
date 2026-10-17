@@ -13,7 +13,9 @@ import 'package:client/presentation_layer/error_snackbar.dart';
 
 import "package:just_audio/just_audio.dart";
 import 'package:client/presentation_layer/widgets/audio_waveform.dart';
+
 import '../../widgets/journey_stepper.dart';
+
 import 'dart:async';
 
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
@@ -187,7 +189,7 @@ class _SpeechAssesmentQuestionsScreen
     },
   ];
 */
-List<Map<String, dynamic>> questions = [];
+  List<Map<String, dynamic>> questions = [];
   bool _isLoadingTasks = true;
   String? _tasksError;
 
@@ -292,7 +294,7 @@ List<Map<String, dynamic>> questions = [];
 
   @override
   Widget build(BuildContext context) {
-        if (_isLoadingTasks) {
+    if (_isLoadingTasks) {
       return const Scaffold(
         backgroundColor: Color(0xFFFCFAF6),
         body: Center(
@@ -394,16 +396,15 @@ List<Map<String, dynamic>> questions = [];
                           },
                           icon: const Icon(Icons.arrow_back),
                         ),
-                        
                       ),
-           
+
                       const SizedBox(width: 120.0),
                       Column(
-                        children: [       
-                              const SizedBox(height: 35.0),
-                              // Journey stepper
-                             const JourneyStepper(currentStep: 3),
-                          
+                        children: [
+                          const SizedBox(height: 35.0),
+                          // Journey stepper
+                          const JourneyStepper(currentStep: 3),
+
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -430,25 +431,26 @@ List<Map<String, dynamic>> questions = [];
                   const SizedBox(height: 20.0),
                   Row(
                     children: [
-                      
-                        Container(
-                         
-                          padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFCFE4E1),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: Align(
-                            alignment: AlignmentDirectional.center,
-                            child: Text(
-                              'المهمة ${currentQuestionIndex + 1} من ${questions.length}',                              style: const TextStyle(
-                                color: Color(0xFF1F5F5A),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14.0,
+                          vertical: 6.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCFE4E1),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Align(
+                          alignment: AlignmentDirectional.center,
+                          child: Text(
+                            'المهمة ${currentQuestionIndex + 1} من ${questions.length}',
+                            style: const TextStyle(
+                              color: Color(0xFF1F5F5A),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
                           ),
-                        
+                        ),
                       ),
                       const SizedBox(width: 6.0),
                       Container(
@@ -528,7 +530,7 @@ List<Map<String, dynamic>> questions = [];
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children:  [
+                              children: [
                                 Row(
                                   children: [
                                     Icon(
@@ -547,7 +549,8 @@ List<Map<String, dynamic>> questions = [];
                                   ],
                                 ),
                                 SizedBox(height: 20),
-                                  Text(currentQuestion['content'],
+                                Text(
+                                  currentQuestion['content'],
                                   style: TextStyle(
                                     color: Color(0xFF23E3A38),
                                     fontWeight: FontWeight.bold,
@@ -619,7 +622,6 @@ List<Map<String, dynamic>> questions = [];
                               ),
                             ),
                             const SizedBox(height: 4.0),
-                            
                           ],
                         ),
 
@@ -899,19 +901,21 @@ List<Map<String, dynamic>> questions = [];
               }
               try {
                 if (currentQuestionIndex < questions.length - 1) {
-                  print('1. بدأ التحقق من التسجيل');
-
+                  print(
+                    'started validating audio for question ${currentQuestionIndex + 1}',
+                  );
                   await recordingService.stopAudio();
                   await player.seek(Duration.zero);
 
-                  print('2. إرسال التسجيل للتحقق');
+                  print('sending audio file for assessmentId: $_assessmentId');
 
                   await _assessmentApiService.validateAssessmentAudio(
                     assessmentId: _assessmentId!,
                     recordingPath: path,
                   );
-
-                  print('3. التسجيل اجتاز التحقق');
+                  print(
+                    'audio file validated successfully for question ${currentQuestionIndex + 1}',
+                  );
 
                   if (!mounted) return;
 
@@ -922,22 +926,24 @@ List<Map<String, dynamic>> questions = [];
                     loadedAudioPath = null;
                     hasStartedPlaying = false;
                   });
-                } else {           
-                    await recordingService.stopAudio();
-                    await player.seek(Duration.zero);
+                } else {
+                  await recordingService.stopAudio();
+                  await player.seek(Duration.zero);
 
-                    print('started validating audio for question ${currentQuestionIndex + 1}');
-                  
+                  print(
+                    'started validating audio for question ${currentQuestionIndex + 1}',
+                  );
 
-                    await _assessmentApiService.validateAssessmentAudio(
-                      assessmentId: _assessmentId!,
-                      recordingPath: path,
-                    );
+                  await _assessmentApiService.validateAssessmentAudio(
+                    assessmentId: _assessmentId!,
+                    recordingPath: path,
+                  );
 
-                    print('audio file validated successfully for question ${currentQuestionIndex + 1}');
+                  print(
+                    'audio file validated successfully for question ${currentQuestionIndex + 1}',
+                  );
 
-                    await _submitAssessment();
-
+                  await _submitAssessment();
                 }
               } catch (e) {
                 if (!mounted) return;

@@ -34,7 +34,7 @@ from data_and_integration_layer.database.models.pre_assessment import (
 from data_and_integration_layer.database.models.assessment import (
     Assessment,
     AssessmentTask,
-    SpeechTask
+    SpeechTask,
 )
 
 from data_and_integration_layer.database.models.user import User
@@ -138,9 +138,7 @@ async def test_analyze_audio(
 @router.get("/pre-assessment/questions")
 def get_pre_assessment_questions(db: Session = Depends(get_db)):
     questions = (
-        db.query(AssessmentQuestion)
-        .order_by(AssessmentQuestion.sort_order)
-        .all()
+        db.query(AssessmentQuestion).order_by(AssessmentQuestion.sort_order).all()
     )
 
     return {
@@ -177,6 +175,7 @@ def get_speech_tasks(
         ]
     }
 
+
 # =========================================================
 # Submit Pre-Assessment
 # =========================================================
@@ -193,10 +192,7 @@ def submit_pre_assessment(
 ):
     question_ids = [answer.question_id for answer in data.answers]
 
-    valid_question_ids = sorted(
-        row.id
-        for row in db.query(AssessmentQuestion).all()
-    )
+    valid_question_ids = sorted(row.id for row in db.query(AssessmentQuestion).all())
 
     if sorted(question_ids) != (valid_question_ids):
         raise HTTPException(
@@ -225,6 +221,40 @@ def submit_pre_assessment(
 
 
 # =========================================================
+
+
+def build_task_results(tasks):
+    task_results = []
+
+    for task in tasks:
+        result = task.analysis_result
+
+        if result is None:
+            continue
+
+        patterns = {
+            "repetition": result.repetition_percent or 0,
+            "prolongation": result.prolongation_percent or 0,
+            "block": result.block_percent or 0,
+        }
+
+        primary_pattern = max(patterns, key=patterns.get)
+
+        task_results.append(
+            {
+                "task_type": task.task_type,
+                "pattern": primary_pattern,
+                "percent": patterns[primary_pattern],
+                "stuttering_percent": result.stuttering_percent,
+                "repetition_percent": result.repetition_percent,
+                "prolongation_percent": result.prolongation_percent,
+                "block_percent": result.block_percent,
+            }
+        )
+
+    return task_results
+
+
 @router.get("/fluency-profile")
 def get_fluency_profile(
     current_user: User = Depends(auth.get_current_user),
@@ -264,16 +294,34 @@ def get_fluency_profile(
 
             primary_pattern = max(patterns, key=patterns.get)
 
-            task_results.append(
-                {
-                    "task_type": task.task_type,
-                    "pattern": primary_pattern,
-                    "percent": patterns[primary_pattern],
-                    "stuttering_percent": result.stuttering_percent,
-                    "repetition_percent": result.repetition_percent,
-                    "prolongation_percent": result.prolongation_percent,
-                    "block_percent": result.block_percent,
-                }
+            task_results.append({
+                "task_type": task.task_type,
+                "pattern": primary_pattern,
+                "percent": patterns[primary_pattern],
+                "stuttering_percent": result.stuttering_percent,
+                "repetition_percent": result.repetition_percent,
+                "prolongation_percent": result.prolongation_percent,
+                "block_percent": result.block_percent,
+                "speech_events": [
+                    {
+                        "word_or_sound": event.word_or_sound,
+                    }
+                    for event in (result.speech_events or [])
+                    if event.word_or_sound
+                    and event.word_or_sound.strip()
+                ],
+            })
+            task_order = {
+                "task_1": 0,
+                "task_2": 1,
+                "task_3": 2,
+            }
+
+            task_results.sort(
+                key=lambda item: task_order.get(
+                    item["task_type"],
+                    999,
+                )
             )
 
     return {
@@ -292,7 +340,44 @@ def get_fluency_profile(
 # Get Latest Completed Assessment Status
 # =========================================================
 
+@router.get("/status/onboarding")
+def get_onboarding_status(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    pre_assessment = (
+        db.query(PreAssessmentSubmission)
+        .filter(
+            PreAssessmentSubmission.user_id == current_user.id,
+        )
+        .first()
+    )
 
+    speech_assessment = (
+        db.query(Assessment)
+        .filter(
+            Assessment.user_id == current_user.id,
+            Assessment.status.in_(["COMPLETED", "completed"]),
+            Assessment.completed_at.isnot(None),
+        )
+        .first()
+    )
+
+    pre_completed = pre_assessment is not None
+    speech_completed = speech_assessment is not None
+
+    if not pre_completed:
+        next_step = "pre_assessment"
+    elif not speech_completed:
+        next_step = "speech_assessment"
+    else:
+        next_step = "completed"
+
+    return {
+        "pre_assessment_completed": pre_completed,
+        "speech_assessment_completed": speech_completed,
+        "next_step": next_step,
+    }
 @router.get("/status/latest")
 def get_latest_assessment_status(
     current_user: User = Depends(auth.get_current_user),
@@ -318,6 +403,90 @@ def get_latest_assessment_status(
     return {
         "has_assessment": True,
         "completed_at": assessment.completed_at,
+    }
+
+
+@router.get("/history")
+def get_assessment_history(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+    assessments = repository.get_assessment_history(current_user.id)
+    results = []
+
+    for assessment in assessments:
+        results.append(
+            {
+                "assessment_id": assessment.id,
+                "completed_at": assessment.completed_at,
+                "overall_stuttering_percent": assessment.overall_stuttering_percent,
+            }
+        )
+
+    return results
+
+
+@router.get("/{assessment_id}/details")
+def get_assessment_details(
+    assessment_id: int,
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = AssessmentRepository(db)
+
+    assessment = repository.get_assessment(assessment_id)
+
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+
+    if assessment.user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="You are not allowed to access this assessment"
+        )
+    if assessment.status != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Assessment is not completed")
+
+    tasks = repository.get_assessment_tasks(assessment_id)
+    task_results = build_task_results(tasks)
+
+    if not task_results:
+        raise HTTPException(status_code=404, detail="Assessment results not found")
+
+    count = len(task_results)
+
+    repetition_percent = (
+        sum(task["repetition_percent"] for task in task_results) / count
+    )
+
+    prolongation_percent = (
+        sum(task["prolongation_percent"] for task in task_results) / count
+    )
+
+    block_percent = sum(task["block_percent"] for task in task_results) / count
+
+    overall_patterns = {
+        "repetition": repetition_percent,
+        "prolongation": prolongation_percent,
+        "block": block_percent,
+    }
+
+    if max(overall_patterns.values()) == 0:
+        primary_pattern = "none"
+    else:
+        primary_pattern = max(overall_patterns, key=overall_patterns.get)
+
+    return {
+        "assessment_id": assessment.id,
+        "completed_at": assessment.completed_at,
+        "overall_stuttering_percent": assessment.overall_stuttering_percent,
+        "primary_pattern": primary_pattern,
+        "repetition_percent": repetition_percent,
+        "prolongation_percent": prolongation_percent,
+        "block_percent": block_percent,
+        "speaking_rate": assessment.speaking_rate,
+        "timing_pacing": assessment.timing_pacing,
+        "task_results": task_results,
     }
 
 
@@ -556,7 +725,6 @@ async def analyze_assessment_audio(
             detail=str(error),
         ) from error
 
-
     # Mark the assessment as completed only after
     # all audio tasks are analyzed successfully.
     assessment.status = "COMPLETED"
@@ -607,9 +775,11 @@ def analyze_latest_assessment(
         "result": result,
     }
 
+
 # =========================================================
 # Validate Single Assessment Audio
 # =========================================================
+
 
 @router.post("/{assessment_id}/validate-audio")
 async def validate_assessment_audio(

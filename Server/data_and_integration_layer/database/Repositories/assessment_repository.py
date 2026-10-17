@@ -21,9 +21,7 @@ class AssessmentRepository:
 
     def get_task(self, task_id: int) -> AssessmentTask | None:
         return (
-            self.db.query(AssessmentTask)
-            .filter(AssessmentTask.id == task_id)
-            .first()
+            self.db.query(AssessmentTask).filter(AssessmentTask.id == task_id).first()
         )
 
     def get_assessment_tasks(
@@ -33,11 +31,10 @@ class AssessmentRepository:
 
         return (
             self.db.query(AssessmentTask)
-            .filter(
-                AssessmentTask.assessment_id == assessment_id
-            )
+            .filter(AssessmentTask.assessment_id == assessment_id)
             .all()
         )
+
     def save_task_analysis(
         self,
         task: AssessmentTask,
@@ -100,6 +97,7 @@ class AssessmentRepository:
         self.db.refresh(result)
 
         return result
+
     def mark_task_as_failed(
         self,
         task: AssessmentTask,
@@ -118,31 +116,19 @@ class AssessmentRepository:
     ) -> Assessment:
 
         assessment = (
-            self.db.query(Assessment)
-            .filter(Assessment.id == assessment_id)
-            .first()
+            self.db.query(Assessment).filter(Assessment.id == assessment_id).first()
         )
 
         if not assessment:
-            raise ValueError(
-                "Assessment not found."
-            )
+            raise ValueError("Assessment not found.")
 
-        assessment.overall_stuttering_percent = (
-            overall_result["stuttering_percent"]
-        )
+        assessment.overall_stuttering_percent = overall_result["stuttering_percent"]
 
-        assessment.primary_pattern = self._get_primary_pattern(
-            overall_result
-        )
+        assessment.primary_pattern = self._get_primary_pattern(overall_result)
 
-        assessment.speaking_rate = (
-            overall_result["speaking_rate"]
-        )
+        assessment.speaking_rate = overall_result["speaking_rate"]
 
-        assessment.timing_pacing = (
-            overall_result["timing_pacing"]
-        )
+        assessment.timing_pacing = overall_result["timing_pacing"]
 
         assessment.status = "completed"
         assessment.completed_at = datetime.utcnow()
@@ -167,17 +153,13 @@ class AssessmentRepository:
             patterns,
             key=patterns.get,
         )
+
     def get_assessment(
-    self,
-    assessment_id: int,
+        self,
+        assessment_id: int,
     ) -> Assessment | None:
 
-        return (
-            self.db.query(Assessment)
-            .filter(Assessment.id == assessment_id)
-            .first()
-        )
-
+        return self.db.query(Assessment).filter(Assessment.id == assessment_id).first()
 
     def update_fluency_profile(
         self,
@@ -191,54 +173,28 @@ class AssessmentRepository:
             .first()
         )
 
-        primary_pattern = self._get_primary_pattern(
-            overall_result
-        )
+        primary_pattern = self._get_primary_pattern(overall_result)
 
         if profile:
-            profile.overall_stuttering_percent = (
-                overall_result["stuttering_percent"]
-            )
+            profile.overall_stuttering_percent = overall_result["stuttering_percent"]
             profile.primary_pattern = primary_pattern
-            profile.repetition_percent = (
-                overall_result["repetition_percent"]
-            )
-            profile.prolongation_percent = (
-                overall_result["prolongation_percent"]
-            )
-            profile.block_percent = (
-                overall_result["block_percent"]
-            )
-            profile.speaking_rate = (
-                overall_result["speaking_rate"]
-            )
-            profile.timing_pacing = (
-                overall_result["timing_pacing"]
-            )
+            profile.repetition_percent = overall_result["repetition_percent"]
+            profile.prolongation_percent = overall_result["prolongation_percent"]
+            profile.block_percent = overall_result["block_percent"]
+            profile.speaking_rate = overall_result["speaking_rate"]
+            profile.timing_pacing = overall_result["timing_pacing"]
             profile.updated_at = datetime.utcnow()
 
         else:
             profile = FluencyProfile(
                 user_id=user_id,
-                overall_stuttering_percent=(
-                    overall_result["stuttering_percent"]
-                ),
+                overall_stuttering_percent=(overall_result["stuttering_percent"]),
                 primary_pattern=primary_pattern,
-                repetition_percent=(
-                    overall_result["repetition_percent"]
-                ),
-                prolongation_percent=(
-                    overall_result["prolongation_percent"]
-                ),
-                block_percent=(
-                    overall_result["block_percent"]
-                ),
-                speaking_rate=(
-                    overall_result["speaking_rate"]
-                ),
-                timing_pacing=(
-                    overall_result["timing_pacing"]
-                ),
+                repetition_percent=(overall_result["repetition_percent"]),
+                prolongation_percent=(overall_result["prolongation_percent"]),
+                block_percent=(overall_result["block_percent"]),
+                speaking_rate=(overall_result["speaking_rate"]),
+                timing_pacing=(overall_result["timing_pacing"]),
                 updated_at=datetime.utcnow(),
             )
 
@@ -249,9 +205,6 @@ class AssessmentRepository:
 
         return profile
 
-
-
-
     def get_fluency_profile(
         self,
         user_id: int,
@@ -261,21 +214,30 @@ class AssessmentRepository:
             .filter(FluencyProfile.user_id == user_id)
             .first()
         )
+
     def get_latest_assessment(
-    self,
-    user_id: int,
+        self,
+        user_id: int,
     ) -> Assessment | None:
 
         return (
             self.db.query(Assessment)
-            .filter(
-                Assessment.user_id == user_id
-            )
-            .order_by(
-                Assessment.id.desc()
-            )
+            .filter(Assessment.user_id == user_id)
+            .order_by(Assessment.id.desc())
             .first()
         )
+
+    def get_assessment_history(
+        self,
+        user_id: int,
+    ):
+        return (
+            self.db.query(Assessment)
+            .filter(Assessment.user_id == user_id , Assessment.status == "COMPLETED" , Assessment.completed_at.isnot(None))
+            .order_by(Assessment.completed_at.desc())
+            .all()
+        )
+
     def get_or_create_task(
         self,
         assessment_id: int,
@@ -305,6 +267,3 @@ class AssessmentRepository:
         self.db.flush()
 
         return task
-    
-    
-    

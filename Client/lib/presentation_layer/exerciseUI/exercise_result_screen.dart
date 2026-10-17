@@ -3,13 +3,15 @@ import '../../services/exercise_api_service.dart';
 
 
 class ExerciseResultScreen extends StatefulWidget {
-  final Map<String, dynamic> result;
-  final Map<String, dynamic> exercise;
+    final Map<String, dynamic>? result;
+    final Map<String, dynamic>? exercise;
+    final bool embedded;
 
   const ExerciseResultScreen({
     super.key,
-    required this.result,
-    required this.exercise,
+     this.result,
+     this.exercise,
+     this.embedded = false,
   });
 
   @override
@@ -43,15 +45,31 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
 
   @override
   Widget build(BuildContext context) {
+        if (attempts.isEmpty && widget.result == null) {
+      return const Scaffold(
+        body: Center(
+          child: Text('ما عندك محاولات سابقة حتى الآن'),
+        ),
+      );
+    }
+
     final result = attempts.isEmpty
-        ? widget.result
+        ? widget.result!
         : attempts[currentIndex];
 
-    final exercise = widget.exercise;
+    final exercise = widget.exercise ?? result;
+    debugPrint('EXERCISE RESULT: $result');
+
     //prepare values
     final scores = Map<String , dynamic>.from(result['scores']);
     final totalScore = (scores['total_score']as num).toDouble();
-    final exerciseTitle = exercise['title'] ?? '' ;
+    final exerciseTitle = (exercise['title'] ?? '').toString().trim().isNotEmpty
+        ? exercise['title'].toString()
+        : (result['exercise_type'] == 'Reading'
+            ? 'تمرين القراءة'
+            : result['exercise_type'] == 'Speaking'
+                ? 'تمرين التحدث'
+                : 'تمرين سابق');
     final difficulty = exercise['difficulty'] ?? '' ;
 
     final fluency = (scores['fluency_score'] as num).toDouble();
@@ -87,24 +105,44 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
     final improvementText = feedback[weakest.key]?.toString() ?? '';
 
 
-    return Scaffold(
-     backgroundColor: const Color(0xFFFCFAF6),
-      body: Directionality(
+
+    final report = Directionality(
+
         textDirection: TextDirection.rtl,
         child: SafeArea(
           child: SingleChildScrollView(
+            physics: widget.embedded
+                ? const NeverScrollableScrollPhysics()
+                : null,
             child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
 
 
-              Padding(
+              Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+                  horizontal: 12,
+                  vertical: 6,
                 ),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFFE5EBE8),
+                      width: 1,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_right),
@@ -387,8 +425,15 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
           ),
         ),
       ),
-    ),
+    
     );
+
+      return widget.embedded
+      ? report
+      : Scaffold(
+          backgroundColor: const Color(0xFFFCFAF6),
+          body: report,
+        );
 
   }
 

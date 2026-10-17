@@ -1,12 +1,15 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from api.assessment import router as assessment_router
 
 import logging
 
-from api.techniques import router as techniques_router
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.staticfiles import StaticFiles
+from api.assessment import router as assessment_router
+from api.training import router as training_router
+from api.techniques import router as techniques_router
+from api.speech_exercises import router as speech_exercises_router
+from api.naming_game import router as naming_challenge_router
+
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
@@ -23,6 +26,10 @@ app = FastAPI(
     version="1.0.0",
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,14 +39,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Adds the assessment endpoints.
+# Assessment endpoints
 app.include_router(assessment_router)
 
-# Adds technique instruction endpoints.
+# Technique instruction endpoints
 app.include_router(techniques_router)
 
-# Adds the authentication application under /auth.
+# Training exercise endpoints
+app.include_router(training_router)
+
+# Speech exercise endpoints
+app.include_router(speech_exercises_router)
+
+# Naming challenge endpoints
+app.include_router(naming_challenge_router)
+
+# Authentication endpoints
 app.mount("/auth", authentication_app)
 
 # Adds the speech exercises endpoints.

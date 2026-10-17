@@ -13,10 +13,10 @@ import 'package:http/http.dart' as http;
 import '../../services/auth_storage.dart';
 
 // Existing screens used by the Login screen.
-import '../profileUI/profile_screen.dart';
 import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 import '../../services/api_config_service.dart';
+import '../HomepageUI/home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,8 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    final formIsValid =
-        _formKey.currentState?.validate() ?? false;
+    final formIsValid = _formKey.currentState?.validate() ?? false;
 
     if (!formIsValid) {
       return;
@@ -61,15 +60,12 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final normalizedEmail =
-        _emailController.text.trim().toLowerCase();
+    final normalizedEmail = _emailController.text.trim().toLowerCase();
 
     try {
       final response = await http.post(
-Uri.parse('${ApiConfig.authBaseUrl}/login'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('${ApiConfig.authBaseUrl}/login'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': normalizedEmail,
           'password': _passwordController.text,
@@ -81,16 +77,12 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
       }
 
       if (response.statusCode == 200) {
-        final responseData =
-            jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
 
-        final String? token =
-            responseData['access_token']?.toString();
+        final String? token = responseData['access_token']?.toString();
 
         if (token == null || token.isEmpty) {
-          _showMessage(
-            'لم يُرجع الخادم رمز تسجيل الدخول',
-          );
+          _showMessage('لم يُرجع الخادم رمز تسجيل الدخول');
           return;
         }
 
@@ -100,35 +92,23 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
           return;
         }
 
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(
-            builder: (context) =>
-                const ProfileScreen(),
-          ),
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
       } else {
         String message;
 
         if (response.statusCode == 401) {
-          message =
-              'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+          message = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
         } else if (response.statusCode == 422) {
-          message =
-              'يرجى التحقق من البيانات المدخلة';
+          message = 'يرجى التحقق من البيانات المدخلة';
         } else {
-          message =
-              'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى';
+          message = 'تعذر تسجيل الدخول. يرجى المحاولة مرة أخرى';
         }
 
         _clearPasswordOnNextFocus = true;
         _showMessage(message);
       }
     } catch (_) {
-      _showMessage(
-        'تعذر الاتصال بالخادم. تأكدي من تشغيل الـ Backend.',
-      );
+      _showMessage('تعذر الاتصال بالخادم. تأكدي من تشغيل الـ Backend.');
     } finally {
       if (mounted) {
         setState(() {
@@ -141,8 +121,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
   void _showMessage(String message) {
     const errorColor = Color(0xFFB55252);
 
-    ScaffoldMessenger.of(context)
-        .hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -157,9 +136,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
         backgroundColor: errorColor,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
     );
   }
@@ -171,10 +148,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
   }) {
     return InputDecoration(
       label: _requiredLabel(label),
-      prefixIcon: Icon(
-        icon,
-        color: _teal,
-      ),
+      prefixIcon: Icon(icon, color: _teal),
       suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
@@ -184,32 +158,22 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(
-          color: Color(0xFFE1EEEC),
-        ),
+        borderSide: const BorderSide(color: Color(0xFFE1EEEC)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(
-          color: _teal,
-          width: 1.5,
-        ),
+        borderSide: const BorderSide(color: _teal, width: 1.5),
       ),
     );
   }
 
-  Widget _requiredLabel(
-    String text, {
-    Color color = Colors.grey,
-  }) {
+  Widget _requiredLabel(String text, {Color color = Colors.grey}) {
     return Text.rich(
       TextSpan(
         children: [
           TextSpan(
             text: '$text ',
-            style: TextStyle(
-              color: color,
-            ),
+            style: TextStyle(color: color),
           ),
           const TextSpan(
             text: '*',
@@ -234,10 +198,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
         backgroundColor: _background,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: _teal,
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new, color: _teal),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -246,22 +207,13 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
 
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            24,
-            10,
-            24,
-            30,
-          ),
+          padding: const EdgeInsets.fromLTRB(24, 10, 24, 30),
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset(
-                  'assets/images/taleeq_logo1.png',
-                  height: 145,
-                ),
+                Image.asset('assets/images/taleeq_logo1.png', height: 145),
 
                 const SizedBox(height: 20),
 
@@ -280,30 +232,23 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                 const Text(
                   'مرحبًا بعودتك إلى طليق',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFF86A7A2),
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(color: Color(0xFF86A7A2), fontSize: 16),
                 ),
 
                 const SizedBox(height: 32),
 
                 TextFormField(
                   controller: _emailController,
-                  keyboardType:
-                      TextInputType.emailAddress,
+                  keyboardType: TextInputType.emailAddress,
                   inputFormatters: [
-                    FilteringTextInputFormatter.allow(
-                      RegExp(r'[\x21-\x7E]'),
-                    ),
+                    FilteringTextInputFormatter.allow(RegExp(r'[\x21-\x7E]')),
                   ],
                   decoration: _fieldDecoration(
                     label: 'البريد الإلكتروني',
                     icon: Icons.email_outlined,
                   ),
                   validator: (value) {
-                    final email =
-                        value?.trim() ?? '';
+                    final email = value?.trim() ?? '';
 
                     if (email.isEmpty) {
                       return 'يرجى إدخال البريد الإلكتروني';
@@ -327,20 +272,15 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                       _passwordController.clear();
 
                       setState(() {
-                        _clearPasswordOnNextFocus =
-                            false;
+                        _clearPasswordOnNextFocus = false;
                       });
                     }
                   },
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(
-                      RegExp(
-                        r'[A-Za-z0-9!@#$%^&*]',
-                      ),
+                      RegExp(r'[A-Za-z0-9!@#$%^&*]'),
                     ),
-                    LengthLimitingTextInputFormatter(
-                      20,
-                    ),
+                    LengthLimitingTextInputFormatter(20),
                   ],
                   decoration: _fieldDecoration(
                     label: 'كلمة المرور',
@@ -348,23 +288,19 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _hidePassword
-                            ? Icons
-                                .visibility_off_outlined
-                            : Icons
-                                .visibility_outlined,
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         color: _teal,
                       ),
                       onPressed: () {
                         setState(() {
-                          _hidePassword =
-                              !_hidePassword;
+                          _hidePassword = !_hidePassword;
                         });
                       },
                     ),
                   ),
                   validator: (value) {
-                    if (value == null ||
-                        value.isEmpty) {
+                    if (value == null || value.isEmpty) {
                       return 'يرجى إدخال كلمة المرور';
                     }
 
@@ -379,16 +315,13 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              const ForgotPasswordScreen(),
+                          builder: (context) => const ForgotPasswordScreen(),
                         ),
                       );
                     },
                     child: const Text(
                       'نسيت كلمة المرور؟',
-                      style: TextStyle(
-                        color: _teal,
-                      ),
+                      style: TextStyle(color: _teal),
                     ),
                   ),
                 ),
@@ -398,27 +331,19 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                 SizedBox(
                   height: 58,
                   child: ElevatedButton(
-                    onPressed:
-                        _isLoading ? null : _login,
-                    style:
-                        ElevatedButton.styleFrom(
+                    onPressed: _isLoading ? null : _login,
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: _teal,
-                      foregroundColor:
-                          Colors.white,
-                      shape:
-                          RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(
-                          18,
-                        ),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
                       ),
                     ),
                     child: _isLoading
                         ? const SizedBox(
                             width: 24,
                             height: 24,
-                            child:
-                                CircularProgressIndicator(
+                            child: CircularProgressIndicator(
                               color: Colors.white,
                               strokeWidth: 2.5,
                             ),
@@ -427,8 +352,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                             'تسجيل الدخول',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight:
-                                  FontWeight.bold,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                   ),
@@ -437,20 +361,15 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                 const SizedBox(height: 16),
 
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
-                      'ليس لديك حساب؟',
-                    ),
+                    const Text('ليس لديك حساب؟'),
                     TextButton(
                       onPressed: () {
-                        Navigator
-                            .push(
+                        Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                const SignupScreen(),
+                            builder: (context) => const SignupScreen(),
                           ),
                         );
                       },
@@ -458,8 +377,7 @@ Uri.parse('${ApiConfig.authBaseUrl}/login'),
                         'إنشاء حساب',
                         style: TextStyle(
                           color: _teal,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
