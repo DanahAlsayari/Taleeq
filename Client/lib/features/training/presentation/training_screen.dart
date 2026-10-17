@@ -73,10 +73,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
         return true;
 
       case ExerciseType.realLifeScenarios:
-      case ExerciseType.wordLetterChallenge:
-      case ExerciseType.sentenceBuilding:
-      case ExerciseType.dualTask:
-        return false;
+      case ExerciseType.countingChallenge:
+      case ExerciseType.dontSayIt:
+          return false;
+        
     }
   }
 

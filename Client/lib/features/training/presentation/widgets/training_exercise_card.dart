@@ -166,6 +166,7 @@ class _TrainingExerciseCardState extends State<TrainingExerciseCard> {
                 Expanded(
                   child: _DurationBox(
                     minutes: widget.exercise.durationMinutes,
+                    seconds: widget.exercise.durationSeconds,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -198,16 +199,21 @@ class _TrainingExerciseCardState extends State<TrainingExerciseCard> {
   }
 }
 
-/// Read-only: duration is decided by the system.
 class _DurationBox extends StatelessWidget {
   const _DurationBox({
     required this.minutes,
+    this.seconds,
   });
 
   final int minutes;
+  final int? seconds;
 
   @override
   Widget build(BuildContext context) {
+    final durationText = seconds != null
+        ? '$seconds ثانية'
+        : '$minutes دقائق';
+
     return Container(
       constraints: const BoxConstraints(minHeight: 56),
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -239,7 +245,7 @@ class _DurationBox extends StatelessWidget {
                     style: TrainingText.boxLabel,
                   ),
                   Text(
-                    '$minutes دقائق',
+                    durationText,
                     style: TrainingText.boxValue,
                   ),
                 ],

@@ -27,11 +27,10 @@ class TrainingApiService {
 
       case ExerciseType.freeSpeech:
         return 'Free Speech';
-
       case ExerciseType.realLifeScenarios:
-      case ExerciseType.wordLetterChallenge:
-      case ExerciseType.sentenceBuilding:
-      case ExerciseType.dualTask:
+
+      case ExerciseType.countingChallenge:
+      case ExerciseType.dontSayIt:
         throw UnsupportedError(
           'This exercise type uses a different API.',
         );
@@ -63,7 +62,7 @@ class TrainingApiService {
     }
 
     final uri = Uri.parse(
-      '${ApiConfig.apiBaseUrl}/training/random-exercise',
+      '${ApiConfig.getBaseUrl}/training/random-exercise',
     ).replace(
       queryParameters: {
         'exercise_type': _backendExerciseType(selection.type),
