@@ -76,39 +76,38 @@ const List<TrainingCategory> kTrainingCategories = [
       ),
     ],
   ),
-  TrainingCategory(
+   TrainingCategory(
     id: 'speaking_games',
     kind: TrainingCategoryKind.speakingGames,
     titleAr: 'ألعاب الكلام',
     titleEn: 'Speaking Games',
-    descriptionAr: 'ألعاب تفاعلية تساعدك على ممارسة الكلام بطريقة ممتعة.',
+    descriptionAr:
+        'مارس الكلام بطريقة ممتعة من خلال ألعاب تفاعلية '
+        'تساعدك على تطوير الطلاقة.',
     exercises: [
       TrainingExercise(
-        id: 'word_letter_challenge',
-        type: ExerciseType.wordLetterChallenge,
-        titleAr: 'تحدي الكلمات والحروف',
-        titleEn: 'Word & Letter Challenge',
-        descriptionAr: 'اذكر كلمات تبدأ بحرف معين أو تنتمي لفئة محددة خلال وقت معين.',
-        durationMinutes: 5,
+        id: 'counting_challenge',
+        type: ExerciseType.countingChallenge,
+        titleAr: 'تحدي التعداد',
+        titleEn: 'Counting Challenge',
+        descriptionAr:
+            'اذكر أكبر عدد ممكن من الكلمات ضمن الفئة '
+            'المحددة قبل انتهاء الوقت.',
+        durationMinutes: 1,
+        durationSeconds: 20,
         defaultDifficulty: Difficulty.easy,
       ),
       TrainingExercise(
-        id: 'sentence_building',
-        type: ExerciseType.sentenceBuilding,
-        titleAr: 'تكوين الجمل',
-        titleEn: 'Sentence Building',
-        descriptionAr: 'كوّن جملًا مفهومة باستخدام الكلمات المعروضة وتحدث بها بصوتك.',
-        durationMinutes: 5,
+        id: 'dont_say_it',
+        type: ExerciseType.dontSayIt,
+        titleAr: 'لا تقولها',
+        titleEn: "Don't Say It",
+        descriptionAr:
+            'صف الشيء المطلوب دون نطق الكلمات الممنوعة، '
+            'وحاول إيصال المعنى بوضوح.',
+        durationMinutes: 1,
+        durationSeconds: 30,
         defaultDifficulty: Difficulty.medium,
-      ),
-      TrainingExercise(
-        id: 'dual_task',
-        type: ExerciseType.dualTask,
-        titleAr: 'لعبة المهمتين',
-        titleEn: 'Dual-Task Game',
-        descriptionAr: 'تدرّب على التحدث أثناء تنفيذ مهمة ذهنية أو بصرية بسيطة.',
-        durationMinutes: 5,
-        defaultDifficulty: Difficulty.advanced,
       ),
     ],
   ),

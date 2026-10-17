@@ -12,6 +12,8 @@ import 'widgets/training_exercise_card.dart';
 import '../../../presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
 import 'package:client/presentation_layer/exerciseUI/exercise_screen.dart';
 import 'package:client/services/technique_service.dart';
+import '../../../presentation_layer/trainingUI/Games/dont_say_it_screen.dart';
+import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
 
 // TODO (Integration):
 // Connect this callback to the Instructions screen.
@@ -76,10 +78,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
         return true;
 
       case ExerciseType.realLifeScenarios:
-      case ExerciseType.wordLetterChallenge:
-      case ExerciseType.sentenceBuilding:
-      case ExerciseType.dualTask:
-        return false;
+      case ExerciseType.countingChallenge:
+      case ExerciseType.dontSayIt:
+          return false;
+        
     }
   }
 
@@ -87,6 +89,32 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (_isStartingExercise) return;
 
     final selection = _controller.selectionFor(exercise);
+
+    // Navigate directly to the selected game.
+    switch (selection.type) {
+        case ExerciseType.countingChallenge:
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NamingChallengeScreen(
+            difficulty: selection.difficulty.id,
+          ),
+        ),
+      );
+      return;
+
+    case ExerciseType.dontSayIt:
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DontSayItScreen(
+            difficulty: selection.difficulty.id,
+          ),
+        ),
+      );
+      return;
+      default:
+        break;
+    }
+
 
     // Other categories are handled by their own exercise flows.
     if (!_usesSpeechApi(selection.type)) {
