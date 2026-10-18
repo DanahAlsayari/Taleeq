@@ -2,7 +2,7 @@ from datetime import datetime
 from uuid import UUID
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, File, UploadFile, HTTPException
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -59,3 +59,5 @@ def get_speech_exercises(
         query = query.filter(SpeechExercise.difficulty == difficulty)
 
     return query.order_by(SpeechExercise.sort_order).all()
+
+

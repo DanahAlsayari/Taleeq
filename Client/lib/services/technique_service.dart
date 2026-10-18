@@ -3,13 +3,14 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-
+import '../../services/api_config_service.dart';
 import '../models/technique_model.dart';
 
 class TechniqueService {
   // Android Emulator backend address.
   // For a physical iPhone, use a reachable backend address.
-  static const String _baseUrl = 'http://10.0.2.2:8000';
+
+  static String _baseUrl='${ApiConfig.baseUrl}';
 
   // Retrieve all techniques for the selection bottom sheet.
   Future<List<TechniqueModel>> getAllTechniques() async {

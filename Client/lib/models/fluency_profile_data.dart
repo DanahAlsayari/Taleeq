@@ -1,7 +1,10 @@
+
 class SpeechEventData {
   final String wordOrSound;
 
-  const SpeechEventData({required this.wordOrSound});
+  const SpeechEventData({
+    required this.wordOrSound,
+  });
 
   factory SpeechEventData.fromJson(Map<String, dynamic> json) {
     return SpeechEventData(
@@ -10,7 +13,9 @@ class SpeechEventData {
   }
 
   Map<String, dynamic> toJson() {
-    return {'word_or_sound': wordOrSound};
+    return {
+      'word_or_sound': wordOrSound,
+    };
   }
 }
 
@@ -32,19 +37,21 @@ class TaskResultData {
 
     final List<String> parsedEvents = rawEvents is List
         ? rawEvents
-              .map((event) {
-                if (event is String) {
-                  return event.trim();
-                }
+            .map((event) {
+              if (event is String) {
+                return event.trim();
+              }
 
-                if (event is Map) {
-                  return (event['word_or_sound'] ?? '').toString().trim();
-                }
+              if (event is Map) {
+                return (event['word_or_sound'] ?? '')
+                    .toString()
+                    .trim();
+              }
 
-                return '';
-              })
-              .where((word) => word.isNotEmpty)
-              .toList()
+              return '';
+            })
+            .where((word) => word.isNotEmpty)
+            .toList()
         : <String>[];
 
     return TaskResultData(
@@ -61,7 +68,9 @@ class TaskResultData {
       'pattern': pattern,
       'percent': percent,
       'speech_events': speechEvents
-          .map((word) => {'word_or_sound': word})
+          .map((word) => {
+                'word_or_sound': word,
+              })
           .toList(),
     };
   }
@@ -95,32 +104,40 @@ class FluencyProfileData {
     final rawSpeechEvents = json['speech_events'];
 
     return FluencyProfileData(
-      overallStutteringPercent: _toDouble(json['overall_stuttering_percent']),
-      primaryPattern: (json['primary_pattern'] ?? 'Repetition').toString(),
-      repetitionPercent: _toDouble(json['repetition_percent']),
-      prolongationPercent: _toDouble(json['prolongation_percent']),
-      blockPercent: _toDouble(json['block_percent']),
-      speakingRate: _toDouble(json['speaking_rate']),
-      timingPacing: _toDouble(json['timing_pacing']),
+      overallStutteringPercent:
+          _toDouble(json['overall_stuttering_percent']),
+      primaryPattern:
+          (json['primary_pattern'] ?? 'Repetition').toString(),
+      repetitionPercent:
+          _toDouble(json['repetition_percent']),
+      prolongationPercent:
+          _toDouble(json['prolongation_percent']),
+      blockPercent:
+          _toDouble(json['block_percent']),
+      speakingRate:
+          _toDouble(json['speaking_rate']),
+      timingPacing:
+          _toDouble(json['timing_pacing']),
       taskResults: rawTaskResults is List
           ? rawTaskResults
-                .whereType<Map>()
-                .map(
-                  (item) =>
-                      TaskResultData.fromJson(Map<String, dynamic>.from(item)),
-                )
-                .toList()
+              .whereType<Map>()
+              .map(
+                (item) => TaskResultData.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList()
           : <TaskResultData>[],
       speechEvents: rawSpeechEvents is List
           ? rawSpeechEvents
-                .whereType<Map>()
-                .map(
-                  (event) => SpeechEventData.fromJson(
-                    Map<String, dynamic>.from(event),
-                  ),
-                )
-                .where((event) => event.wordOrSound.trim().isNotEmpty)
-                .toList()
+              .whereType<Map>()
+              .map(
+                (event) => SpeechEventData.fromJson(
+                  Map<String, dynamic>.from(event),
+                ),
+              )
+              .where((event) => event.wordOrSound.trim().isNotEmpty)
+              .toList()
           : <SpeechEventData>[],
     );
   }
@@ -134,22 +151,13 @@ class FluencyProfileData {
       'block_percent': blockPercent,
       'speaking_rate': speakingRate,
       'timing_pacing': timingPacing,
-      'task_results': taskResults.map((task) => task.toJson()).toList(),
-      'speech_events': speechEvents.map((event) => event.toJson()).toList(),
+      'task_results': taskResults
+          .map((task) => task.toJson())
+          .toList(),
+      'speech_events': speechEvents
+          .map((event) => event.toJson())
+          .toList(),
     };
-  }
-
-  factory FluencyProfileData.mock() {
-    return const FluencyProfileData(
-      overallStutteringPercent: 24.0,
-      primaryPattern: 'Repetition',
-      repetitionPercent: 15.0,
-      prolongationPercent: 6.0,
-      blockPercent: 3.0,
-      speakingRate: 85.0,
-      timingPacing: 72.0,
-      taskResults: [],
-    );
   }
 
   String get primaryPatternArabic {

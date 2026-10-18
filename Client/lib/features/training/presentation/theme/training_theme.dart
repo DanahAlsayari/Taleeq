@@ -23,7 +23,7 @@ abstract final class TrainingColors {
   static Color difficulty(Difficulty d) => switch (d) {
         Difficulty.easy => const Color(0xFF3FA66B),
         Difficulty.medium => const Color(0xFFE0A526),
-        Difficulty.advanced => const Color(0xFFD9534F),
+        Difficulty.hard => const Color(0xFFD9534F),
       };
 }
 

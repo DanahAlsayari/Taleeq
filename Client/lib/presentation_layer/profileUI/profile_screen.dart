@@ -8,6 +8,7 @@ import '../widgets/profile_header.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
+import 'package:client/features/training/presentation/training_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.isActive = true});

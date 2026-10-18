@@ -27,13 +27,35 @@ class NamingChallengeApiService {
     return fallback;
   }
 
-  Future<Map<String, dynamic>> getRandomPrompt() async {
-    final response = await http.get(Uri.parse('$_baseUrl/games/naming-challenge/prompts/random'), headers: await _headers());
-    if (response.statusCode == 200) return _decodeResponse(response);
-    if (response.statusCode == 401) throw Exception('انتهت جلسة تسجيل الدخول.');
-    if (response.statusCode == 404) throw Exception('لا توجد أسئلة متاحة حاليًا.');
-    throw Exception(_errorMessage(response, 'تعذر تحميل سؤال التحدي.'));
+  Future<Map<String, dynamic>> getRandomPrompt({
+    required String difficulty,
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/games/naming-challenge/prompts/random',
+    ).replace(
+      queryParameters: {'difficulty': difficulty},
+    );
+
+    final response = await http.get(
+      uri,
+      headers: await _headers(),
+    );
+
+    if (response.statusCode == 200) {
+      return _decodeResponse(response);
+    }
+    if (response.statusCode == 401) {
+      throw Exception('انتهت جلسة تسجيل الدخول.');
+    }
+    if (response.statusCode == 404) {
+      throw Exception('لا توجد أسئلة متاحة لهذا المستوى حاليًا.');
+    }
+
+    throw Exception(
+      _errorMessage(response, 'تعذر تحميل سؤال التحدي.'),
+    );
   }
+
 
   Future<Map<String, dynamic>> analyzeRecording({required int promptId, required String recordingPath}) async {
     final file = File(recordingPath);

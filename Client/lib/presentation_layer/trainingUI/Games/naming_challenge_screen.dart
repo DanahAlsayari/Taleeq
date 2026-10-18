@@ -7,10 +7,16 @@ import '../../../services/naming_challenge_api_service.dart';
 import '../../../services/recording_service.dart';
 
 class NamingChallengeScreen extends StatefulWidget {
-  const NamingChallengeScreen({super.key});
+  const NamingChallengeScreen({
+    super.key,
+    required this.difficulty,
+  });
+
+  final String difficulty;
 
   @override
-  State<NamingChallengeScreen> createState() => _NamingChallengeScreenState();
+  State<NamingChallengeScreen> createState() =>
+      _NamingChallengeScreenState();
 }
 
 class _NamingChallengeScreenState extends State<NamingChallengeScreen>
@@ -38,7 +44,7 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   bool _hasStarted = false;
   bool _resultDialogOpen = false;
   bool _errorDialogOpen = false;
-
+  bool _showingResultPage = false;
   String? _errorMessage;
   String? _lastRecordingPath;
   String? _errorStage;
@@ -62,7 +68,9 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     }
 
     try {
-      final prompt = await _apiService.getRandomPrompt();
+      final prompt = await _apiService.getRandomPrompt(
+  difficulty: widget.difficulty,
+);
       if (!mounted) return;
 
       _gameTimer?.cancel();
@@ -317,271 +325,277 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     _errorDialogOpen = false;
   }
 
-  Future<void> _showResultDialog() async {
-    if (!mounted || _result == null || _resultDialogOpen) return;
-    _resultDialogOpen = true;
+ 
+Future<void> _showResultDialog() async {
+  if (!mounted || _result == null) return;
 
-    final result = _result!;
-    final validCount = (result['valid_count'] as num?)?.toInt() ?? 0;
-    final newRecord = result['new_record'] == true;
-    final previousScore =(result['previous_best_score'] as num?)?.toInt() ?? 0;
-    final bestScore = (result['best_score'] as num?)?.toInt() ?? validCount;
-    final rawItems = result['valid_items'];
-    final items = rawItems is List
-        ? rawItems.map((item) => item.toString()).toList()
-        : <String>[];
+  final newRecord = _result!['new_record'] == true;
 
-    if (newRecord) {
-      _confettiController.forward(from: 0);
-    }
+  if (newRecord) {
+    _confettiController.forward(from: 0);
+  }
 
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: _background,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
+  setState(() {
+    _showingResultPage = true;
+    _resultDialogOpen = false;
+  });
+}
+
+Widget _buildResultPage() {
+  final result = _result!;
+  final validCount =
+      (result['valid_count'] as num?)?.toInt() ?? 0;
+  final newRecord = result['new_record'] == true;
+  final previousScore =
+      (result['previous_best_score'] as num?)?.toInt() ?? 0;
+  final bestScore =
+      (result['best_score'] as num?)?.toInt() ?? validCount;
+
+  final rawItems = result['valid_items'];
+  final items = rawItems is List
+      ? rawItems.map((item) => item.toString()).toList()
+      : <String>[];
+
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 12),
+
+        Icon(
+          newRecord
+              ? Icons.emoji_events_rounded
+              : Icons.sentiment_dissatisfied,
+          size: 68,
+          color: newRecord ? _teal : _coral,
+        ),
+
+        const SizedBox(height: 12),
+
+        Text(
+          newRecord ? 'رقم قياسي جديد! 🎉' : ' فيه فرصة للتحسن ',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: _teal,
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
           ),
-          child: Stack(
-            children: [
-              if (newRecord)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _confettiController,
-                      builder: (context, _) {
-                        if (_confettiController.isCompleted) {
-                          return const SizedBox.shrink();
-                        }
+        ),
 
-                        return CustomPaint(
-                          painter: _ConfettiPainter(
-                            progress: _confettiController.value,
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(22, 28, 22, 22),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        newRecord
-                            ? Icons.emoji_events_rounded
-                            : Icons.refresh_rounded,
-                        size: 62,
-                        color: newRecord ? _teal : _coral,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        newRecord ? 'رقم قياسي جديد! 🎉' : 'نتيجتك وصلت!',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: _teal,
-                          fontSize: 23,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        newRecord
-                            ? 'أحسنت! سجّلنا نتيجتك في هذا الموضوع.'
-                            : 'واصل التدريب وحاول تتجاوز أفضل نتيجة سابقة لك.',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(height: 1.5),
-                      ),
-                      const SizedBox(height: 20),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 18),
-                        decoration: BoxDecoration(
-                          color: newRecord
-                              ? const Color(0xFFEAF4F2)
-                              : const Color(0xFFFFF1E9),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              '$validCount',
-                              style: const TextStyle(
-                                fontSize: 38,
-                                fontWeight: FontWeight.bold,
-                                color: _teal,
-                              ),
-                            ),
-                            Text('إجابة صحيحة في هذه المحاولة'),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _scoreSummaryCard(
-                              title: 'أعلى نتيجة سابقة',
-                              score: previousScore,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _scoreSummaryCard(
-                              title: 'أفضل نتيجة',
-                              score: bestScore,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      if (newRecord)
-                        const Text(
-                          'حققت أفضل نتيجة لك في هذا الموضوع!',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: _teal,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      if (items.isNotEmpty) ...[
-                        const SizedBox(height: 18),
-                        const Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            'الإجابات الصحيحة',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: items
-                              .map(
-                                (item) => Chip(
-                                  label: Text(item),
-                                  backgroundColor: Colors.white,
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ],SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            _showStutteringAnalysis(dialogContext);
-                          },
-                          icon: const Icon(Icons.analytics_outlined),
-                          label: const Text('عرض تحليل التأتأة'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: _teal,
-                            minimumSize: const Size.fromHeight(50),
-                            side: const BorderSide(color: _mint),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 22),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.of(dialogContext).pop();
-                            _resultDialogOpen = false;
-                            _resetForSamePrompt();
-                          },
-                          icon: const Icon(Icons.mic_rounded),
-                          label: const Text('إعادة التسجيل'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _teal,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (!newRecord) ...[
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop();
-                              _resultDialogOpen = false;
-                              _resetForSamePrompt();
-                            },
-                            icon: const Icon(Icons.replay_rounded),
-                            label: const Text('حاول مرة أخرى'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: _teal,
-                              minimumSize: const Size.fromHeight(48),
-                              side: const BorderSide(color: _mint),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(dialogContext).pop();
-                          _resultDialogOpen = false;
-                          _loadPrompt();
-                        },
-                        child: const Text('تحدٍ جديد'),
-                      ),
-                    ],
-                  ),
+        const SizedBox(height: 10),
+
+        Text(
+          newRecord
+              ? 'أحسنت! سجّلنا نتيجتك في هذا الموضوع.'
+              : 'واصل التدريب وحاول تتجاوز أفضل نتيجة سابقة لك.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(height: 1.5),
+        ),
+
+        const SizedBox(height: 24),
+
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 22),
+          decoration: BoxDecoration(
+            color: newRecord
+                ? const Color(0xFFEAF4F2)
+                : const Color(0xFFFFF1E9),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              Text(
+                '$validCount',
+                style: const TextStyle(
+                  fontSize: 42,
+                  fontWeight: FontWeight.bold,
+                  color: _teal,
                 ),
               ),
+              const SizedBox(height: 4),
+              const Text('إجابة صحيحة في هذه المحاولة'),
             ],
           ),
-        );
-      },
-    );
+        ),
 
-    _resultDialogOpen = false;
-  }
-  Future<void> _showStutteringAnalysis(
-    BuildContext resultDialogContext,
-  ) async {
-    if (!mounted || _result == null) return;
+        const SizedBox(height: 16),
 
-    final returnToGame = await GameStutteringAnalysis.show(
-      context: context,
-      speechAnalysis: _result!['speech_analysis'],
-    );
+        Row(
+          children: [
+            Expanded(
+              child: _scoreSummaryCard(
+                title: 'أعلى نتيجة سابقة',
+                score: previousScore,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _scoreSummaryCard(
+                title: 'أفضل نتيجة',
+                score: bestScore,
+              ),
+            ),
+          ],
+        ),
 
-    if (!mounted || !returnToGame) return;
+        if (newRecord) ...[
+          const SizedBox(height: 16),
+          const Text(
+            'حققت أفضل نتيجة لك في هذا الموضوع!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _teal,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
 
-    // زر "العودة إلى اللعبة" يغلق التحليل ثم نافذة النتائج.
-    // السهم العلوي يغلق التحليل فقط ويُبقي النتائج مفتوحة.
-    Navigator.of(resultDialogContext).pop();
-    _resultDialogOpen = false;
+        if (items.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          const Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'الإجابات الصحيحة',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: items
+                .map(
+                  (item) => Chip(
+                    label: Text(item),
+                    backgroundColor: Colors.white,
+                  ),
+                )
+                .toList(),
+          ),
+        ],
 
-    // احتفظي بالنتيجة، لكن أزيلي حالة تجهيز النتيجة.
-    setState(() {
-      _isRecording = false;
-      _isAnalyzing = false;
-      _hasStarted = false;
-      _remainingSeconds = _gameDurationSeconds;
-    });
-  }
+
+        const SizedBox(height: 28),
+
+
+
+// زر تحليل التأتأة
+OutlinedButton(
+  onPressed: _showStutteringAnalysis,
+  style: OutlinedButton.styleFrom(
+    foregroundColor: _teal,
+    minimumSize: const Size.fromHeight(52),
+    side: const BorderSide(color: _mint),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(15),
+    ),
+  ),
+  child: const Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      
+      
+      Text('عرض تحليل التأتأة'),
+      SizedBox(width: 8),
+      Icon(Icons.analytics_outlined, size: 20),
+    ],
+  ),
+),
+
+const SizedBox(height: 14),
+
+// زرا المحاولة والتحدي الجديد
+Row(
+  children: [
+    Expanded(
+      child: ElevatedButton(
+        onPressed: () {
+          setState(() {
+            _showingResultPage = false;
+          });
+          _resetForSamePrompt();
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _teal,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('حاول مجددًا'),
+            SizedBox(width: 8),
+            Icon(Icons.replay_rounded, size: 20),
+          ],
+        ),
+      ),
+    ),
+
+    const SizedBox(width: 12),
+
+    Expanded(
+      child: OutlinedButton(
+        onPressed: () {
+          setState(() {
+            _showingResultPage = false;
+          });
+          _loadPrompt();
+        },
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _teal,
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          side: const BorderSide(color: _mint),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('تحدٍ جديد'),
+            SizedBox(width: 8),
+            Icon(Icons.auto_awesome, size: 20),
+          ],
+        ),
+      ),
+    ),
+  ],
+),
+
+
+
+        const SizedBox(height: 12),
+
+      ],
+    ),
+  );
+}
+
+Future<void> _showStutteringAnalysis() async {
+  if (!mounted || _result == null) return;
+
+  await GameStutteringAnalysis.show(
+    context: context,
+    speechAnalysis: _result!['speech_analysis'],
+  );
+
+  // إغلاق نافذة التحليل يعيد المستخدم إلى صفحة النتيجة.
+  // لا نغلق صفحة النتيجة ولا نمسح بياناتها.
+}
+
   Widget _scoreSummaryCard({required String title, required int score}) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
@@ -628,23 +642,43 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: _background,
+    appBar: AppBar(
       backgroundColor: _background,
-      appBar: AppBar(
-        backgroundColor: _background,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'تحدي التسمية',
-          style: TextStyle(color: _teal, fontWeight: FontWeight.bold),
+      elevation: 0,
+      centerTitle: true,
+      title: Text(
+        _showingResultPage
+            ? 'نتيجة التحدي'
+            : 'تحدي التعداد',
+        style: const TextStyle(
+          color: _teal,
+          fontWeight: FontWeight.bold,
         ),
-        iconTheme: const IconThemeData(color: _teal),
       ),
-      body: SafeArea(child: _buildBody()),
-    );
-  }
+      iconTheme: const IconThemeData(color: _teal),
+      leading: _showingResultPage
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () {
+                setState(() {
+                  _showingResultPage = false;
+                });
+              },
+            )
+          : null,
+    ),
+    body: SafeArea(
+      child: _showingResultPage && _result != null
+          ? _buildResultPage()
+          : _buildBody(),
+    ),
+  );
+}
+
 
   Widget _buildBody() {
     if (_isLoadingPrompt) {

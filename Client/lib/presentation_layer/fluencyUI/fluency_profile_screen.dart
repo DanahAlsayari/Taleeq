@@ -12,7 +12,7 @@ import 'package:percent_indicator/linear_percent_indicator.dart';
 
 import '../../services/fluency_profile_service.dart';
 import '../widgets/journey_stepper.dart';
-
+import '../HomepageUI/home_screen.dart';
 
 double _primaryPatternPercent(FluencyProfileData data) {
   switch (data.primaryPattern.toLowerCase().trim()) {
@@ -312,35 +312,34 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
 
                           const SizedBox(height: 18),
 
-                          if (!widget.isHistoryView)
-                            SizedBox(
-                              width: double.infinity,
-                              height: 56,
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pushNamedAndRemoveUntil(
-                                    context,
-                                    '/home',
-                                    (route) => false,
-                                  );
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: TaleeqTheme.primaryTeal,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                Navigator.pushNamedAndRemoveUntil(
+                                  context,
+                                  '/home',
+                                  (route) => false,
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: TaleeqTheme.primaryTeal,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(20),
                                 ),
-                                child: Text(
-                                  'ابدأ خطتي',
-                                  style: GoogleFonts.cairo(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                  ),
+                              ),
+                              child: Text(
+                                'ابدأ خطتي',
+                                style: GoogleFonts.cairo(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
                                 ),
                               ),
                             ),
+                          ),
                         ],
                       ).animate().fadeIn(duration: 500.ms, delay: 450.ms),
 
@@ -1290,19 +1289,6 @@ class _TaskResultsCard extends StatelessWidget {
     }
   }
 
-  String _getPatternName(String pattern) {
-    switch (pattern.toLowerCase()) {
-      case 'repetition':
-        return 'التكرار';
-      case 'prolongation':
-        return 'الإطالة';
-      case 'block':
-        return 'التوقف';
-      default:
-        return pattern;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     const taskOrder = {'task_1': 0, 'task_2': 1, 'task_3': 2};
@@ -1375,7 +1361,6 @@ class _TaskResultsCard extends StatelessWidget {
               ),
               child: _buildTaskResult(
                 taskName: _getTaskName(task.taskType),
-                patternName: _getPatternName(task.pattern),
                 percent: task.percent,
                 speechEvents: task.speechEvents,
               ),
@@ -1388,7 +1373,6 @@ class _TaskResultsCard extends StatelessWidget {
 
   Widget _buildTaskResult({
     required String taskName,
-    required String patternName,
     required double percent,
     required List<String>? speechEvents,
   }) {
@@ -1426,13 +1410,35 @@ class _TaskResultsCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          if (safePercent > 0 && patternName.trim().isNotEmpty)
+          const SizedBox(height: 12),
+          LinearPercentIndicator(
+            lineHeight: 12,
+            animation: true,
+            animationDuration: 1000,
+            isRTL: true,
+            percent: safePercent / 100,
+            barRadius: const Radius.circular(8),
+            backgroundColor: TaleeqTheme.softTeal.withValues(alpha: 0.35),
+            linearGradient: const LinearGradient(
+              colors: [TaleeqTheme.mediumTeal, TaleeqTheme.primaryTeal],
+            ),
+            padding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'الكلمات والأصوات المكتشفة',
+            style: GoogleFonts.cairo(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: TaleeqTheme.darkSlate,
+            ),
+          ),
+          const SizedBox(height: 8),
+          if (safeSpeechEvents.isEmpty)
             Text(
-              'أبرز نمط: $patternName',
+              'لم تُرصد كلمات أو أصوات متعثرة في هذه المهمة',
               style: GoogleFonts.cairo(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
                 color: TaleeqTheme.textMuted,
               ),
             )

@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 enum Difficulty {
   easy('easy', 'سهل', 1),
   medium('medium', 'متوسط', 2),
-  advanced('advanced', 'متقدم', 3);
+  hard('hard', 'متقدم', 3);
 
   const Difficulty(this.id, this.labelAr, this.bars);
   final String id;
@@ -22,9 +22,9 @@ enum ExerciseType {
   storytelling('storytelling'),
   freeSpeech('free_speech'),
   realLifeScenarios('real_life_scenarios'),
-  wordLetterChallenge('word_letter_challenge'),
-  sentenceBuilding('sentence_building'),
-  dualTask('dual_task');
+  // Speaking games
+  countingChallenge('counting_challenge'),
+  dontSayIt('dont_say_it');
 
   const ExerciseType(this.id);
   final String id;
@@ -42,8 +42,11 @@ class TrainingExercise {
     required this.titleEn,
     required this.descriptionAr,
     required this.durationMinutes,
+    this.durationSeconds,
     this.defaultDifficulty = Difficulty.easy,
   });
+
+  final int? durationSeconds;
 
   final String id;
   final ExerciseType type;

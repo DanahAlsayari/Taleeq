@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 /// واجهة تحليل التأتأة المشتركة بين ألعاب طليق.
@@ -19,7 +20,9 @@ class GameStutteringAnalysis {
       if (!context.mounted) return false;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تحليل التأتأة غير متوفر لهذا التسجيل.')),
+        const SnackBar(
+          content: Text('تحليل التأتأة غير متوفر لهذا التسجيل.'),
+        ),
       );
       return false;
     }
@@ -40,7 +43,8 @@ class GameStutteringAnalysis {
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(dialogContext).height * 0.88,
+              maxHeight:
+                  MediaQuery.sizeOf(dialogContext).height * 0.88,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -48,7 +52,12 @@ class GameStutteringAnalysis {
                 _buildHeader(dialogContext),
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                    padding: const EdgeInsets.fromLTRB(
+                      18,
+                      0,
+                      18,
+                      18,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -60,29 +69,7 @@ class GameStutteringAnalysis {
                         const SizedBox(height: 16),
                         _buildAdditionalMetricsCard(analysis),
                         const SizedBox(height: 18),
-                        SizedBox(
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop(true);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: teal,
-                              foregroundColor: Colors.white,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                            ),
-                            child: const Text(
-                              'العودة إلى اللعبة',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
+                        
                       ],
                     ),
                   ),
@@ -101,19 +88,25 @@ class GameStutteringAnalysis {
   // Header
   // ------------------------------------------------------------
 
-  static Widget _buildHeader(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+static Widget _buildHeader(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
     child: Column(
       children: [
+        // زر الإغلاق ✕
         Align(
           alignment: Alignment.centerRight,
           child: IconButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+            icon: const Icon(Icons.close_rounded),
             color: teal,
-            tooltip: 'رجوع إلى نتائج اللعبة',
+            tooltip: 'إغلاق التحليل',
           ),
         ),
+
+        // أيقونة التحليل
         Container(
           width: 58,
           height: 58,
@@ -121,9 +114,16 @@ class GameStutteringAnalysis {
             color: const Color(0xFFEAF4F2),
             borderRadius: BorderRadius.circular(19),
           ),
-          child: const Icon(Icons.analytics_outlined, color: teal, size: 32),
+          child: const Icon(
+            Icons.analytics_outlined,
+            color: teal,
+            size: 32,
+          ),
         ),
+
         const SizedBox(height: 12),
+
+        // عنوان النافذة
         const Text(
           'تحليل التأتأة',
           style: TextStyle(
@@ -132,7 +132,9 @@ class GameStutteringAnalysis {
             color: teal,
           ),
         ),
+
         const SizedBox(height: 6),
+
         Text(
           'تحليل أنماط الكلام خلال هذه المحاولة',
           textAlign: TextAlign.center,
@@ -145,16 +147,22 @@ class GameStutteringAnalysis {
       ],
     ),
   );
+}
 
   // ------------------------------------------------------------
   // Overall stuttering
   // ------------------------------------------------------------
 
-  static Widget _buildOverallCard(Map<String, dynamic> analysis) {
-    final value = _readNumber(analysis['stuttering_percent']);
+  static Widget _buildOverallCard(
+    Map<String, dynamic> analysis,
+  ) {
+    final value = _readNumber(
+      analysis['stuttering_percent'],
+    );
 
     final hasValue = value != null;
-    final percentage = (value ?? 0).clamp(0.0, 100.0).toDouble();
+    final percentage =
+        (value ?? 0).clamp(0.0, 100.0).toDouble();
 
     return _sectionCard(
       title: 'نسبة التأتأة الكلية',
@@ -167,8 +175,13 @@ class GameStutteringAnalysis {
             children: [
               Expanded(
                 child: Text(
-                  hasValue ? 'مؤشر التأتأة في التسجيل' : 'النسبة غير متوفرة',
-                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  hasValue
+                      ? 'مؤشر التأتأة في التسجيل'
+                      : 'النسبة غير متوفرة',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Colors.black54,
+                  ),
                 ),
               ),
               if (hasValue)
@@ -189,7 +202,8 @@ class GameStutteringAnalysis {
               value: hasValue ? percentage / 100 : 0,
               minHeight: 10,
               backgroundColor: const Color(0xFFE8EEEC),
-              valueColor: const AlwaysStoppedAnimation<Color>(mint),
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(mint),
             ),
           ),
           const SizedBox(height: 9),
@@ -212,26 +226,34 @@ class GameStutteringAnalysis {
   // Stuttering patterns
   // ------------------------------------------------------------
 
-  static Widget _buildPatternsCard(Map<String, dynamic> analysis) {
+  static Widget _buildPatternsCard(
+    Map<String, dynamic> analysis,
+  ) {
     final patterns = <_PatternData>[
       _PatternData(
         title: 'التكرار',
         subtitle: 'Repetition',
-        value: _readNumber(analysis['repetition_percent']),
+        value: _readNumber(
+          analysis['repetition_percent'],
+        ),
         color: teal,
         icon: Icons.repeat_rounded,
       ),
       _PatternData(
         title: 'الإطالة',
         subtitle: 'Prolongation',
-        value: _readNumber(analysis['prolongation_percent']),
+        value: _readNumber(
+          analysis['prolongation_percent'],
+        ),
         color: mint,
         icon: Icons.graphic_eq_rounded,
       ),
       _PatternData(
         title: 'التوقف',
         subtitle: 'Block',
-        value: _readNumber(analysis['block_percent']),
+        value: _readNumber(
+          analysis['block_percent'],
+        ),
         color: coral,
         icon: Icons.pause_circle_outline_rounded,
       ),
@@ -242,16 +264,21 @@ class GameStutteringAnalysis {
       icon: Icons.bar_chart_rounded,
       child: Column(
         children: [
-          for (final pattern in patterns) _buildPatternRow(pattern),
+          for (final pattern in patterns)
+            _buildPatternRow(pattern),
           const SizedBox(height: 4),
+          
         ],
       ),
     );
   }
 
-  static Widget _buildPatternRow(_PatternData pattern) {
+  static Widget _buildPatternRow(
+    _PatternData pattern,
+  ) {
     final hasValue = pattern.value != null;
-    final percentage = (pattern.value ?? 0).clamp(0.0, 100.0).toDouble();
+    final percentage =
+        (pattern.value ?? 0).clamp(0.0, 100.0).toDouble();
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -266,7 +293,11 @@ class GameStutteringAnalysis {
                   color: pattern.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(pattern.icon, color: pattern.color, size: 21),
+                child: Icon(
+                  pattern.icon,
+                  color: pattern.color,
+                  size: 21,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -291,7 +322,9 @@ class GameStutteringAnalysis {
                 ),
               ),
               Text(
-                hasValue ? '${_formatNumber(percentage)}%' : 'غير متوفر',
+                hasValue
+                    ? '${_formatNumber(percentage)}%'
+                    : 'غير متوفر',
                 style: TextStyle(
                   color: pattern.color,
                   fontWeight: FontWeight.bold,
@@ -307,7 +340,9 @@ class GameStutteringAnalysis {
               value: hasValue ? percentage / 100 : 0,
               minHeight: 8,
               backgroundColor: const Color(0xFFEDF0ED),
-              valueColor: AlwaysStoppedAnimation<Color>(pattern.color),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                pattern.color,
+              ),
             ),
           ),
         ],
@@ -319,7 +354,9 @@ class GameStutteringAnalysis {
   // Speech events: type + word/sound only
   // ------------------------------------------------------------
 
-  static Widget _buildSpeechEventsCard(Map<String, dynamic> analysis) {
+  static Widget _buildSpeechEventsCard(
+    Map<String, dynamic> analysis,
+  ) {
     final events = _readSpeechEvents(analysis);
 
     return _sectionCard(
@@ -343,7 +380,8 @@ class GameStutteringAnalysis {
               children: [
                 for (int i = 0; i < events.length; i++) ...[
                   _buildSpeechEvent(events[i]),
-                  if (i < events.length - 1) const SizedBox(height: 10),
+                  if (i < events.length - 1)
+                    const SizedBox(height: 10),
                 ],
               ],
             ),
@@ -359,14 +397,22 @@ class GameStutteringAnalysis {
 
     return raw
         .whereType<Map>()
-        .map((event) => Map<String, dynamic>.from(event))
+        .map(
+          (event) => Map<String, dynamic>.from(event),
+        )
         .toList();
   }
 
-  static Widget _buildSpeechEvent(Map<String, dynamic> event) {
+  static Widget _buildSpeechEvent(
+    Map<String, dynamic> event,
+  ) {
     // أسماء الحقول المطابقة لنتيجة محلل الصوت.
     final type = _eventType(event['event_type']);
-    final word = _firstText(event, ['word_or_sound', 'word', 'text']);
+    final word = _firstText(event, [
+      'word_or_sound',
+      'word',
+      'text',
+    ]);
 
     return Container(
       width: double.infinity,
@@ -385,7 +431,11 @@ class GameStutteringAnalysis {
               color: _eventColor(type).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(_eventIcon(type), color: _eventColor(type), size: 20),
+            child: Icon(
+              _eventIcon(type),
+              color: _eventColor(type),
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -420,15 +470,21 @@ class GameStutteringAnalysis {
   static String _eventType(dynamic value) {
     final raw = value?.toString().toLowerCase().trim() ?? '';
 
-    if (raw == 'repetition' || raw == 'repeat' || raw.contains('تكرار')) {
+    if (raw == 'repetition' ||
+        raw == 'repeat' ||
+        raw.contains('تكرار')) {
       return 'التكرار';
     }
 
-    if (raw == 'prolongation' || raw == 'prolong' || raw.contains('إطالة')) {
+    if (raw == 'prolongation' ||
+        raw == 'prolong' ||
+        raw.contains('إطالة')) {
       return 'الإطالة';
     }
 
-    if (raw == 'block' || raw.contains('انحباس') || raw.contains('حبس')) {
+    if (raw == 'block' ||
+        raw.contains('انحباس') ||
+        raw.contains('حبس')) {
       return 'الانحباس';
     }
 
@@ -465,12 +521,20 @@ class GameStutteringAnalysis {
   // Additional metrics
   // ------------------------------------------------------------
 
-  static Widget _buildAdditionalMetricsCard(Map<String, dynamic> analysis) {
-    final rate = _readNumber(analysis['speaking_rate_wpm']);
+  static Widget _buildAdditionalMetricsCard(
+    Map<String, dynamic> analysis,
+  ) {
+    final rate = _readNumber(
+      analysis['speaking_rate_wpm'],
+    );
 
-    final speakingRateScore = _readNumber(analysis['speaking_rate']);
+    final speakingRateScore = _readNumber(
+      analysis['speaking_rate'],
+    );
 
-    final timingPacing = _readNumber(analysis['timing_pacing']);
+    final timingPacing = _readNumber(
+      analysis['timing_pacing'],
+    );
 
     final metrics = <_MetricData>[];
 
@@ -513,20 +577,26 @@ class GameStutteringAnalysis {
       child: metrics.isEmpty
           ? Text(
               'لا توجد مؤشرات إضافية في نتيجة التحليل.',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 13,
+              ),
             )
           : Column(
               children: [
                 for (int i = 0; i < metrics.length; i++) ...[
                   _buildMetricRow(metrics[i]),
-                  if (i < metrics.length - 1) const SizedBox(height: 10),
+                  if (i < metrics.length - 1)
+                    const SizedBox(height: 10),
                 ],
               ],
             ),
     );
   }
 
-  static Widget _buildMetricRow(_MetricData metric) {
+  static Widget _buildMetricRow(
+    _MetricData metric,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(13),
@@ -553,7 +623,10 @@ class GameStutteringAnalysis {
                 const SizedBox(height: 5),
                 Text(
                   metric.value,
-                  style: const TextStyle(fontSize: 13, height: 1.5),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -606,7 +679,10 @@ class GameStutteringAnalysis {
     );
   }
 
-  static String _firstText(Map<String, dynamic> map, List<String> keys) {
+  static String _firstText(
+    Map<String, dynamic> map,
+    List<String> keys,
+  ) {
     for (final key in keys) {
       final value = map[key];
 
@@ -625,7 +701,9 @@ class GameStutteringAnalysis {
     if (value is num) return value.toDouble();
 
     if (value is String) {
-      return double.tryParse(value.trim().replaceAll('%', ''));
+      return double.tryParse(
+        value.trim().replaceAll('%', ''),
+      );
     }
 
     return null;

@@ -12,10 +12,15 @@ import '../../services/progress_calculator.dart';
 
 import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../widgets/taleeq_info_modal.dart';
+import '../exerciseUI/exercise_result_screen.dart';
 
 class ProgressScreen extends StatefulWidget {
-  const ProgressScreen({super.key});
+  final int initialTab;
 
+  const ProgressScreen({
+    super.key,
+    this.initialTab = 0,
+  });
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
@@ -26,7 +31,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   late Future<List<ProgressAssessment>> _history;
   late Future<List<AssessmentProgressData>> _detailedHistory;
 
-  int _tab = 0;
+  late int _tab;
   int _assessmentIndex = 0;
 
   String _arabicNumber(int number) {
@@ -49,6 +54,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   void initState() {
     super.initState();
+    _tab = widget.initialTab;
     _loadProgress();
   }
 
@@ -1159,31 +1165,12 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ],
         ),
         const SizedBox(height: 20),
-        _surface(
-          child: const Padding(
-            padding: EdgeInsets.symmetric(vertical: 35),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.history_rounded,
-                  color: TaleeqTheme.mediumTeal,
-                  size: 40,
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'سجل التدريب غير متاح حاليًا',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'ستظهر بيانات التمارين والجلسات عند توفرها.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: TaleeqTheme.textMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
+SizedBox(
+  height: 1550,
+  child: const ExerciseResultScreen(
+    embedded: true,
+  ),
+),
       ],
     );
   }
