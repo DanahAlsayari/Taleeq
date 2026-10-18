@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -5,14 +6,17 @@ import 'package:flutter/material.dart';
 import 'game_stuttering_analysis.dart';
 import '../../../services/naming_challenge_api_service.dart';
 import '../../../services/recording_service.dart';
+import 'shared_game_layout.dart';
 
 class NamingChallengeScreen extends StatefulWidget {
   const NamingChallengeScreen({
     super.key,
     required this.difficulty,
+    this.previousAttempt,
   });
 
   final String difficulty;
+  final Map<String, dynamic>? previousAttempt;
 
   @override
   State<NamingChallengeScreen> createState() =>
@@ -26,6 +30,8 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   static const Color _mint = Color(0xFF6FA7A3);
   static const Color _background = Color(0xFFFFFBF6);
   static const Color _coral = Color(0xFFD97757);
+  Duration _recordingPosition = Duration.zero;
+  Duration _recordingDuration = Duration.zero;
 
   final NamingChallengeApiService _apiService =
       NamingChallengeApiService();
@@ -41,10 +47,9 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   bool _isLoadingPrompt = true;
   bool _isRecording = false;
   bool _isAnalyzing = false;
-  bool _hasStarted = false;
-  bool _resultDialogOpen = false;
   bool _errorDialogOpen = false;
   bool _showingResultPage = false;
+
   String? _errorMessage;
   String? _lastRecordingPath;
   String? _errorStage;
@@ -52,11 +57,31 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   @override
   void initState() {
     super.initState();
+
     _confettiController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
     );
-    _loadPrompt();
+
+    final previousAttempt = widget.previousAttempt;
+    if (previousAttempt != null) {
+      final saved = Map<String, dynamic>.from(previousAttempt);
+      final score = saved['valid_count'] ?? saved['last_score'] ?? saved['score'] ?? 0;
+      final best = saved['best_score'] ?? score;
+      _result = {
+        ...saved,
+        'valid_count': score,
+        'last_score': score,
+        'previous_score': score,
+        'best_score': best,
+        'new_record': false,
+        'valid_items': saved['valid_items'] is List ? saved['valid_items'] : <dynamic>[],
+      };
+      _showingResultPage = true;
+      _isLoadingPrompt = false;
+    } else {
+      _loadPrompt();
+    }
   }
 
   Future<void> _loadPrompt() async {
@@ -69,16 +94,17 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
 
     try {
       final prompt = await _apiService.getRandomPrompt(
-  difficulty: widget.difficulty,
-);
+        difficulty: widget.difficulty,
+      );
+
       if (!mounted) return;
 
       _gameTimer?.cancel();
       _gameTimer = null;
+
       setState(() {
         _prompt = prompt;
         _isLoadingPrompt = false;
-        _hasStarted = false;
         _isRecording = false;
         _isAnalyzing = false;
         _result = null;
@@ -89,11 +115,13 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
       });
     } catch (error) {
       if (!mounted) return;
+
       setState(() {
         _isLoadingPrompt = false;
         _errorMessage = _readableError(error);
         _errorStage = 'prompt';
       });
+
       _showErrorDialog();
     }
   }
@@ -112,10 +140,14 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     });
 
     bool started;
+
     try {
-      started = await _recordingService.startRecording('naming_challenge');
-    } catch (error) {
+      started = await _recordingService.startRecording(
+        'naming_challenge',
+      );
+    } catch (_) {
       if (!mounted) return;
+
       _showError(
         'تعذر بدء التسجيل. تأكد من السماح للتطبيق باستخدام الميكروفون.',
         stage: 'recording',
@@ -124,7 +156,9 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     }
 
     if (!mounted) {
-      if (started) await _recordingService.stopRecording();
+      if (started) {
+        await _recordingService.stopRecording();
+      }
       return;
     }
 
@@ -138,26 +172,29 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
 
     setState(() {
       _isRecording = true;
-      _hasStarted = true;
       _remainingSeconds = _gameDurationSeconds;
       _errorMessage = null;
     });
 
     _gameTimer?.cancel();
-    _gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
 
-      if (_remainingSeconds <= 1) {
-        timer.cancel();
-        _finishChallenge();
-        return;
-      }
+    _gameTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (timer) {
+        if (!mounted) {
+          timer.cancel();
+          return;
+        }
 
-      setState(() => _remainingSeconds--);
-    });
+        if (_remainingSeconds <= 1) {
+          timer.cancel();
+          _finishChallenge();
+          return;
+        }
+
+        setState(() => _remainingSeconds--);
+      },
+    );
   }
 
   Future<void> _finishChallenge() async {
@@ -173,6 +210,7 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     });
 
     String? recordingPath;
+
     try {
       recordingPath = await _recordingService.stopRecording();
     } catch (_) {
@@ -183,8 +221,11 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
 
     if (recordingPath == null || recordingPath.isEmpty) {
       setState(() => _isAnalyzing = false);
-      _showError('تعذر حفظ التسجيل. أعد التسجيل وحاول مرة أخرى.',
-          stage: 'recording');
+
+      _showError(
+        'تعذر حفظ التسجيل. أعد التسجيل وحاول مرة أخرى.',
+        stage: 'recording',
+      );
       return;
     }
 
@@ -195,6 +236,7 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   Future<void> _analyzeLastRecording() async {
     final path = _lastRecordingPath;
     final prompt = _prompt;
+
     if (path == null || prompt == null) return;
 
     setState(() {
@@ -204,22 +246,27 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
 
     try {
       final promptId = (prompt['id'] as num).toInt();
+
       final result = await _apiService.analyzeRecording(
         promptId: promptId,
         recordingPath: path,
       );
 
       if (!mounted) return;
+
       setState(() {
         _result = result;
         _isAnalyzing = false;
       });
+
       _showResultDialog();
     } catch (error) {
       if (!mounted) return;
+
       setState(() => _isAnalyzing = false);
+
       _showError(
-        '${_readableError(error)}',
+        _readableError(error),
         stage: 'analysis',
       );
     }
@@ -239,7 +286,10 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
   }
 
   Future<void> _showErrorDialog() async {
-    if (!mounted || _errorDialogOpen || _errorMessage == null) return;
+    if (!mounted || _errorDialogOpen || _errorMessage == null) {
+      return;
+    }
+
     _errorDialogOpen = true;
     final stage = _errorStage ?? 'recording';
 
@@ -249,6 +299,7 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
       builder: (dialogContext) {
         String title;
         IconData icon;
+
         switch (stage) {
           case 'prompt':
             title = 'تعذر تحميل التحدي';
@@ -268,8 +319,15 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
-          icon: Icon(icon, size: 44, color: _coral),
-          title: Text(title, textAlign: TextAlign.center),
+          icon: Icon(
+            icon,
+            size: 44,
+            color: _coral,
+          ),
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+          ),
           content: Text(
             _errorMessage ?? 'حدث خطأ غير متوقع. حاول مرة أخرى.',
             textAlign: TextAlign.center,
@@ -283,6 +341,7 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   _errorDialogOpen = false;
+
                   if (stage == 'prompt') {
                     _loadPrompt();
                   } else if (stage == 'analysis' &&
@@ -296,7 +355,8 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
                 label: Text(
                   stage == 'prompt'
                       ? 'إعادة تحميل التحدي'
-                      : stage == 'analysis' && _lastRecordingPath != null
+                      : stage == 'analysis' &&
+                              _lastRecordingPath != null
                           ? 'إعادة التحليل'
                           : 'إعادة التسجيل',
                 ),
@@ -325,225 +385,380 @@ class _NamingChallengeScreenState extends State<NamingChallengeScreen>
     _errorDialogOpen = false;
   }
 
- 
-Future<void> _showResultDialog() async {
-  if (!mounted || _result == null) return;
+  Future<void> _showResultDialog() async {
+    if (!mounted || _result == null) return;
 
-  final newRecord = _result!['new_record'] == true;
+    final newRecord = _result!['new_record'] == true;
 
-  if (newRecord) {
-    _confettiController.forward(from: 0);
+    if (newRecord) {
+      _confettiController.forward(from: 0);
+    }
+
+    setState(() {
+      _showingResultPage = true;
+    });
   }
 
-  setState(() {
-    _showingResultPage = true;
-    _resultDialogOpen = false;
-  });
+  Future<void> _toggleRecordingPlayback() async {
+    final path = _lastRecordingPath;
+
+    if (path == null) return;
+
+    try {
+      if (_recordingService.player.playing) {
+        await _recordingService.pauseAudio();
+      } else {
+        await _recordingService.loadAudio(path);
+        await _recordingService.resumeAudio();
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تعذر تشغيل التسجيل الصوتي.'),
+        ),
+      );
+    }
+  }
+  String _formatAudioTime(Duration duration) {
+  final minutes = duration.inMinutes;
+  final seconds = duration.inSeconds % 60;
+
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
 }
 
-Widget _buildResultPage() {
-  final result = _result!;
-  final validCount =
-      (result['valid_count'] as num?)?.toInt() ?? 0;
-  final newRecord = result['new_record'] == true;
-  final previousScore =
-      (result['previous_best_score'] as num?)?.toInt() ?? 0;
-  final bestScore =
-      (result['best_score'] as num?)?.toInt() ?? validCount;
-
-  final rawItems = result['valid_items'];
-  final items = rawItems is List
-      ? rawItems.map((item) => item.toString()).toList()
-      : <String>[];
-
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
+Widget _buildRecordingPlayer() {
+  return Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 14,
+      vertical: 8,
+    ),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFE5E8E4)),
+    ),
     child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(height: 12),
-
-        Icon(
-          newRecord
-              ? Icons.emoji_events_rounded
-              : Icons.sentiment_dissatisfied,
-          size: 68,
-          color: newRecord ? _teal : _coral,
-        ),
-
-        const SizedBox(height: 12),
-
-        Text(
-          newRecord ? 'رقم قياسي جديد! 🎉' : ' فيه فرصة للتحسن ',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: _teal,
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 10),
-
-        Text(
-          newRecord
-              ? 'أحسنت! سجّلنا نتيجتك في هذا الموضوع.'
-              : 'واصل التدريب وحاول تتجاوز أفضل نتيجة سابقة لك.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(height: 1.5),
-        ),
-
-        const SizedBox(height: 24),
-
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 22),
-          decoration: BoxDecoration(
-            color: newRecord
-                ? const Color(0xFFEAF4F2)
-                : const Color(0xFFFFF1E9),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            children: [
-              Text(
-                '$validCount',
-                style: const TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                  color: _teal,
-                ),
-              ),
-              const SizedBox(height: 4),
-              const Text('إجابة صحيحة في هذه المحاولة'),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 16),
-
         Row(
           children: [
-            Expanded(
-              child: _scoreSummaryCard(
-                title: 'أعلى نتيجة سابقة',
-                score: previousScore,
+            StreamBuilder<bool>(
+              stream: _recordingService.player.playingStream,
+              initialData: _recordingService.player.playing,
+              builder: (context, snapshot) {
+                final isPlaying = snapshot.data ?? false;
+
+                return IconButton(
+                  onPressed: _toggleRecordingPlayback,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 42,
+                    minHeight: 42,
+                  ),
+                  icon: Icon(
+                    isPlaying
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.play_circle_fill_rounded,
+                    color: _teal,
+                    size: 38,
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'استمع إلى تسجيلك',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: _teal,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _scoreSummaryCard(
-                title: 'أفضل نتيجة',
-                score: bestScore,
-              ),
+            const Icon(
+              Icons.headphones_rounded,
+              color: _teal,
+              size: 23,
             ),
           ],
         ),
+        StreamBuilder<Duration>(
+          stream: _recordingService.player.positionStream,
+          initialData: _recordingService.player.position,
+          builder: (context, positionSnapshot) {
+            final position =
+                positionSnapshot.data ?? Duration.zero;
 
-        if (newRecord) ...[
-          const SizedBox(height: 16),
-          const Text(
-            'حققت أفضل نتيجة لك في هذا الموضوع!',
+            return StreamBuilder<Duration?>(
+              stream: _recordingService.player.durationStream,
+              initialData: _recordingService.player.duration,
+              builder: (context, durationSnapshot) {
+                final duration =
+                    durationSnapshot.data ?? Duration.zero;
+
+                final progress = duration.inMilliseconds > 0
+                    ? (position.inMilliseconds /
+                            duration.inMilliseconds)
+                        .clamp(0.0, 1.0)
+                    : 0.0;
+
+                return Row(
+                  children: [
+                    Text(
+                      _formatAudioTime(position),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 11,
+                      ),
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 4,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 5,
+                          ),
+                          overlayShape:
+                              const RoundSliderOverlayShape(
+                            overlayRadius: 12,
+                          ),
+                        ),
+                        child: Slider(
+                          value: progress.toDouble(),
+                          onChanged: duration.inMilliseconds > 0
+                              ? (value) {
+                                  _recordingService.player.seek(
+                                    Duration(
+                                      milliseconds:
+                                          (duration.inMilliseconds *
+                                                  value)
+                                              .round(),
+                                    ),
+                                  );
+                                }
+                              : null,
+                          activeColor: _mint,
+                          inactiveColor:
+                              const Color(0xFFE5EAE7),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _formatAudioTime(duration),
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ],
+    ),
+  );
+}
+
+
+  Widget _buildResultPage() {
+    final result = _result!;
+    final validCount =
+        (result['valid_count'] as num?)?.toInt() ?? 0;
+    final newRecord = result['new_record'] == true;
+    final bestScore =
+        (result['best_score'] as num?)?.toInt() ?? validCount;
+
+    final lastScore =
+        (result['previous_score'] as num?)?.toInt() ?? 0;
+    final rawItems = result['valid_items'];
+    final items = rawItems is List
+        ? rawItems.map((item) => item.toString()).toList()
+        : <String>[];
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          
+          Icon(
+            newRecord
+                ? Icons.emoji_events_rounded
+                : Icons.sentiment_dissatisfied,
+            size: 50,
+            color: newRecord ? _teal : _coral,
+          ),
+          const SizedBox(height: 5),
+          Text(
+            newRecord ? 'رقم قياسي جديد! 🎉' : 'فيه فرصة للتحسن',
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: _teal,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-
-        if (items.isNotEmpty) ...[
-          const SizedBox(height: 24),
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'الإجابات الصحيحة',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+          const SizedBox(height: 7),
+          Text(
+            newRecord
+                ? 'أحسنت! سجّلنا نتيجتك في هذا الموضوع.'
+                : 'واصل التدريب وحاول تتجاوز أفضل نتيجة سابقة لك.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(height: 1.5),
+          ),
+          const SizedBox(height: 13),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 17),
+            decoration: BoxDecoration(
+              color: newRecord
+                  ? const Color(0xFFEAF4F2)
+                  : const Color(0xFFFFF1E9),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '$validCount',
+                  style: const TextStyle(
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                    color: _teal,
+                  ),
+                ),
+                
+                const Text('إجابة صحيحة في هذه المحاولة'),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: items
-                .map(
-                  (item) => Chip(
-                    label: Text(item),
-                    backgroundColor: Colors.white,
-                  ),
-                )
-                .toList(),
-          ),
-        ],
-
-
-        const SizedBox(height: 28),
-
-
-
-// زر تحليل التأتأة
-OutlinedButton(
-  onPressed: _showStutteringAnalysis,
-  style: OutlinedButton.styleFrom(
-    foregroundColor: _teal,
-    minimumSize: const Size.fromHeight(52),
-    side: const BorderSide(color: _mint),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-  ),
-  child: const Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      
-      
-      Text('عرض تحليل التأتأة'),
-      SizedBox(width: 8),
-      Icon(Icons.analytics_outlined, size: 20),
-    ],
-  ),
-),
-
-const SizedBox(height: 14),
-
-// زرا المحاولة والتحدي الجديد
+          const SizedBox(height: 16),
+        
 Row(
   children: [
     Expanded(
-      child: ElevatedButton(
+      child: _scoreSummaryCard(
+        title: 'آخر نتيجة',
+        score: lastScore,
+        icon: Icons.history_rounded,
+      ),
+    ),
+    const SizedBox(width: 12),
+    Expanded(
+      child: _scoreSummaryCard(
+        title: 'أفضل نتيجة',
+        score: bestScore,
+        icon: Icons.emoji_events_rounded,
+      ),
+    ),
+  ],
+),
+
+          if (newRecord) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'حققت أفضل نتيجة لك في هذا الموضوع!',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _teal,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+          if (items.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            const Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'الإجابات الصحيحة',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: items
+                  .map(
+                    (item) => Chip(
+                      label: Text(item),
+                      backgroundColor: Colors.white,
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+          if (widget.previousAttempt == null) ...[
+            const SizedBox(height: 12),
+            _buildRecordingPlayer(),
+            const SizedBox(height: 14),
+          ],
+          OutlinedButton(
+            onPressed: _showStutteringAnalysis,
+style: ElevatedButton.styleFrom(
+  backgroundColor: _teal,
+  foregroundColor: Colors.white,
+  minimumSize: const Size(double.infinity, 52),
+  elevation: 0,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(15),
+  ),
+),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('عرض تحليل التأتأة'),
+                SizedBox(width: 8),
+                Icon(Icons.analytics_outlined, size: 20),
+              ],
+            ),
+          ),
+          if (widget.previousAttempt == null) ...[
+          const SizedBox(height: 14),
+Row(
+  children: [
+    Expanded(
+      child: OutlinedButton(
         onPressed: () {
           setState(() {
             _showingResultPage = false;
           });
           _resetForSamePrompt();
         },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _teal,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(52),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _teal,
+          minimumSize: const Size(0, 52),
           padding: const EdgeInsets.symmetric(horizontal: 8),
+          side: const BorderSide(color: _mint),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          textDirection: TextDirection.ltr,
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('حاول مجددًا'),
-            SizedBox(width: 8),
-            Icon(Icons.replay_rounded, size: 20),
+          children: [ Icon(Icons.replay_rounded, size: 20),SizedBox(width: 8),
+            Text(
+              'حاول مجددًا',
+              textDirection: TextDirection.rtl,
+            ),
+            
+           
           ],
         ),
       ),
     ),
-
     const SizedBox(width: 12),
-
     Expanded(
       child: OutlinedButton(
         onPressed: () {
@@ -554,7 +769,7 @@ Row(
         },
         style: OutlinedButton.styleFrom(
           foregroundColor: _teal,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size(0, 52),
           padding: const EdgeInsets.symmetric(horizontal: 8),
           side: const BorderSide(color: _mint),
           shape: RoundedRectangleBorder(
@@ -563,70 +778,130 @@ Row(
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
+          textDirection: TextDirection.ltr,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('تحدٍ جديد'),
-            SizedBox(width: 8),
-            Icon(Icons.auto_awesome, size: 20),
+            
+            
+            Icon(Icons.auto_awesome_rounded, size: 20),SizedBox(width: 8),Text(
+              'تحدٍ جديد',
+              textDirection: TextDirection.rtl,
+            ),
           ],
         ),
+        
       ),
     ),
   ],
 ),
+          const SizedBox(height: 12),
+      
+SizedBox(
+  width: double.infinity,
+  height: 48,
+  child: OutlinedButton(
+    onPressed: () {
+      Navigator.of(context).popUntil(
+        (route) => route.isFirst,
+      );
+    },
+    style: OutlinedButton.styleFrom(
+      foregroundColor: _teal,
+      side: const BorderSide(color: _mint),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+    ),
+    child: const Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      textDirection: TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
+      children: [       Icon(
+          Icons.home_outlined,
+          size: 21,
+        ),        SizedBox(width: 8),
+        Text(
+          'العودة إلى الصفحة الرئيسية',
+          textDirection: TextDirection.rtl,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
 
-
-
-        const SizedBox(height: 12),
-
+ 
       ],
     ),
-  );
-}
-
-Future<void> _showStutteringAnalysis() async {
-  if (!mounted || _result == null) return;
-
-  await GameStutteringAnalysis.show(
-    context: context,
-    speechAnalysis: _result!['speech_analysis'],
-  );
-
-  // إغلاق نافذة التحليل يعيد المستخدم إلى صفحة النتيجة.
-  // لا نغلق صفحة النتيجة ولا نمسح بياناتها.
-}
-
-  Widget _scoreSummaryCard({required String title, required int score}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEAF4F2),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        children: [
-          Text(title, textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 12, color: Colors.black54)),
-          const SizedBox(height: 5),
-          Text('$score',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: _teal,
-              )),
+  ),
+),
+          ],
         ],
       ),
     );
   }
 
+  Future<void> _showStutteringAnalysis() async {
+    if (!mounted || _result == null) return;
+
+    await GameStutteringAnalysis.show(
+      context: context,
+      speechAnalysis: _result!['speech_analysis'],
+    );
+  }
+
+Widget _scoreSummaryCard({
+  required String title,
+  required int score,
+  required IconData icon,
+}) {
+  return Container(
+    padding: const EdgeInsets.symmetric(
+      vertical: 14,
+      horizontal: 8,
+    ),
+    decoration: BoxDecoration(
+      color: const Color(0xFFEAF4F2),
+      borderRadius: BorderRadius.circular(14),
+    ),
+    child: Column(
+      children: [
+        Icon(
+          icon,
+          color: _mint,
+          size: 25,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 12,
+            color: Colors.black54,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          '$score',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: _teal,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
   void _resetForSamePrompt() {
     if (!mounted) return;
+
     _gameTimer?.cancel();
+
     setState(() {
       _result = null;
       _errorMessage = null;
       _errorStage = null;
-      _hasStarted = false;
       _isRecording = false;
       _isAnalyzing = false;
       _lastRecordingPath = null;
@@ -642,43 +917,45 @@ Future<void> _showStutteringAnalysis() async {
     super.dispose();
   }
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    backgroundColor: _background,
-    appBar: AppBar(
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
       backgroundColor: _background,
-      elevation: 0,
-      centerTitle: true,
-      title: Text(
-        _showingResultPage
-            ? 'نتيجة التحدي'
-            : 'تحدي التعداد',
-        style: const TextStyle(
-          color: _teal,
-          fontWeight: FontWeight.bold,
+      appBar: AppBar(
+        backgroundColor: _background,
+        elevation: 0,
+        centerTitle: true,
+        title: Text(
+          _showingResultPage ? 'نتيجة التحدي' : 'تحدي التعداد',
+          style: const TextStyle(
+            color: _teal,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-      ),
-      iconTheme: const IconThemeData(color: _teal),
-      leading: _showingResultPage
-          ? IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () {
-                setState(() {
-                  _showingResultPage = false;
-                });
-              },
-            )
-          : null,
-    ),
-    body: SafeArea(
-      child: _showingResultPage && _result != null
-          ? _buildResultPage()
-          : _buildBody(),
-    ),
-  );
-}
+        iconTheme: const IconThemeData(color: _teal),
+ leading: _showingResultPage
+    ? IconButton(
+        icon: const Icon(Icons.arrow_back_rounded),
+        onPressed: () {
+          if (widget.previousAttempt != null) {
+            Navigator.of(context).pop();
+            return;
+          }
 
+          setState(() {
+            _showingResultPage = false;
+          });
+        },
+      )
+    : null,
+      ),
+      body: SafeArea(
+        child: _showingResultPage && _result != null
+            ? _buildResultPage()
+            : _buildBody(),
+      ),
+    );
+  }
 
   Widget _buildBody() {
     if (_isLoadingPrompt) {
@@ -691,93 +968,29 @@ Widget build(BuildContext context) {
       return _buildErrorState();
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildProgressHeader(),
-          const SizedBox(height: 24),
-
-          _buildPromptCard(),
-          const SizedBox(height: 20),
-
-          if (_isRecording || _isAnalyzing) ...[
-            _buildTimerCard(),
-            const SizedBox(height: 20),
-          ],
-
-          // إظهار الخطأ داخل الصفحة بدل نافذة منبثقة.
-          if (_errorMessage != null) ...[
-            _buildInlineError(),
-            const SizedBox(height: 16),
-          ],
-
-          if (_isAnalyzing)
-            _buildAnalyzingState()
-          else if (_isRecording)
-            _buildStopButton()
-          else if (_errorMessage == null) ...[
-            if (_result == null)
-              _buildStartButton()
-            else ...[
-              SizedBox(
-                height: 52,
-                child: OutlinedButton.icon(
-                  onPressed: _resultDialogOpen ? null : _showResultDialog,
-                  icon: const Icon(Icons.assessment_outlined),
-                  label: const Text('عرض النتيجة'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _teal,
-                    side: const BorderSide(color: _mint),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: _startChallenge,
-                  icon: const Icon(Icons.mic_rounded),
-                  label: const Text('إعادة التسجيل'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 52,
-              child: OutlinedButton.icon(
-                onPressed: _isLoadingPrompt ? null : _loadPrompt,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('تحدٍ جديد'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _teal,
-                  side: const BorderSide(color: _mint),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return SharedGameRecordingLayout(
+      intro: _buildProgressHeader(),
+      gameCard: _buildPromptCard(),
+      remainingSeconds: _remainingSeconds,
+      durationSeconds: _gameDurationSeconds,
+      isRecording: _isRecording,
+      isAnalyzing: _isAnalyzing,
+      onStart: _startChallenge,
+      onStop: _finishChallenge,
+      onNewChallenge: _loadPrompt,
+      errorWidget: _errorMessage == null ? null : _buildInlineError(),
+      analyzingMessage: 'جاري تحليل إجاباتك...',
     );
   }
+
   Widget _buildProgressHeader() {
     return Column(
       children: [
-        const Icon(Icons.lightbulb_rounded, size: 42, color: _mint),
+        const Icon(
+          Icons.lightbulb_rounded,
+          size: 42,
+          color: _mint,
+        ),
         const SizedBox(height: 8),
         const Text(
           'مستعد للتحدي؟',
@@ -790,7 +1003,7 @@ Widget build(BuildContext context) {
         ),
         const SizedBox(height: 8),
         Text(
-          'سيظهر لك موضوع. اذكر أكبر عدد ممكن من الإجابات الصحيحة خلال 20 ثانية. سيحلّل طليق إجاباتك، ويحفظ نتيجتك ويقارنها بأفضل نتيجة سابقة لك في الموضوع نفسه.',
+          '.اذكر أكبر عدد ممكن من الإجابات على الموضوع التالي خلال 20 ثانية',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
@@ -817,7 +1030,10 @@ Widget build(BuildContext context) {
         children: [
           const Text(
             'سؤال التحدي',
-            style: TextStyle(color: _teal, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: _teal,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 14),
           Text(
@@ -835,180 +1051,6 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildTimerCard() {
-    final progress = _remainingSeconds / _gameDurationSeconds;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 124,
-            height: 124,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.expand(
-                  child: CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 9,
-                    backgroundColor: const Color(0xFFE8EEEC),
-                    color: _remainingSeconds <= 5 ? _coral : _mint,
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$_remainingSeconds',
-                      style: const TextStyle(
-                        fontSize: 38,
-                        fontWeight: FontWeight.bold,
-                        color: _teal,
-                      ),
-                    ),
-                    const Text('ثانية', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _isRecording ? Icons.mic : Icons.hourglass_top_rounded,
-                color: _isRecording ? _coral : _mint,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                _isRecording
-                    ? 'جاري تسجيل إجاباتك...'
-                    : 'جاري تجهيز النتيجة...',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStartButton() {
-    return SizedBox(
-      height: 56,
-      child: ElevatedButton.icon(
-        onPressed: _isLoadingPrompt ? null : _startChallenge,
-        icon: const Icon(Icons.mic_rounded),
-        label: const Text(
-          'ابدأ التحدي',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _teal,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStopButton() {
-    return Column(
-      children: [
-        SizedBox(
-          height: 54,
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _finishChallenge,
-            icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('إنهاء التسجيل الآن'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _teal,
-              side: const BorderSide(color: _mint),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextButton.icon(
-          onPressed: _restartRecording,
-          icon: const Icon(Icons.replay_rounded),
-          label: const Text('إعادة التسجيل'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _restartRecording() async {
-    if (!_isRecording) return;
-    _gameTimer?.cancel();
-    try {
-      await _recordingService.stopRecording();
-    } catch (_) {}
-    if (!mounted) return;
-    setState(() {
-      _isRecording = false;
-      _hasStarted = false;
-      _remainingSeconds = _gameDurationSeconds;
-      _lastRecordingPath = null;
-    });
-    await _startChallenge();
-  }
-
-  Widget _buildRetryRecordingButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 54,
-      child: ElevatedButton.icon(
-        onPressed: _startChallenge,
-        icon: const Icon(Icons.mic_rounded),
-        label: const Text('إعادة التسجيل'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _teal,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAnalyzingState() {
-    return const Padding(
-      padding: EdgeInsets.all(24),
-      child: Column(
-        children: [
-          CircularProgressIndicator(color: _teal),
-          SizedBox(height: 16),
-          Text(
-            'نحلّل إجاباتك الآن...',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'قد يستغرق التحليل بعض الوقت.',
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildErrorState() {
     return Center(
       child: Padding(
@@ -1016,7 +1058,11 @@ Widget build(BuildContext context) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 48, color: _coral),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: _coral,
+            ),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'تعذر تحميل السؤال.',
@@ -1139,12 +1185,10 @@ class _ConfettiPainter extends CustomPainter {
       final rotation =
           progress * math.pi * 4 + random.nextDouble() * math.pi;
 
-      // تجاهل القطع التي تجاوزت أسفل النافذة.
       if (y > size.height + particleSize * 2) {
         continue;
       }
 
-      // تبدأ القطع بالتلاشي عند اقترابها من أسفل النافذة.
       final fadeStart = size.height * 0.82;
       final fadeEnd = size.height + particleSize * 2;
 

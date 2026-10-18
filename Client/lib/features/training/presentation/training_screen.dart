@@ -270,12 +270,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: _BackButton(
-                onTap: widget.onBack ?? () => Navigator.maybePop(context),
-              ),
-            ),
+         
             const SizedBox(height: 14),
             Text('التدريب', style: TrainingText.screenTitle),
             const SizedBox(height: 4),
@@ -314,32 +309,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 }
 
-class _BackButton extends StatelessWidget {
-  const _BackButton({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'رجوع',
-      child: Material(
-        color: TrainingColors.surface,
-        shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: const SizedBox(
-            width: 44,
-            height: 44,
-            child: Center(child: TaleeqSvgIcon(TaleeqIcons.chevronRight)),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.onRetry});
@@ -363,3 +332,4 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
+

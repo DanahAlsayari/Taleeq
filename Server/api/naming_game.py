@@ -38,6 +38,22 @@ def ensure_score_table(db: Session) -> None:
     db.commit()
 
 
+def ensure_attempt_table(db: Session) -> None:
+    """Create the individual-attempt history table if it does not exist."""
+    db.execute(text("""
+        CREATE TABLE IF NOT EXISTS naming_challenge_attempts (
+            id BIGSERIAL PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            prompt_id INTEGER NOT NULL,
+            valid_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+            valid_count INTEGER NOT NULL DEFAULT 0,
+            speech_analysis JSONB,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """))
+    db.commit()
+
+
 def parse_json_response(content: str) -> dict:
     content = content.strip()
     content = re.sub(r"^```(?:json)?\\s*", "", content)
@@ -197,6 +213,7 @@ async def analyze_naming_challenge(
         best_score = max(previous_best, valid_count)
         new_record = valid_count > previous_best
 
+        ensure_attempt_table(db)
         db.execute(text("""
             INSERT INTO naming_challenge_scores
                 (user_id, prompt_id, last_score, best_score, attempt_count, updated_at)
@@ -209,6 +226,22 @@ async def analyze_naming_challenge(
         """), {
             "user_id": user_id, "prompt_id": prompt["id"],
             "last_score": valid_count, "best_score": best_score,
+        })
+
+        # Persist every successful analysis as its own attempt, not just an aggregate score.
+        db.execute(text("""
+            INSERT INTO naming_challenge_attempts
+                (user_id, prompt_id, valid_items, valid_count, speech_analysis, created_at)
+            VALUES (
+                :user_id, :prompt_id, CAST(:valid_items AS JSONB),
+                :valid_count, CAST(:speech_analysis AS JSONB), CURRENT_TIMESTAMP
+            )
+        """), {
+            "user_id": user_id,
+            "prompt_id": prompt["id"],
+            "valid_items": json.dumps(valid_items, ensure_ascii=False),
+            "valid_count": valid_count,
+            "speech_analysis": json.dumps(speech_analysis.model_dump(), ensure_ascii=False, default=str),
         })
         db.commit()
         saved = db.execute(text("""
@@ -233,4 +266,124 @@ async def analyze_naming_challenge(
         "new_record": new_record,
         "duration_seconds": prompt["duration_seconds"],
         "speech_analysis": speech_analysis.model_dump(),
+    }
+
+@router.get("/attempts")
+def get_naming_challenge_attempts(
+    limit: int = 50,
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return real individual attempts for the signed-in user, newest first."""
+    ensure_attempt_table(db)
+    safe_limit = max(1, min(limit, 100))
+    rows = db.execute(text("""
+        SELECT
+            a.id,
+            a.prompt_id,
+            p.prompt_ar AS prompt,
+            p.difficulty,
+            p.category,
+            p.challenge_type,
+            a.valid_items,
+            a.valid_count,
+            a.speech_analysis,
+            a.created_at
+        FROM naming_challenge_attempts AS a
+        LEFT JOIN naming_challenge_prompts AS p ON p.id = a.prompt_id
+        WHERE a.user_id = :user_id
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT :limit
+    """), {"user_id": str(current_user.id), "limit": safe_limit}).mappings().all()
+
+    return {
+        "total_attempts": len(rows),
+        "attempts": [
+            {
+                "id": row["id"],
+                "attempt_id": row["id"],
+                "prompt_id": row["prompt_id"],
+                "prompt": row["prompt"],
+                "difficulty": row["difficulty"],
+                "category": row["category"],
+                "challenge_type": row["challenge_type"],
+                "valid_items": row["valid_items"] or [],
+                "valid_count": row["valid_count"],
+                "speech_analysis": row["speech_analysis"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            }
+            for row in rows
+        ],
+    }
+
+
+@router.get("/scores")
+def get_naming_challenge_scores(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    ensure_score_table(db)
+    ensure_attempt_table(db)
+
+    rows = db.execute(text("""
+        SELECT
+            s.prompt_id,
+            p.prompt_ar,
+            p.difficulty,
+            s.last_score,
+            s.best_score,
+            s.attempt_count,
+            s.updated_at
+        FROM naming_challenge_scores AS s
+        LEFT JOIN naming_challenge_prompts AS p ON p.id = s.prompt_id
+        WHERE s.user_id = :user_id
+        ORDER BY s.updated_at DESC
+    """), {"user_id": str(current_user.id)}).mappings().all()
+
+    attempts_rows = db.execute(text("""
+        SELECT
+            a.id,
+            a.prompt_id,
+            p.prompt_ar AS prompt,
+            p.difficulty,
+            a.valid_items,
+            a.valid_count,
+            a.speech_analysis,
+            a.created_at
+        FROM naming_challenge_attempts AS a
+        LEFT JOIN naming_challenge_prompts AS p ON p.id = a.prompt_id
+        WHERE a.user_id = :user_id
+        ORDER BY a.created_at DESC, a.id DESC
+        LIMIT 50
+    """), {"user_id": str(current_user.id)}).mappings().all()
+
+    return {
+        "total_questions_played": len(rows),
+        "total_attempts": sum(int(row["attempt_count"]) for row in rows),
+        "scores": [
+            {
+                "prompt_id": row["prompt_id"],
+                "prompt": row["prompt_ar"],
+                "difficulty": row["difficulty"],
+                "last_score": row["last_score"],
+                "best_score": row["best_score"],
+                "attempt_count": row["attempt_count"],
+                "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
+            }
+            for row in rows
+        ],
+        "attempts": [
+            {
+                "id": row["id"],
+                "attempt_id": row["id"],
+                "prompt_id": row["prompt_id"],
+                "prompt": row["prompt"],
+                "difficulty": row["difficulty"],
+                "valid_items": row["valid_items"] or [],
+                "valid_count": row["valid_count"],
+                "speech_analysis": row["speech_analysis"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            }
+            for row in attempts_rows
+        ],
     }

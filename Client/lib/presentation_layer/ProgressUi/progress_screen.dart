@@ -13,7 +13,10 @@ import '../../services/progress_calculator.dart';
 import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../widgets/taleeq_info_modal.dart';
 import '../exerciseUI/exercise_result_screen.dart';
-
+import '../../services/game_progress_api_service.dart';
+import '../trainingUI/Games/dont_say_it_screen.dart';
+import '../trainingUI/Games/naming_challenge_screen.dart';
+import '../../services/naming_challenge_api_service.dart';
 class ProgressScreen extends StatefulWidget {
   final int initialTab;
 
@@ -31,6 +34,22 @@ class _ProgressScreenState extends State<ProgressScreen> {
   late Future<List<ProgressAssessment>> _history;
   late Future<List<AssessmentProgressData>> _detailedHistory;
 
+  final GameProgressApiService _gameProgressService =
+      GameProgressApiService();
+
+  late Future<Map<String, dynamic>> _gameProgress;
+  
+
+ 
+Future<void> _loadGameProgress() async {
+  final future = _gameProgressService.getAllGameAttempts();
+
+  setState(() {
+    _gameProgress = future;
+  });
+
+  await future;
+}
   late int _tab;
   int _assessmentIndex = 0;
 
@@ -56,12 +75,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
     super.initState();
     _tab = widget.initialTab;
     _loadProgress();
+    _loadGameProgress();
   }
 
   void _retry() {
     setState(() {
       _assessmentIndex = 0;
       _loadProgress();
+      _loadGameProgress();
     });
   }
 
@@ -73,9 +94,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
     );
 
     if (!mounted) return;
-
+      
+      
     _retry();
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -111,6 +134,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   _tabButton('نظرة عامة', 0),
                   _tabButton('التقييمات', 1),
                   _tabButton('التدريب', 2),
+                   _tabButton('الألعاب', 3),
                 ],
               ),
             ),
@@ -122,6 +146,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 _historyView(isOverview: true),
                 _historyView(isOverview: false),
                 _trainingView(),
+                _gamesView(),
               ],
             ),
           ),
@@ -135,7 +160,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _tab = index),
+       onTap: () {
+  setState(() => _tab = index);
+
+  if (index == 3) {
+    _loadGameProgress();
+  }
+},
         borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -1254,7 +1285,852 @@ SizedBox(
     final local = date.toLocal();
     return '${local.day}/${local.month}/${local.year}';
   }
+Widget _gamesView() {
+  return FutureBuilder<Map<String, dynamic>>(
+    future: _gameProgress,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(
+          child: CircularProgressIndicator(
+            color: TaleeqTheme.primaryTeal,
+          ),
+        );
+      }
+
+      if (snapshot.hasError) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.wifi_off_rounded,
+                  size: 44,
+                  color: TaleeqTheme.textMuted,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'تعذر تحميل نتائج الألعاب',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: TaleeqTheme.darkSlate,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(_loadGameProgress);
+                  },
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('إعادة المحاولة'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TaleeqTheme.primaryTeal,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
+      final data = snapshot.data ?? {};
+
+      final dontSayIt = Map<String, dynamic>.from(
+        data['dont_say_it'] as Map? ?? {},
+      );
+final namingRaw = data['naming_challenge'];
+
+final naming = namingRaw is Map
+    ? Map<String, dynamic>.from(namingRaw)
+    : <String, dynamic>{};
+
+final namingDataRaw = naming['data'];
+
+final namingData = namingDataRaw is Map
+    ? Map<String, dynamic>.from(namingDataRaw)
+    : naming;
+
+final dontAttemptsRaw = dontSayIt['attempts'];
+
+final dontAttempts = dontAttemptsRaw is List
+    ? dontAttemptsRaw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList()
+    : <Map<String, dynamic>>[];
+
+final namingAttemptsRaw =
+    namingData['attempts'] ;
+
+final namingScores = namingAttemptsRaw is List
+    ? namingAttemptsRaw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList()
+    : <Map<String, dynamic>>[];
+final namingAttemptsList = namingAttemptsRaw is List
+    ? namingAttemptsRaw
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList()
+    : <Map<String, dynamic>>[];
+    
+      return RefreshIndicator(
+        color: TaleeqTheme.primaryTeal,
+        onRefresh: () async {
+          setState(_loadGameProgress);
+          await _gameProgress;
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'ملخص الأداء',
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w800,
+                      color: TaleeqTheme.darkSlate,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'ما المقصود بنسبة التأتأة؟',
+                  onPressed: () {
+                    showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        backgroundColor: TaleeqTheme.warmBackground,
+                        title: const Text(
+                          'نسبة التأتأة',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: TaleeqTheme.darkSlate,
+                          ),
+                        ),
+                        content: const Text(
+                          '  توضح نسبة الكلام الذي رُصدت فيه مظاهر التأتأة'
+                          ' ( مثل التكرار أو الإطالة أو التوقف  )   '
+                          ' مقارنة بالكلام الكلي ،'
+                          'انخفاض النسبة يعني انخفاضها وفق هذا المؤشر.',
+                          style: TextStyle(height: 1.7),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.pop(dialogContext),
+                            child: const Text('حسنًا'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.info_outline_rounded,
+                    color: TaleeqTheme.primaryTeal,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'تابع آخر نسبة تأتأة وأقل نسبة سجلتها في كل لعبة.',
+              style: TextStyle(
+                fontSize: 12,
+                color: TaleeqTheme.textMuted,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            _gamePerformanceCard(
+              title: 'لا تقولها',
+              icon: Icons.record_voice_over_rounded,
+              latest: _latestGameStutteringPercent(dontAttempts),
+              lowest: _lowestGameStutteringPercent(dontAttempts),
+            ),
+
+            const SizedBox(height: 12),
+
+            _gamePerformanceCard(
+              title: 'تحدي التعداد',
+              icon: Icons.lightbulb_outline_rounded,
+              latest: _latestGameStutteringPercent(namingScores),
+              lowest: _lowestGameStutteringPercent(namingScores),
+            ),
+
+            const SizedBox(height: 28),
+
+            const Text(
+              'سجل المحاولات',
+              style: TextStyle(
+                fontSize: 21,
+                fontWeight: FontWeight.w800,
+                color: TaleeqTheme.darkSlate,
+              ),
+            ),
+            const SizedBox(height: 6),
+            
+            const SizedBox(height: 14),
+
+            _buildGameAttemptHistory(
+              dontAttempts: dontAttempts,
+              namingScores: namingScores,
+            ),
+          ],
+        ),
+      );
+    },
+  );
 }
+
+Widget _buildGameAttemptHistory({
+  required List<Map<String, dynamic>> dontAttempts,
+  required List<Map<String, dynamic>> namingScores,
+}) {
+  return _GameAttemptHistoryContent(
+    dontAttempts: dontAttempts,
+    namingScores: namingScores,
+  );
+}
+
+  Widget _gameSummaryCard({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: TaleeqTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            icon,
+            color: TaleeqTheme.primaryTeal,
+            size: 26,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            title,
+            style: GoogleFonts.cairo(
+              fontSize: 12,
+              color: TaleeqTheme.textMuted,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.cairo(
+              fontSize: 25,
+              fontWeight: FontWeight.w800,
+              color: TaleeqTheme.darkSlate,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _gameSectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            color: TaleeqTheme.primaryTeal,
+            size: 23,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: GoogleFonts.cairo(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: TaleeqTheme.darkSlate,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _gameEmptyCard(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.sports_esports_outlined,
+            size: 32,
+            color: TaleeqTheme.textMuted,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.cairo(
+              fontSize: 13,
+              color: TaleeqTheme.textMuted,
+              height: 1.6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _gameResultCard({
+    required String title,
+    required String subtitle,
+    required String status,
+    required Color statusColor,
+    required IconData icon,
+    required List<String> details,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: TaleeqTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.cairo(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: TaleeqTheme.darkSlate,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
+                        color: TaleeqTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                icon,
+                color: statusColor,
+                size: 24,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 5,
+            ),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              status,
+              style: GoogleFonts.cairo(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: statusColor,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...details.map(
+            (detail) => Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '• ',
+                    style: TextStyle(
+                      color: TaleeqTheme.primaryTeal,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      detail,
+                      style: GoogleFonts.cairo(
+                        fontSize: 12,
+                        color: TaleeqTheme.darkSlate,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatGameDate(String value) {
+    final date = DateTime.tryParse(value);
+
+    if (date == null) return value;
+
+    final local = date.toLocal();
+
+    return '${local.day}/${local.month}/${local.year}'
+        ' - ${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _GameAttemptHistoryContent extends StatefulWidget {
+  const _GameAttemptHistoryContent({
+    required this.dontAttempts,
+    required this.namingScores,
+  });
+
+  final List<Map<String, dynamic>> dontAttempts;
+  final List<Map<String, dynamic>> namingScores;
+
+  @override
+  State<_GameAttemptHistoryContent> createState() =>
+      _GameAttemptHistoryContentState();
+}
+
+class _GameAttemptHistoryContentState extends State<_GameAttemptHistoryContent> {
+  String _filter = 'الكل';
+
+  String _dateLabel(Map<String, dynamic> item) {
+    final raw = item['created_at'] ?? item['updated_at'];
+    final date = DateTime.tryParse(raw?.toString() ?? '');
+    if (date == null) return 'التاريخ غير متوفر';
+    final local = date.toLocal();
+    return '${local.day}/${local.month}/${local.year}';
+  }
+
+  double? _percent(Map<String, dynamic> item) {
+    final speech = item['speech_analysis'];
+    if (speech is Map) {
+      final value = speech['stuttering_percent'] ??
+          speech['stuttering_percentage'] ??
+          speech['overall_stuttering_percent'];
+      if (value is num) return value.toDouble();
+      if (value != null) return double.tryParse(value.toString());
+    }
+    final direct = item['stuttering_percent'] ??
+        item['stuttering_percentage'] ??
+        item['overall_stuttering_percent'];
+    if (direct is num) return direct.toDouble();
+    if (direct != null) return double.tryParse(direct.toString());
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final all = <Map<String, dynamic>>[
+      ...widget.dontAttempts.map((item) => {
+            ...item,
+            '_game_key': 'dont_say_it',
+            '_game_label': 'لا تقولها',
+          }),
+      ...widget.namingScores.map((item) => {
+            ...item,
+            '_game_key': 'naming_challenge',
+            '_game_label': 'تحدي التعداد',
+          }),
+    ];
+    all.sort((a, b) {
+      final dateA = DateTime.tryParse(
+        (a['created_at'] ?? a['updated_at'] ?? '').toString(),
+      );
+      final dateB = DateTime.tryParse(
+        (b['created_at'] ?? b['updated_at'] ?? '').toString(),
+      );
+      if (dateA == null && dateB == null) return 0;
+      if (dateA == null) return 1;
+      if (dateB == null) return -1;
+      return dateB.compareTo(dateA);
+    });
+
+    final visible = all.where((item) {
+      if (_filter == 'لا تقولها') return item['_game_key'] == 'dont_say_it';
+      if (_filter == 'تحدي التعداد') {
+        return item['_game_key'] == 'naming_challenge';
+      }
+      return true;
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: ['الكل', 'لا تقولها', 'تحدي التعداد'].map((label) {
+            final selected = _filter == label;
+            return ChoiceChip(
+              label: Text(label),
+              selected: selected,
+              onSelected: (_) => setState(() => _filter = label),
+              selectedColor: TaleeqTheme.primaryTeal.withOpacity(0.13),
+              labelStyle: TextStyle(
+                color: selected
+                    ? TaleeqTheme.primaryTeal
+                    : TaleeqTheme.darkSlate,
+                fontWeight: FontWeight.w700,
+              ),
+              side: BorderSide(
+                color: selected
+                    ? TaleeqTheme.primaryTeal
+                    : TaleeqTheme.borderSubtle,
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 12),
+        if (visible.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: TaleeqTheme.borderSubtle),
+            ),
+            child: const Text(
+              'ما فيه محاولات مسجلة لهذا الخيار حتى الآن.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: TaleeqTheme.textMuted, height: 1.6),
+            ),
+          )
+        else
+          ...visible.map((item) {
+            final gameKey = item['_game_key']?.toString();
+            final gameName = item['_game_label']?.toString() ?? 'اللعبة';
+            final percent = _percent(item);
+            final passed = item['passed'] == true ||
+                item['success'] == true ||
+                item['is_correct'] == true;
+            final status = gameKey == 'naming_challenge'
+                ? ((item['valid_count'] ?? item['last_score'] ?? item['score'])
+                            is num
+                    ? 'النتيجة: ${item['valid_count'] ?? item['last_score'] ?? item['score']}'
+                    : 'النتيجة محفوظة')
+                : (passed ? 'اجتزت التحدي' : 'لم تجتز التحدي');
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(17),
+                border: Border.all(color: TaleeqTheme.borderSubtle),
+                boxShadow: TaleeqTheme.cardShadow,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: TaleeqTheme.primaryTeal.withOpacity(0.09),
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(
+                          gameKey == 'dont_say_it'
+                              ? Icons.record_voice_over_rounded
+                              : Icons.lightbulb_outline_rounded,
+                          color: TaleeqTheme.primaryTeal,
+                        ),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              gameName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: TaleeqTheme.darkSlate,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _dateLabel(item),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: TaleeqTheme.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _historyValue(
+                          'نسبة التأتأة',
+                          percent == null ? '—' : '${percent.toStringAsFixed(1)}%',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: _historyValue('النتيجة', status)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        final difficulty =
+                            item['difficulty']?.toString() ?? 'easy';
+                        Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => gameKey == 'dont_say_it'
+                                ? DontSayItScreen(
+                                    difficulty: difficulty,
+                                    previousAttempt: item,
+                                  )
+                                : NamingChallengeScreen(
+                                    difficulty: difficulty,
+                                    previousAttempt: item,
+                                  ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text('التفاصيل'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: TaleeqTheme.primaryTeal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+Widget _historyValue(String label, String value) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+    decoration: BoxDecoration(
+      color: TaleeqTheme.warmBackground,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: TaleeqTheme.textMuted)),
+        const SizedBox(height: 5),
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            color: TaleeqTheme.darkSlate,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+double? _attemptStutteringPercent(Map<String, dynamic> item) {
+  final speechAnalysis = item['speech_analysis'];
+
+  if (speechAnalysis is Map) {
+    for (final key in [
+      'stuttering_percent',
+      'stuttering_percentage',
+      'overall_stuttering_percent',
+    ]) {
+      final value = speechAnalysis[key];
+      if (value is num) return value.toDouble();
+    }
+  }
+
+  for (final key in [
+    'stuttering_percent',
+    'stuttering_percentage',
+    'overall_stuttering_percent',
+  ]) {
+    final value = item[key];
+    if (value is num) return value.toDouble();
+  }
+
+  return null;
+}
+
+double? _latestGameStutteringPercent(
+  List<Map<String, dynamic>> attempts,
+) {
+  final sorted = [...attempts]
+    ..sort((a, b) {
+      final dateA = DateTime.tryParse(
+        (a['created_at'] ?? a['updated_at'] ?? '').toString(),
+      );
+      final dateB = DateTime.tryParse(
+        (b['created_at'] ?? b['updated_at'] ?? '').toString(),
+      );
+
+      if (dateA == null && dateB == null) return 0;
+      if (dateA == null) return -1;
+      if (dateB == null) return 1;
+      return dateA.compareTo(dateB);
+    });
+
+  for (final attempt in sorted.reversed) {
+    final percent = _attemptStutteringPercent(attempt);
+    if (percent != null) return percent;
+  }
+
+  return null;
+}
+
+double? _lowestGameStutteringPercent(
+  List<Map<String, dynamic>> attempts,
+) {
+  final values = attempts
+      .map(_attemptStutteringPercent)
+      .whereType<double>()
+      .toList();
+
+  if (values.isEmpty) return null;
+  return values.reduce((a, b) => a < b ? a : b);
+}
+
+Widget _gamePerformanceCard({
+  required String title,
+  required IconData icon,
+  required double? latest,
+  required double? lowest,
+}) {
+  Widget metric(String label, double? value, IconData metricIcon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 15,
+        ),
+        decoration: BoxDecoration(
+          color: TaleeqTheme.warmBackground,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: TaleeqTheme.borderSubtle),
+        ),
+        child: Column(
+          children: [
+            Icon(
+              metricIcon,
+              color: TaleeqTheme.primaryTeal,
+              size: 22,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value == null ? '—' : '${value.toStringAsFixed(1)}%',
+              textDirection: TextDirection.ltr,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: TaleeqTheme.darkSlate,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                color: TaleeqTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(19),
+      border: Border.all(color: TaleeqTheme.borderSubtle),
+      boxShadow: TaleeqTheme.cardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: TaleeqTheme.primaryTeal, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                color: TaleeqTheme.darkSlate,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            metric(
+              'آخر نسبة تأتأة',
+              latest,
+              Icons.graphic_eq_rounded,
+            ),
+            const SizedBox(width: 10),
+            metric(
+              'أقل نسبة تأتأة',
+              lowest,
+              Icons.emoji_events_outlined,
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
 
 class _AssessmentDetails extends StatefulWidget {
   final int assessmentId;
