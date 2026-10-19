@@ -384,7 +384,6 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                       ],
                       // مشاركة التقرير
 
-
                       const SizedBox(height: 32),
                     ]),
                   ),
@@ -404,7 +403,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
       padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: TaleeqTheme.primaryTeal, width: 1.5),
+        border: Border.all(color: TaleeqTheme.borderSubtle, width: 1),
         borderRadius: BorderRadius.circular(50),
       ),
       child: Row(
