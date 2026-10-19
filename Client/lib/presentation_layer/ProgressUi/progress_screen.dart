@@ -243,7 +243,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     if (sorted.length == 1) {
       return (
-        title: 'هذه أول نتيجة لـ$patternName',
+        title: 'هذه أول نتيجة ل$patternName',
         message: 'ستظهر مقارنة تطور هذا النمط بعد إجراء تقييم آخر.',
         icon: Icons.info_outline_rounded,
         color: TaleeqTheme.textMuted,
@@ -268,7 +268,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
       if (change < 0) {
         return (
-          title: '$patternName أصبح أقل',
+          title: 'انخفضت نسبة حدوث $patternName',
           message:
               'انخفضت نسبة $patternName بمقدار '
               '${change.abs().toStringAsFixed(1)} نقطة مئوية '
@@ -279,7 +279,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       }
 
       return (
-        title: '$patternName أصبح أكثر',
+        title: 'ارتفعت نسبة حدوث $patternName',
         message:
             'ارتفعت نسبة $patternName بمقدار '
             '${change.toStringAsFixed(1)} نقطة مئوية '
@@ -322,7 +322,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     if (slope < 0) {
       return (
-        title: '$patternName أصبح أقل',
+        title: 'انخفضت نسبة حدوث $patternName',
         message:
             'تُظهر نتائج التقييمات انخفاضًا في نسبة $patternName '
             'مع مرور الوقت. وهذا مؤشر إيجابي.',
@@ -331,7 +331,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       );
     }
     return (
-      title: '$patternName أصبح أكثر',
+      title: 'ارتفعت نسبة حدوث $patternName',
       message:
           'تُظهر نتائج التقييمات ارتفاعًا في نسبة $patternName '
           'مع مرور الوقت. ويُفضّل متابعة هذا الجانب في التقييمات القادمة.',
@@ -403,7 +403,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
       if (change < 0) {
         return (
-          title: 'انخفضت نسبة التأتأة',
+          title: 'انخفضت نسبة التأتأة في هذه المهمة',
           message:
               'انخفضت النسبة بمقدار ${change.abs().toStringAsFixed(1)} '
               'نقطة مئوية مقارنة بالتقييم السابق. وهذا مؤشر إيجابي.',
@@ -413,7 +413,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
       }
 
       return (
-        title: 'ارتفعت نسبة التأتأة',
+        title: 'ارتفعت نسبة التأتأة في هذه المهمة',
         message:
             'ارتفعت النسبة بمقدار ${change.toStringAsFixed(1)} '
             'نقطة مئوية مقارنة بالتقييم السابق.',
@@ -452,7 +452,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     if (slope < 0) {
       return (
-        title: 'انخفضت نسبة التأتأة',
+        title: 'انخفضت نسبة التأتأة في هذه المهمة',
         message: 'تُظهر تقييماتك انخفاضًا في نسبة التأتأة مع الوقت.',
         icon: Icons.trending_down_rounded,
         color: TaleeqTheme.primaryTeal,
@@ -460,7 +460,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     }
 
     return (
-      title: 'ارتفعت نسبة التأتأة',
+      title: 'ارتفعت نسبة التأتأة في هذه المهمة',
       message: 'تُظهر تقييماتك ارتفاعًا في نسبة التأتأة مع الوقت.',
       icon: Icons.trending_up_rounded,
       color: TaleeqTheme.darkSlate,
@@ -475,6 +475,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
     String trendMessage,
     IconData trendIcon,
     Color trendColor,
+    bool showComparison,
   ) {
     String description;
 
@@ -533,6 +534,137 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
                 ),
 
+                if (showComparison)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            percent == null
+                                ? '—'
+                                : percent.abs() < 0.05
+                                ? '0.0'
+                                : '${percent < 0 ? '−' : '+'}${percent.abs().toStringAsFixed(1)}',
+                            textDirection: TextDirection.ltr,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: percent == null || percent.abs() < 0.05
+                                  ? TaleeqTheme.textMuted
+                                  : percent < 0
+                                  ? Colors.green
+                                  : Colors.red,
+                            ),
+                          ),
+                          const Text(
+                            'نقطة مئوية',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w400,
+                              color: TaleeqTheme.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 2),
+                      IconButton(
+                        onPressed: () {
+                          showTaleeqInfoModal(
+                            context,
+                            title: trendTitle,
+                            category: 'تفسير النتيجة',
+                            description: trendMessage,
+                            icon: Icons.info_outline_rounded,
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.info_outline_rounded,
+                          size: 18,
+                          color: TaleeqTheme.textMuted,
+                        ),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 32,
+                          minHeight: 40,
+                        ),
+                        tooltip: 'تفسير النتيجة',
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+            if (showComparison) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    trendIcon,
+                    size: 17,
+                    color: percent == null || percent.abs() < 0.05
+                        ? TaleeqTheme.textMuted
+                        : percent < 0
+                        ? Colors.green
+                        : Colors.red,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          trendTitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: trendColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _taskRow(
+    String taskName,
+    double? percent,
+    String trendTitle,
+    String trendMessage,
+    IconData trendIcon,
+    Color trendColor,
+    bool showComparison,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  taskName,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: TaleeqTheme.darkSlate,
+                  ),
+                ),
+              ),
+
+              if (showComparison)
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.center,
@@ -570,33 +702,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       ],
                     ),
                     const SizedBox(width: 2),
-                    IconButton(
-                      onPressed: () {
-                        showTaleeqInfoModal(
-                          context,
-                          title: trendTitle,
-                          category: 'تفسير النتيجة',
-                          description: trendMessage,
-                          icon: Icons.info_outline_rounded,
-                        );
-                      },
-                      icon: const Icon(
-                        Icons.info_outline_rounded,
-                        size: 18,
-                        color: TaleeqTheme.textMuted,
-                      ),
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 40,
-                      ),
-                      tooltip: 'تفسير النتيجة',
-                    ),
                   ],
                 ),
-              ],
-            ),
+            ],
+          ),
+          if (showComparison) ...[
             const SizedBox(height: 8),
             Row(
               children: [
@@ -628,131 +738,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _taskRow(
-    String taskName,
-    double? percent,
-    String trendTitle,
-    String trendMessage,
-    IconData trendIcon,
-    Color trendColor,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  taskName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: TaleeqTheme.darkSlate,
-                  ),
-                ),
-              ),
-
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                textDirection: TextDirection.rtl,
-                children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        percent == null
-                            ? '—'
-                            : percent.abs() < 0.05
-                            ? '0.0'
-                            : '${percent < 0 ? '−' : '+'}${percent.abs().toStringAsFixed(1)}',
-                        textDirection: TextDirection.ltr,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: percent == null || percent.abs() < 0.05
-                              ? TaleeqTheme.textMuted
-                              : percent < 0
-                              ? Colors.green
-                              : Colors.red,
-                        ),
-                      ),
-                      const Text(
-                        'نقطة مئوية',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w400,
-                          color: TaleeqTheme.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 2),
-                  IconButton(
-                    onPressed: () {
-                      showTaleeqInfoModal(
-                        context,
-                        title: trendTitle,
-                        category: 'تفسير النتيجة',
-                        description: trendMessage,
-                        icon: Icons.info_outline_rounded,
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.info_outline_rounded,
-                      size: 18,
-                      color: TaleeqTheme.textMuted,
-                    ),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(
-                      minWidth: 32,
-                      minHeight: 40,
-                    ),
-                    tooltip: 'تفسير النتيجة',
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(
-                trendIcon,
-                size: 17,
-                color: percent == null || percent.abs() < 0.05
-                    ? TaleeqTheme.textMuted
-                    : percent < 0
-                    ? Colors.green
-                    : Colors.red,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      trendTitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: trendColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -951,9 +936,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
               const SizedBox(height: 5),
 
-              const Text(
-                'تعرّف على تغير أنماط التأتأة لديك عبر تقييماتك.',
-                style: TextStyle(fontSize: 12, color: TaleeqTheme.textMuted),
+              Text(
+                history.length < 2
+                    ? 'ستظهر مقارنة أنماط التأتأة بعد إكمال تقييم آخر.'
+                    : 'تعرّف على تغير أنماط التأتأة لديك عبر تقييماتك.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: TaleeqTheme.textMuted,
+                ),
               ),
 
               const SizedBox(height: 16),
@@ -1032,6 +1022,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         repetitionTrend.message,
                         repetitionTrend.icon,
                         repetitionTrend.color,
+                        detailedHistory.length >= 2,
                       ),
                       const Divider(height: 24),
                       _patternRow(
@@ -1042,6 +1033,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         prolongationTrend.message,
                         prolongationTrend.icon,
                         prolongationTrend.color,
+                        detailedHistory.length >= 2,
                       ),
                       const Divider(height: 24),
                       _patternRow(
@@ -1052,6 +1044,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                         blockTrend.message,
                         blockTrend.icon,
                         blockTrend.color,
+                        detailedHistory.length >= 2,
                       ),
                     ],
                   );
@@ -1076,9 +1069,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 ),
               ),
               const SizedBox(height: 5),
-              const Text(
-                'تابع نسبة التأتأة في كل مهمة عبر تقييماتك.',
-                style: TextStyle(fontSize: 12, color: TaleeqTheme.textMuted),
+              Text(
+                history.length < 2
+                    ? 'ستظهر مقارنة أدائك بعد إكمال تقييم آخر.'
+                    : 'تابع نسبة التأتأة في كل مهمة عبر تقييماتك.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: TaleeqTheme.textMuted,
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -1127,6 +1125,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
                       trend.message,
                       trend.icon,
                       trend.color,
+                      history.length >= 2,
                     );
                   }
 
