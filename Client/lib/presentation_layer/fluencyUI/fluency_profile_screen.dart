@@ -36,14 +36,17 @@ bool _isPrimaryPattern(FluencyProfileData data, String pattern) =>
 // =============================================================================
 // 3. MAIN SCREEN: طلاقتي (FluencyProfileScreen)
 // =============================================================================
+
 class FluencyProfileScreen extends StatefulWidget {
   final FluencyProfileData? profileData;
   final bool isHistoryView;
+  final bool isPreview;
 
   const FluencyProfileScreen({
     super.key,
     this.profileData,
     this.isHistoryView = false,
+    this.isPreview = false,
   });
 
   @override
@@ -62,6 +65,7 @@ class FluencyProfileScreen extends StatefulWidget {
 // real data function
 class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   late FluencyProfileData _data;
+  int _selectedTab = 0;
 
   final FluencyProfileService _fluencyProfileService = FluencyProfileService();
 
@@ -71,7 +75,8 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   void initState() {
     super.initState();
 
-    if (widget.isHistoryView && widget.profileData != null) {
+    if ((widget.isHistoryView || widget.isPreview) &&
+        widget.profileData != null) {
       _data = widget.profileData!;
       _isLoading = false;
     } else {
@@ -216,6 +221,95 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: TaleeqTheme.warmBackground,
+
+        bottomNavigationBar: widget.isHistoryView
+            ? null
+            : SafeArea(
+                top: false,
+                child: Container(
+                  color: TaleeqTheme.warmBackground,
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Light background for text only
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: TaleeqTheme.softTeal.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.auto_awesome_rounded,
+                                  color: TaleeqTheme.primaryTeal,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'خطوتك القادمة',
+                                  style: GoogleFonts.cairo(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: TaleeqTheme.primaryTeal,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
+                              style: GoogleFonts.cairo(
+                                fontSize: 12,
+                                color: TaleeqTheme.darkSlate,
+                                height: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Separate button without light green background
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              '/home',
+                              (route) => false,
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: TaleeqTheme.primaryTeal,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: Text(
+                            'ابدأ خطتي',
+                            style: GoogleFonts.cairo(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
         body: SafeArea(
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context)
@@ -236,112 +330,60 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       // حالة الجلسة
-
+                      _buildTabs(),
+                      const SizedBox(height: 20),
                       // 1. بطاقة مؤشر التأتأة الكلي المتحركة
-                      _OverallFluencyCard(
-                            data: _data,
-                            onInfoTap: () =>
-                                _showOverallStutteringInfo(context),
-                          )
-                          .animate()
-                          .fadeIn(duration: 500.ms, delay: 100.ms)
-                          .slideY(begin: 0.08, end: 0),
+                      if (_selectedTab == 0) ...[
+                        _OverallFluencyCard(
+                              data: _data,
+                              onInfoTap: () =>
+                                  _showOverallStutteringInfo(context),
+                            )
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 100.ms)
+                            .slideY(begin: 0.08, end: 0),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      _SimpleSpeechMetricsCard(
-                        data: _data,
-                        onSpeakingRateInfoTap: () =>
-                            _showSpeakingRateInfo(context),
-                        onTimingPacingInfoTap: () =>
-                            _showTimingPacingInfo(context),
-                      ),
+                        _SimpleSpeechMetricsCard(
+                          data: _data,
+                          onSpeakingRateInfoTap: () =>
+                              _showSpeakingRateInfo(context),
+                          onTimingPacingInfoTap: () =>
+                              _showTimingPacingInfo(context),
+                        ),
 
-                      const SizedBox(height: 24),
+                        const SizedBox(height: 24),
+                      ],
 
                       const SizedBox(height: 20),
 
                       // 2. الرسم البياني لمقارنة الأنماط (fl_chart)
-                      _StutteringPatternsChart(
-                            data: _data,
-                            onPatternInfoTap: (name, desc) {
-                              _showPatternDetailModal(context, name, desc);
-                            },
-                          )
-                          .animate()
-                          .fadeIn(duration: 500.ms, delay: 200.ms)
-                          .slideY(begin: 0.08, end: 0),
-
-                      const SizedBox(height: 20),
-
-                      // 3. مقاييس ديناميكيات وسرعة النطق (معدل التحدث + الإيقاع)
-                      _TaskResultsCard(tasks: _data.taskResults)
-                          .animate()
-                          .fadeIn(duration: 500.ms, delay: 300.ms)
-                          .slideY(begin: 0.08, end: 0),
-
-                      const SizedBox(height: 24),
-
-                      // مشاركة التقرير
-                      Column(
-                        children: [
-                          if (!widget.isHistoryView)
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 18,
-                              ),
-                              decoration: BoxDecoration(
-                                color: TaleeqTheme.softTeal.withValues(
-                                  alpha: 0.65,
-                                ),
-                                borderRadius: BorderRadius.circular(22),
-                              ),
-                              child: Text(
-                                '✨ بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.cairo(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: TaleeqTheme.primaryTeal,
-                                  height: 1.7,
-                                ),
-                              ),
-                            ),
-
-                          const SizedBox(height: 18),
-
-                          SizedBox(
-                            width: double.infinity,
-                            height: 56,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pushNamedAndRemoveUntil(
-                                  context,
-                                  '/home',
-                                  (route) => false,
-                                );
+                      if (_selectedTab == 1) ...[
+                        _StutteringPatternsChart(
+                              data: _data,
+                              onPatternInfoTap: (name, desc) {
+                                _showPatternDetailModal(context, name, desc);
                               },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: TaleeqTheme.primaryTeal,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                              ),
-                              child: Text(
-                                'ابدأ خطتي',
-                                style: GoogleFonts.cairo(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ).animate().fadeIn(duration: 500.ms, delay: 450.ms),
+                            )
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 200.ms)
+                            .slideY(begin: 0.08, end: 0),
+
+                        const SizedBox(height: 20),
+                      ],
+
+                      if (_selectedTab == 2) ...[
+                        // 3. مقاييس ديناميكيات وسرعة النطق (معدل التحدث + الإيقاع)
+                        _TaskResultsCard(tasks: _data.taskResults)
+                            .animate()
+                            .fadeIn(duration: 500.ms, delay: 300.ms)
+                            .slideY(begin: 0.08, end: 0),
+
+                        const SizedBox(height: 24),
+                      ],
+                      // مشاركة التقرير
+
 
                       const SizedBox(height: 32),
                     ]),
@@ -351,6 +393,54 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabs() {
+    const tabTitles = ['نظرة عامة', 'أنماط التلعثم', 'نتائج المهام'];
+
+    return Container(
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: TaleeqTheme.primaryTeal, width: 1.5),
+        borderRadius: BorderRadius.circular(50),
+      ),
+      child: Row(
+        children: List.generate(tabTitles.length, (index) {
+          final isSelected = _selectedTab == index;
+
+          return Expanded(
+            child: InkWell(
+              onTap: () => setState(() => _selectedTab = index),
+              borderRadius: BorderRadius.circular(50),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 3,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: isSelected ? TaleeqTheme.softTeal : Colors.transparent,
+                  borderRadius: BorderRadius.circular(50),
+                  border: isSelected
+                      ? Border.all(color: TaleeqTheme.mediumTeal, width: 1)
+                      : null,
+                ),
+                child: Text(
+                  tabTitles[index],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.cairo(
+                    fontSize: 14,
+                    fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                    color: TaleeqTheme.primaryTeal,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
       ),
     );
   }
@@ -1277,13 +1367,19 @@ class _TaskResultsCard extends StatelessWidget {
   const _TaskResultsCard({required this.tasks});
 
   String _getTaskName(String taskType) {
-    switch (taskType) {
+    switch (taskType.toLowerCase().trim()) {
       case 'task_1':
+      case 'reading':
         return 'القراءة بصوت عالٍ';
+
       case 'task_2':
+      case 'picture_description':
         return 'وصف الصورة';
+
       case 'task_3':
+      case 'spontaneous_questions':
         return 'التحدث العفوي';
+
       default:
         return taskType;
     }
