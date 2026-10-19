@@ -942,35 +942,44 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
         if (visibleSteps.isNotEmpty) ...[
           const SizedBox(height: 14),
           const Divider(color: TaleeqColors.border),
-          InkWell(
-            onTap: () => setState(() => _showSteps = !_showSteps),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'طريقة التطبيق',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color.fromARGB(255, 53, 82, 77),
-                      ),
-                    ),
-                  ),
-                  AnimatedRotation(
-                    turns: _showSteps ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: TaleeqColors.primary,
-                    ),
-                  ),
-                ],
+
+          Row(
+            children: [
+              const Icon(
+                Icons.format_list_numbered_rounded,
+                size: 21,
+                color: TaleeqColors.primary,
               ),
-            ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'كيف أطبّق التقنية؟',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: TaleeqColors.text,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showSteps = !_showSteps;
+                  });
+                },
+                icon: Icon(
+                  _showSteps
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: TaleeqColors.primary,
+                  size: 28,
+                ),
+                tooltip: _showSteps ? 'إخفاء الخطوات' : 'عرض الخطوات',
+              ),
+            ],
           ),
+
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,
