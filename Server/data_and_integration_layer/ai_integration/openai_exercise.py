@@ -36,7 +36,7 @@ class ExerciseAnalysisResult(BaseModel):
     block_percent: float = Field(ge=0.0, le=100.0)
 
     speaking_rate_wpm: float | None = Field(default=None, ge=0.0)
-    speaking_rate: float = Field(ge=0.0, le=100.0)
+    speaking_rate: float = Field(ge=0.0)
     timing_pacing: float = Field(ge=0.0, le=100.0)
 
     feedback: dict[str, Any]
@@ -98,7 +98,10 @@ Difficulty: {difficulty}
 Instructions: {instructions}
 Exercise content: {json.dumps(content, ensure_ascii=False)}
 
-Use the exercise instructions and content to evaluate task adherence.
+Use the exercise instructions and content to understand what
+the speaker is expected to do and to evaluate task adherence.
+
+
 For reading exercises, consider how accurately the speaker follows
 the provided text. For other exercise types, evaluate how well the
 speaker fulfills the requested task.
@@ -140,8 +143,7 @@ Estimate these values from the entire usable recording:
 - prolongation_percent: estimated percentage affected by prolongations.
 - block_percent: estimated percentage affected by blocks.
 - speaking_rate_wpm: estimated spoken words per minute, or null if unreliable.
-- speaking_rate: score from 0 to 100 for appropriateness and consistency
-  of speaking rate.
+- speaking_rate: estimated number of words spoken in 10 seconds.
 - timing_pacing: score from 0 to 100 for naturalness and consistency
   of timing, rhythm, and pauses.
 
@@ -150,40 +152,92 @@ Do not penalize a speaker solely for having a stutter or speaking slowly.
 Do not count pauses alone as stuttering. Use zero when no relevant
 event is audible. Keep scores consistent with the evidence.
 
+
 EXERCISE PERFORMANCE SCORES:
-Evaluate these four criteria from 0 to 100:
+Evaluate exercise performance using four scores from 0 to 100.
 
-- fluency_score: overall smoothness and continuity of speech,
-  considering stuttering events and disruptions without treating
-  stuttering_percent as the fluency score itself.
+Two scores are derived from the detailed speech metrics
+and must not be independently estimated:
 
-- rhythm_score: consistency and naturalness of speech rhythm,
-  including timing and pauses.
+- fluency_score: calculated as 100 minus stuttering_percent.
+  This represents fluency based on the estimated percentage
+  of speech affected by stuttering.
 
-- speed_control_score: ability to maintain an appropriate,
-  controlled speaking pace for the assigned exercise.
-  Do not reward speaking faster simply for being faster.
+- rhythm_score: equal to timing_pacing.
+  This represents the naturalness and consistency of speech
+  timing, rhythm, and pauses.
+
+Evaluate the following two scores independently using
+the audible recording and the provided exercise context:
+
+- speed_control_score: how well the speaker maintains an
+  appropriate and controlled speaking pace for the assigned
+  exercise. Consider the exercise instructions and difficulty.
+  Do not reward faster speech simply for being faster.
+  Do not invent a target speaking speed if none is specified.
 
 - task_adherence_score: how well the speaker follows the
   exercise instructions and completes the requested content.
-  Consider the exercise type and difficulty.
+  For reading exercises, consider how accurately the speaker
+  follows the provided text.
+  For other exercise types, evaluate how well the speaker
+  fulfills the requested task.
+  Do not require exact wording unless the exercise requires it.
 
-Keep these four scores distinct from the detailed speech metrics.
-Do not calculate a weighted total score; the backend calculates it.
+Keep speed_control_score and task_adherence_score distinct.
+
+Do not calculate a weighted total score.
+
+
 
 FEEDBACK:
-Provide brief, constructive feedback in Arabic for each criterion:
+Provide exactly one main strength and one main area for
+improvement based on the four exercise performance criteria:
 
-- fluency: feedback about fluency and one practical improvement.
-- rhythm: feedback about rhythm and one practical improvement.
-- speed_control: feedback about speaking pace and control.
-- task_adherence: feedback about completing the assigned exercise.
+- fluency: speech fluency based on stuttering_percent.
+- rhythm: speech rhythm and timing based on timing_pacing.
+- speed_control: control and appropriateness of speaking pace
+  according to the exercise instructions.
+- task_adherence: how well the speaker follows the exercise
+  instructions and completes the requested content.
 
-Base all feedback on the actual recording and exercise context.
-Do not invent errors, missed words, or stuttering events.
+STRENGTH:
+Identify the strongest aspect of the speaker's performance
+among these four criteria.
 
-These metrics and scores are estimates, not clinical measurements
-or diagnoses.
+Select the criterion that shows the clearest positive
+performance based on the audible evidence and exercise context.
+
+Provide specific positive feedback directly related to
+the selected criterion.
+
+IMPROVEMENT:
+Identify the most important area for improvement among
+the same four criteria.
+
+Prioritize the criterion that shows the clearest difficulty
+or has the greatest impact on completing the exercise.
+
+Provide one specific, practical suggestion directly related
+to the selected criterion.
+
+FEEDBACK RULES:
+- Base both feedback statements on the four evaluation criteria.
+- Do not introduce unrelated feedback topics.
+- Consider the estimated speech metrics and the assigned
+  exercise requirements when selecting feedback.
+- Select only one main strength and one main improvement.
+- The strength and improvement should focus on different
+  criteria whenever supported by the evidence.
+- Do not invent achievements, errors, or speech events.
+- Do not automatically treat slow speech, natural pauses,
+  or stuttering as failure to complete the exercise.
+- Write all feedback in Arabic.
+- Keep each statement to 1–2 concise sentences.
+- Use a supportive, clear, and constructive tone.
+- If there is insufficient evidence for a field,
+  return an empty string for that field.
+
 
 OUTPUT:
 Return only one valid JSON object with exactly these keys:
@@ -203,10 +257,8 @@ Return only one valid JSON object with exactly these keys:
   "speed_control_score": 0.0,
   "task_adherence_score": 0.0,
   "feedback": {{
-    "fluency": "",
-    "rhythm": "",
-    "speed_control": "",
-    "task_adherence": ""
+    "strength": "",
+    "improvement": ""
   }}
 }}
 

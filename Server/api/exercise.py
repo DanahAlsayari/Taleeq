@@ -57,6 +57,13 @@ async def analyze_exercise_audio(
             detail="صيغة التسجيل غير مدعومة.",
         )
 
+    print(
+    f"🎙️ RECEIVED {file.filename} "
+    f"| EXERCISE: {exercise_id} "
+    f"| SIZE: {len(audio_bytes)} "
+    f"| FORMAT: {audio_format}"
+    )
+
     # Analyze the exercise
     service = ExerciseAnalysisService(db)
 
@@ -115,6 +122,60 @@ def get_recent_exercise_attempts(
                 "block_percent": attempt.block_percent,
             },
             "feedback": attempt.feedback,
+            "audio_duration_seconds": attempt.audio_duration_seconds,
+        }
+        for attempt in attempts
+    ]
+
+
+
+@router.get("/attempts/stats")
+def get_exercise_training_stats(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    service = ExerciseAnalysisService(db)
+
+    return service.get_training_stats(
+        user_id=current_user.id,
+    )
+
+
+
+
+@router.get("/attempts/all")
+def get_all_exercise_attempts(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    repository = ExerciseAttemptRepository(db)
+
+    attempts = repository.get_all_attempts(
+        user_id=current_user.id,
+    )
+
+    return [
+        {
+            "id": str(attempt.id),
+            "exercise_id": str(attempt.exercise_id),
+            "exercise_type": attempt.exercise_type,
+            "difficulty": attempt.difficulty,
+            "created_at": attempt.created_at.isoformat(),
+            "scores": {
+                "fluency_score": attempt.fluency_score,
+                "rhythm_score": attempt.rhythm_score,
+                "speed_control_score": attempt.speed_control_score,
+                "task_adherence_score": attempt.task_adherence_score,
+                "total_score": attempt.total_score,
+            },
+            "metrics": {
+                "stuttering_percent": attempt.stuttering_percent,
+                "repetition_percent": attempt.repetition_percent,
+                "prolongation_percent": attempt.prolongation_percent,
+                "block_percent": attempt.block_percent,
+            },
+            "feedback": attempt.feedback,
+            "audio_duration_seconds": attempt.audio_duration_seconds,
         }
         for attempt in attempts
     ]

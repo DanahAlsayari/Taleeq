@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import uuid4
 
+
 from sqlalchemy import (
     Column,
     DateTime,
@@ -38,6 +39,12 @@ class ExerciseAttempt(Base):
         nullable=False,
     )
 
+
+    audio_duration_seconds = Column(
+        Integer,
+        nullable=True,
+    )
+
     exercise_type = Column(String(32), nullable=False)
     difficulty = Column(String(16),nullable=False)
 
@@ -64,6 +71,7 @@ class ExerciseAttempt(Base):
         nullable=False,
         default=datetime.utcnow,
     )
+
 
     ## useful for comaprasion
     __table_args__ = (

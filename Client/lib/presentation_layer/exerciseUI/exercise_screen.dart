@@ -1,4 +1,5 @@
 import 'package:client/presentation_layer/error_snackbar.dart';
+import 'package:client/presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
 import 'package:client/services/recording_service.dart';
 import 'package:flutter/material.dart';
 import 'package:client/models/technique_model.dart';
@@ -142,10 +143,13 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
       if (!mounted) return;
 
+      
       setState(() {
         isRecording = false;
+
         if (path != null) {
           recordingPath = path;
+          savedRecordingSeconds = recordingSeconds;
         }
       });
 
@@ -161,8 +165,17 @@ Future<void> _submitExercise() async {
     return;
   }
 
+  
   if (recordingPath == null) {
     ErrorSnackBar.show(context, 'سجّلي إجابتك أولًا');
+    return;
+  }
+
+  if (!recordingService.isRecordingDurationValid(savedRecordingSeconds)) {
+    ErrorSnackBar.show(
+      context,
+      'مدة التسجيل لازم تكون 15 ثانية على الأقل، أعيدي التسجيل',
+    );
     return;
   }
 
@@ -180,22 +193,25 @@ Future<void> _submitExercise() async {
 
     debugPrint('Exercise analysis result: $result');
 
+    
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const ExerciseSuccessScreen(),
+        builder: (_) => ExerciseSuccessScreen(
+          result: result,
+          exercise: widget.exercise,
+        ),
       ),
     );
+} catch (e) {
+  if (!mounted) return;
 
-  } catch (e) {
-    if (!mounted) return;
+  debugPrint('Exercise analysis error: $e');
 
-    debugPrint('Exercise analysis error: $e');
-
-    ErrorSnackBar.show(
-      context,
-      'تعذر تحليل التسجيل، حاولي مرة ثانية',
-    );
-  } finally {
+  ErrorSnackBar.show(
+    context,
+    e.toString().replaceFirst('Exception: ', ''),
+  );
+} finally {
     if (mounted) {
       setState(() {
         _isSubmitting = false;
@@ -207,6 +223,38 @@ Future<void> _submitExercise() async {
 
   @override
   Widget build(BuildContext context) {
+     if (_isSubmitting) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFCFAF6),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(
+                color: Color(0xFF6FA7A3),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'نجهّز لك تحليل تمرينك...',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF2E3A38),
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'لحظات ونعرض لك النتائج',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF8FA39F),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: Color(0xFFFCFAF6),
       body: Directionality(
@@ -305,7 +353,12 @@ Future<void> _submitExercise() async {
                         ),
                         
                           child: Text(
-                            exerciseData['difficulty'],
+                          {
+                            'easy': 'سهل',
+                            'medium': 'متوسط',
+                            'hard': 'صعب',
+                          }[exerciseData['difficulty']?.toString().toLowerCase()] ??
+                              exerciseData['difficulty'].toString(),
                             style: const TextStyle(
                               color: Color(0xFF6FA7A3),
                               fontWeight: FontWeight.bold,
@@ -372,6 +425,7 @@ Future<void> _submitExercise() async {
                         ),
                       ],
                     ),
+                    
                     child: Align(
                       child: exerciseData['type'] == 'Reading'
                           ? Text(
@@ -417,20 +471,22 @@ Future<void> _submitExercise() async {
                                 ,
                                 
                               ],
+                              
                             )
 
 
-                                                  // Storytelling
-                          : exerciseData['type'] == 'Storytelling'
+                          // Storytelling
+                          
+                          :exerciseData['type'] == 'Storytelling'
                               ? Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     const Icon(
                                       Icons.auto_stories_outlined,
-                                      size: 42,
+                                      size: 30,
                                       color: Color(0xFF6FA7A3),
                                     ),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 10),
                                     const Text(
                                       'احكِ لنا قصة',
                                       style: TextStyle(
@@ -440,16 +496,30 @@ Future<void> _submitExercise() async {
                                       ),
                                     ),
                                     const SizedBox(height: 12),
-                                    Text(
-                                      exerciseData['content']['prompt'] ??
-                                          exerciseData['content']['topic'] ??
-                                          '',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Color(0xFF2E3A38),
-                                        fontSize: 17,
-                                        height: 1.6,
-                                      ),
+                                    
+
+
+                                    Row(
+                                      children: (exerciseData['content']['image_urls'] as List<dynamic>)
+                                          .map(
+                                            (url) => Expanded(
+                                              child: Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                child: ClipRRect(
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  child: Image.network(
+                                                    url.toString(),
+                                                    height: 110,
+                                                    fit: BoxFit.cover,
+                                                    errorBuilder: (context, error, stackTrace) {
+                                                      return const Icon(Icons.broken_image_outlined);
+                                                    },
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
                                     ),
                                   ],
                                 )
@@ -903,19 +973,43 @@ bottomNavigationBar: Padding(
       ),
 */
 
-bottomNavigationBar: Padding(
-  padding: const EdgeInsets.all(24),
-  child: ElevatedButton(
-    onPressed: _isSubmitting ? null : _submitExercise,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF6FA7A3),
-      foregroundColor: Colors.white,
-      minimumSize: const Size(double.infinity, 56),
+    // Fixed bottom button
+    bottomNavigationBar: Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: const BoxDecoration(
+        color: TaleeqColors.background,
+        border: Border(
+          top: BorderSide(color: TaleeqColors.border),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 58,
+          child: ElevatedButton.icon(
+            onPressed: _isSubmitting ? null : _submitExercise,
+            icon: const Icon(
+              Icons.send_rounded,
+              size: 22,
+            ),
+            label: Text(
+              _isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: TaleeqColors.medium,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+          ),
+        ),
+      ),
     ),
-    child: Text(_isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل'),
-  ),
-),
-
 
 
     );

@@ -2,6 +2,8 @@
 from uuid import UUID
 
 from sqlalchemy.orm import Session
+from io import BytesIO
+from mutagen import File as MutagenFile
 
 from data_and_integration_layer.database.models.speech_exercise import (
     SpeechExercise,
@@ -45,6 +47,7 @@ class ExerciseAnalysisService:
 
         if not exercise:
             raise ValueError("Exercise not found.")
+            
 
         #analyze
         analysis = self.audio_analyzer.analyze_audio(
@@ -58,6 +61,8 @@ class ExerciseAnalysisService:
 
     
         total_score = self._calculate_total_score(analysis)
+
+        audio_duration_seconds = self._get_audio_duration(audio_bytes)
 
 
         previous_attempt = self.repository.get_previous_attempt(
@@ -85,6 +90,7 @@ class ExerciseAnalysisService:
             "speaking_rate": analysis.speaking_rate,
             "timing_pacing": analysis.timing_pacing,
         }
+        
 
         #Save 
         saved_attempt = self.repository.save_attempt(
@@ -96,6 +102,8 @@ class ExerciseAnalysisService:
             metrics=metrics,
             feedback=analysis.feedback,
             raw_openai_response=analysis.raw_openai_response,
+            audio_duration_seconds= audio_duration_seconds,
+
         )
 
         #Compare
@@ -129,6 +137,8 @@ class ExerciseAnalysisService:
                 "current_score": total_score,
                 "score_change": score_change,
             },
+            "audio_duration_seconds": audio_duration_seconds,
+
         }
 
     # ---------------------------------------------------------
@@ -138,10 +148,36 @@ class ExerciseAnalysisService:
     def _calculate_total_score(self, analysis) -> float:
 
         total_score = (
-            analysis.fluency_score * 0.40
+            analysis.fluency_score * 0.25
             + analysis.rhythm_score * 0.25
-            + analysis.speed_control_score * 0.15
-            + analysis.task_adherence_score * 0.20
+            + analysis.speed_control_score * 0.25
+            + analysis.task_adherence_score * 0.25
         )
 
         return round(total_score, 2)
+
+    
+    def _get_audio_duration(self, audio_bytes: bytes) -> int:
+        audio = MutagenFile(BytesIO(audio_bytes))
+
+        if audio is None or audio.info is None:
+            raise ValueError("Unable to determine audio duration.")
+
+        return max(1, round(audio.info.length))
+
+
+    
+    def get_training_stats(self, user_id: int) -> dict:
+        attempts = self.repository.get_all_attempts(user_id=user_id)
+
+        total_attempts = len(attempts)
+
+        total_duration_seconds = sum(
+            attempt.audio_duration_seconds or 0
+            for attempt in attempts
+        )
+
+        return {
+            "total_attempts": total_attempts,
+            "total_duration_seconds": total_duration_seconds,
+        }

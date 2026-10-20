@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:client/services/exercise_api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -38,6 +39,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
       GameProgressApiService();
 
   late Future<Map<String, dynamic>> _gameProgress;
+
+  late Future<List<Map<String, dynamic>>> _trainingAttempts;
+
+   Map<String, int> stats = {
+  'total_attempts': 0,
+  'total_duration_seconds': 0,
+  };
   
 
  
@@ -49,6 +57,9 @@ Future<void> _loadGameProgress() async {
   });
 
   await future;
+}
+void _loadTrainingAttempts() {
+  _trainingAttempts = ExerciseApiService().getAllAttempts();
 }
   late int _tab;
   int _assessmentIndex = 0;
@@ -70,12 +81,34 @@ Future<void> _loadGameProgress() async {
     );
   }
 
+  
+  Future<void> _loadAttemptsStat() async {
+    try {
+      final statsData =
+          await ExerciseApiService().getAttemptsStat();
+
+      if (!mounted) return;
+
+      setState(() {
+        stats = statsData;
+      });
+    } catch (e) {
+      debugPrint('خطأ في جلب إحصائيات التمارين: $e');
+    }
+  }
+
+
+
+
+
   @override
   void initState() {
     super.initState();
     _tab = widget.initialTab;
     _loadProgress();
     _loadGameProgress();
+    _loadAttemptsStat();
+    _loadTrainingAttempts();
   }
 
   void _retry() {
@@ -83,7 +116,9 @@ Future<void> _loadGameProgress() async {
       _assessmentIndex = 0;
       _loadProgress();
       _loadGameProgress();
+      _loadTrainingAttempts();
     });
+    _loadAttemptsStat();
   }
 
   Future<void> _retakeAssessment() async {
@@ -102,6 +137,18 @@ Future<void> _loadGameProgress() async {
 
   @override
   Widget build(BuildContext context) {
+
+    final totalAttempts = stats['total_attempts'] ?? 0;
+    final totalSeconds = stats['total_duration_seconds'] ?? 0;
+    final totalMinutes = totalSeconds ~/ 60;
+
+    final totalRemainingSeconds = totalSeconds % 60;
+    final trainingTime =
+        totalMinutes > 0
+            ? '$totalMinutes د و$totalRemainingSeconds ث'
+            : '$totalRemainingSeconds ث';
+
+
     return Scaffold(
       backgroundColor: TaleeqTheme.warmBackground,
       appBar: AppBar(
@@ -1181,27 +1228,25 @@ Future<void> _loadGameProgress() async {
             Expanded(
               child: _trainingTile(
                 Icons.menu_book_rounded,
-                'Exercises',
+                '${stats['total_attempts'] ?? 0} تمرين',
                 TaleeqTheme.softTeal,
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: _trainingTile(
-                Icons.forum_outlined,
-                'Sessions',
+                Icons.timer_outlined,
+                '${(stats['total_duration_seconds'] ?? 0) ~/ 60} دقيقة',
                 TaleeqTheme.softPeach,
               ),
             ),
           ],
         ),
         const SizedBox(height: 20),
-SizedBox(
-  height: 1550,
-  child: const ExerciseResultScreen(
-    embedded: true,
-  ),
-),
+
+        const ExerciseResultScreen(
+          embedded: true,
+        ),
       ],
     );
   }

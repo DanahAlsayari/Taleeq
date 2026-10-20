@@ -50,6 +50,23 @@ class ExerciseAttemptRepository:
             .all()
         )
 
+        
+    def get_all_attempts(
+        self,
+        user_id: int,
+    )    -> list[ExerciseAttempt]:
+
+        return (
+            self.db.query(ExerciseAttempt)
+            .filter(
+                ExerciseAttempt.user_id == user_id,
+            )
+            .order_by(
+                ExerciseAttempt.created_at.desc(),
+                ExerciseAttempt.id.desc(),
+            )
+            .all()
+        )
     def save_attempt(
         self,
         user_id: int,
@@ -59,6 +76,7 @@ class ExerciseAttemptRepository:
         scores: dict[str, float],
         metrics: dict[str, float | None],
         feedback: dict[str, Any],
+        audio_duration_seconds: int,
         raw_openai_response: dict[str, Any],
     ) -> ExerciseAttempt:
 
@@ -83,6 +101,7 @@ class ExerciseAttemptRepository:
             timing_pacing=metrics["timing_pacing"],
 
             feedback=feedback,
+            audio_duration_seconds=audio_duration_seconds,
             raw_openai_response=raw_openai_response,
         )
 
