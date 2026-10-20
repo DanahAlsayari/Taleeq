@@ -699,61 +699,69 @@ class TechniqueSelector extends StatelessWidget {
   });
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: TaleeqColors.soft,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.graphic_eq_rounded,
-                color: TaleeqColors.primary,
-              ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: TaleeqColors.soft,
+              borderRadius: BorderRadius.circular(12),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    technique.nameAr,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.w900,
-                      color: TaleeqColors.primary,
-                    ),
+            child: const Icon(
+              Icons.graphic_eq_rounded,
+              color: TaleeqColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  technique.nameAr,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.w900,
+                    color: TaleeqColors.primary,
                   ),
-                  Text(
-                    technique.nameEn,
-                    textDirection: TextDirection.ltr,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: TaleeqColors.muted,
-                    ),
+                ),
+                Text(
+                  technique.nameEn,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: TaleeqColors.muted,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            AnimatedRotation(
-              turns: expanded ? 0.5 : 0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 27,
-                color: TaleeqColors.primary,
-              ),
+          ),
+
+          TextButton.icon(
+            onPressed: onTap,
+            icon: Icon(
+              expanded
+                  ? Icons.keyboard_arrow_up_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              size: 20,
             ),
-          ],
-        ),
+            label: Text(
+              expanded ? 'إغلاق' : 'تغيير',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: TaleeqColors.primary,
+              backgroundColor: const Color(0xFFE1F0ED),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              minimumSize: const Size(0, 44),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -934,35 +942,44 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
         if (visibleSteps.isNotEmpty) ...[
           const SizedBox(height: 14),
           const Divider(color: TaleeqColors.border),
-          InkWell(
-            onTap: () => setState(() => _showSteps = !_showSteps),
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'طريقة التطبيق',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: Color.fromARGB(255, 53, 82, 77),
-                      ),
-                    ),
-                  ),
-                  AnimatedRotation(
-                    turns: _showSteps ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: TaleeqColors.primary,
-                    ),
-                  ),
-                ],
+
+          Row(
+            children: [
+              const Icon(
+                Icons.format_list_numbered_rounded,
+                size: 21,
+                color: TaleeqColors.primary,
               ),
-            ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'كيف أطبّق التقنية؟',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: TaleeqColors.text,
+                  ),
+                ),
+              ),
+
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showSteps = !_showSteps;
+                  });
+                },
+                icon: Icon(
+                  _showSteps
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: TaleeqColors.primary,
+                  size: 28,
+                ),
+                tooltip: _showSteps ? 'إخفاء الخطوات' : 'عرض الخطوات',
+              ),
+            ],
           ),
+
           AnimatedSize(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeInOut,

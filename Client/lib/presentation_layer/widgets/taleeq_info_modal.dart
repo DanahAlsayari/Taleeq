@@ -101,7 +101,9 @@ void showTaleeqInfoModal(
             const Divider(color: TaleeqTheme.borderSubtle),
             const SizedBox(height: 12),
             Text(
-              'ما هو هذا المقياس؟',
+              category == 'تفسير النتيجة'
+                  ? 'ماذا تعني هذه النتيجة؟'
+                  : 'ما هو هذا المقياس؟',
               style: GoogleFonts.cairo(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
