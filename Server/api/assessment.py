@@ -780,7 +780,6 @@ def analyze_latest_assessment(
 # Validate Single Assessment Audio
 # =========================================================
 
-
 @router.post("/{assessment_id}/validate-audio")
 async def validate_assessment_audio(
     assessment_id: int,
@@ -790,7 +789,7 @@ async def validate_assessment_audio(
 ):
     repository = AssessmentRepository(db)
     assessment = repository.get_assessment(assessment_id)
-    print("🚨 FASTAPI VALIDATE ENDPOINT CALLED")
+
     if not assessment:
         raise HTTPException(
             status_code=404,
@@ -811,19 +810,15 @@ async def validate_assessment_audio(
             detail="التسجيل فارغ. أعيدي التسجيل وحاول مرة أخرى.",
         )
 
-    audio_format = (
-        file.filename.rsplit(".", 1)[-1].lower()
-        if file.filename and "." in file.filename
-        else ""
-    )
-
     try:
         analyzer = OpenAIAudioAnalyzer()
-        analyzer.analyze_audio(audio_bytes, audio_format)
+
+        # Validate audio only. Do not call OpenAI.
+        analyzer._validate_audio(audio_bytes)
 
         return {
             "valid": True,
-            "message": "التسجيل قابل للتحليل.",
+            "message": "التسجيل اجتاز التحقق الأولي.",
         }
 
     except ValueError as error:

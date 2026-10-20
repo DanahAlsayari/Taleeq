@@ -512,11 +512,12 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                             technique: selectedTechnique!,
                           ),
                         ),
-                  icon: const Icon(Icons.play_arrow_rounded, size: 26),
+                  
                   label: const Text(
                     'ابدأ التمرين',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
+                  
                   style: ElevatedButton.styleFrom(
                     backgroundColor: TaleeqColors.medium,
                     foregroundColor: Colors.white,
@@ -741,26 +742,35 @@ class TechniqueSelector extends StatelessWidget {
             ),
           ),
 
-          TextButton.icon(
-            onPressed: onTap,
-            icon: Icon(
-              expanded
-                  ? Icons.keyboard_arrow_up_rounded
-                  : Icons.keyboard_arrow_down_rounded,
-              size: 20,
-            ),
-            label: Text(
-              expanded ? 'إغلاق' : 'تغيير',
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            style: TextButton.styleFrom(
-              foregroundColor: TaleeqColors.primary,
-              backgroundColor: const Color(0xFFE1F0ED),
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              minimumSize: const Size(0, 44),
-            ),
-          ),
+TextButton(
+  onPressed: onTap,
+  style: TextButton.styleFrom(
+    foregroundColor: TaleeqColors.primary,
+    backgroundColor: const Color(0xFFE1F0ED),
+    shape: const StadiumBorder(),
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    minimumSize: const Size(0, 44),
+  ),
+  child: Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        expanded ? 'إغلاق' : 'تغيير',
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(width: 6),
+      Icon(
+        expanded
+            ? Icons.keyboard_arrow_up_rounded
+            : Icons.keyboard_arrow_down_rounded,
+        size: 20,
+      ),
+    ],
+  ),
+),
         ],
       ),
     );

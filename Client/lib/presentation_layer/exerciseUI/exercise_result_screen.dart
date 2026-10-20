@@ -822,7 +822,7 @@ final scoreChange =
                   ],
                 ),
 
-                    ,const SizedBox(height: 20,),
+                    const SizedBox(height: 20,),
                    _performanceMetricRow(
                     'الطلاقة',
                     fluency,
