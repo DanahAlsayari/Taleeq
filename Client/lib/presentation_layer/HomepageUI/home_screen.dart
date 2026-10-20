@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:confetti/confetti.dart';
 
 import '../../services/assessment_api_service.dart';
 import '../../services/profile_service.dart';
@@ -317,11 +318,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     for (final session in existingSessions) {
       final key = session['practice_date'] as String;
-      final date = _parsePracticeDate(key);
-
       durations[key] = session['duration_minutes'] as int;
 
-      if (session['is_completed'] == true || date.isBefore(today)) {
+      if (session['is_completed'] == true) {
         protectedDates.add(key);
       }
     }
@@ -363,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         children: [
                           const Text(
                             'اختر أيام الممارسة والمدة المناسبة لك.'
-                            '\nالجلسات المكتملة والأيام الماضية لا يمكن تعديلها.',
+                            '\nلتعديل جلسة مكتملة، ألغِ تحديد اكتمالها أولًا.',
                             style: TextStyle(height: 1.6),
                           ),
                           const SizedBox(height: 12),
@@ -382,11 +381,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             final key = dateKey(date);
                             final selected = durations.containsKey(key);
                             final locked = protectedDates.contains(key);
-                            final disabled =
-                                saving || locked || date.isBefore(today);
-                            if (date.isBefore(today) && !selected) {
-                              return const SizedBox.shrink();
-                            }
+                            final disabled = saving || locked;
 
                             return Container(
                               key: ValueKey('day-$key'),
@@ -624,11 +619,82 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  Future<void> _showWeeklyCelebration() async {
+    final controller = ConfettiController(duration: const Duration(seconds: 2));
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (dialogContext.mounted &&
+                !MediaQuery.of(dialogContext).disableAnimations) {
+              controller.play();
+            }
+          });
+
+          return Stack(
+            alignment: Alignment.center,
+            children: [
+              AlertDialog(
+                backgroundColor: const Color(0xFFFCFAF6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                title: const Text('أحسنت! 🎉', textAlign: TextAlign.center),
+                content: const Text(
+                  'أكملت خطتك الأسبوعية!\n'
+                  'كل خطوة تصنع فرقًا، استمر على تقدمك.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(height: 1.7),
+                ),
+                actionsAlignment: MainAxisAlignment.center,
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: const Text('رائع!'),
+                  ),
+                ],
+              ),
+              IgnorePointer(
+                child: ConfettiWidget(
+                  confettiController: controller,
+                  blastDirectionality: BlastDirectionality.explosive,
+                  shouldLoop: false,
+                  emissionFrequency: 0.08,
+                  numberOfParticles: 15,
+                  gravity: 0.2,
+                  pauseEmissionOnLowFrameRate: false,
+                  colors: const [
+                    Color(0xFF1F5F5A),
+                    Color(0xFF6FA7A3),
+                    Color(0xFFE6BB70),
+                    Color(0xFFD79DAD),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
   Future<void> _changeCompletion(
     Map<String, dynamic> session,
     bool completed,
   ) async {
-    if (_isUpdatingCompletion) return;
+    if (_isUpdatingCompletion || _weeklyPlan == null) return;
+
+    final planId = _weeklyPlan!['id'];
+    final before = _weeklyPlan!['sessions'] as List<dynamic>;
+    final wasComplete =
+        before.isNotEmpty &&
+        before.every((item) => item['is_completed'] == true);
+
+    bool celebrate = false;
 
     setState(() {
       _isUpdatingCompletion = true;
@@ -640,17 +706,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         isCompleted: completed,
       );
 
-      if (!mounted) return;
+      if (!mounted || _weeklyPlan?['id'] != planId) return;
 
       setState(() {
         final sessions = _weeklyPlan!['sessions'] as List<dynamic>;
-
         final index = sessions.indexWhere(
           (item) => item['id'] == updated['id'],
         );
 
         if (index != -1) {
           sessions[index] = updated;
+
+          celebrate =
+              completed &&
+              updated['is_completed'] == true &&
+              !wasComplete &&
+              sessions.isNotEmpty &&
+              sessions.every((item) => item['is_completed'] == true);
         }
       });
     } catch (exception) {
@@ -667,6 +739,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           _isUpdatingCompletion = false;
         });
       }
+    }
+
+    if (mounted &&
+        widget.isActive &&
+        ModalRoute.of(context)?.isCurrent == true &&
+        celebrate) {
+      await _showWeeklyCelebration();
     }
   }
 
@@ -744,7 +823,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   'خطتك الأسبوعية',
                   style: TextStyle(
                     color: darkText,
-                    fontSize: 22,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -768,7 +847,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             '${_arabicDate(weekEnd)} ${weekEnd.year}',
             style: const TextStyle(color: mutedText, fontSize: 13),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 6),
           if (_isLoadingWeeklyPlan)
             const Center(child: CircularProgressIndicator(color: teal))
           else if (_weeklyPlanError != null) ...[
@@ -812,7 +891,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               const SizedBox(height: 12),
             ],
             if (_weeklyPlan != null) ...[
-              const SizedBox(height: 12),
               Text(
                 'أكملت $completedCount من أصل ${sessions.length}',
                 style: const TextStyle(
@@ -838,7 +916,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: const TextStyle(color: mutedText, fontSize: 12),
               ),
             ],
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
                 final tileWidth = (constraints.maxWidth - 24) / 7;
@@ -871,7 +949,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(
-                                vertical: 10,
+                                vertical: 6,
                                 horizontal: 2,
                               ),
                               child: Column(
@@ -886,7 +964,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 7),
+                                  const SizedBox(height: 4),
                                   Text(
                                     '${date.day}',
                                     style: TextStyle(
@@ -895,7 +973,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(height: 7),
+                                  const SizedBox(height: 4),
                                   SizedBox(
                                     height: 16,
                                     child: completed
@@ -928,7 +1006,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 );
               },
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 8),
             Text(
               selectedDate == today
                   ? 'اليوم، ${_arabicDate(selectedDate)}'
@@ -941,7 +1019,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             const SizedBox(height: 10),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFF7FAF8),
                 borderRadius: BorderRadius.circular(16),
@@ -1009,7 +1087,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final completed = _nextStep == 'completed';
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF398681), Color(0xFF5B9D98)],
@@ -1024,14 +1102,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           Icon(
             completed ? Icons.check_circle_outline : Icons.assignment_outlined,
             color: Colors.white,
-            size: 36,
+            size: 26,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           Text(
             completed ? 'جلساتك التدريبية' : 'أكمل تقييمك',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -1042,11 +1120,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 : 'أكمل التقييم القبلي وتقييم الكلام للحصول على جلسات تدريب تناسب احتياجاتك.',
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 16,
-              height: 1.6,
+              fontSize: 14,
+              height: 1.4,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 12),
           ElevatedButton(
             onPressed: completed ? null : _continueAssessment,
             style: ElevatedButton.styleFrom(
@@ -1054,7 +1132,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               foregroundColor: const Color(0xFF1F5F5A),
               disabledBackgroundColor: const Color(0xFFDDE8E6),
               disabledForegroundColor: const Color(0xFF526B68),
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
               ),
@@ -1065,7 +1143,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   : _nextStep == 'pre_assessment'
                   ? 'ابدأ التقييم القبلي'
                   : 'متابعة تقييم الكلام',
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
             ),
           ),
         ],
@@ -1079,7 +1157,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       backgroundColor: const Color(0xFFFCFAF6),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1088,7 +1166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 textAlign: TextAlign.right,
                 style: const TextStyle(
                   color: Color(0xFF2E3A38),
-                  fontSize: 28,
+                  fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -1109,7 +1187,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   child: const Text('إعادة المحاولة'),
                 ),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
 
               if (_isLoadingAssessmentStatus)
                 const Center(
@@ -1126,7 +1204,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ] else
                 _buildAssessmentCard(),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
               _buildWeeklyPlanCard(),
             ],
           ),

@@ -30,6 +30,7 @@ dependencies:
   ffmpeg_kit_flutter_new: ^4.6.2
   url_launcher: ^6.3.3
   flutter_svg: ^2.3.0
+  confetti: ^0.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

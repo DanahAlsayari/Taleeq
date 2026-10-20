@@ -115,12 +115,9 @@ def save_weekly_plan(
         for session in plan.sessions
     }
 
-    # Keep completed sessions and past dates unchanged.
+     # Keep completed sessions unchanged until unchecked.
     for practice_date, session in existing_sessions.items():
-        protected = (
-            session.is_completed
-            or practice_date < today
-        )
+        protected = session.is_completed
 
         if protected:
             requested_duration = requested_sessions.get(
@@ -131,21 +128,10 @@ def save_weekly_plan(
                 raise HTTPException(
                     status_code=409,
                     detail=(
-                        "لا يمكن حذف الجلسات المكتملة أو الماضية "
-                        "أو تعديل مدتها."
+                        "يرجى إلغاء تحديد الجلسة كمكتملة "
+                        "قبل حذفها أو تعديل مدتها."
                     ),
                 )
-
-    # Prevent adding new sessions to past dates.
-    for practice_date in requested_sessions:
-        if (
-            practice_date < today
-            and practice_date not in existing_sessions
-        ):
-            raise HTTPException(
-                status_code=422,
-                detail="لا يمكن إضافة جلسة إلى يوم مضى.",
-            )
 
     # Remove uncompleted sessions omitted from the new schedule.
     for practice_date, session in existing_sessions.items():
@@ -164,10 +150,7 @@ def save_weekly_plan(
                     duration_minutes=duration,
                 )
             )
-        elif (
-            not session.is_completed
-            and practice_date >= today
-        ):
+        elif not session.is_completed:
             session.duration_minutes = duration
 
     db.commit()
