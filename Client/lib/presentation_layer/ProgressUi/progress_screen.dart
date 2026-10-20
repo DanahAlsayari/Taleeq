@@ -1317,12 +1317,9 @@ void _loadTrainingAttempts() {
           ],
         ),
         const SizedBox(height: 20),
-SizedBox(
-  height: 1550,
-  child: const ExerciseResultScreen(
-    embedded: true,
-  ),
-),
+        const ExerciseResultScreen(
+          embedded: true,
+        ),
       ],
     );
   }
