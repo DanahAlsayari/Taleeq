@@ -118,17 +118,19 @@ void _loadTrainingAttempts() {
     _loadAttemptsStat();
   }
 
-  Future<void> _retakeAssessment() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SpeechAssesmentIntroScreen(isRetake: true),
-      ),
-    );
+ Future<void> _retakeAssessment() async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      settings: const RouteSettings(name: 'retake-assessment-intro'),
+      builder: (context) =>
+          const SpeechAssesmentIntroScreen(isRetake: true),
+    ),
+  );
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    _retry();
-  }
+  _retry();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -203,7 +205,17 @@ void _loadTrainingAttempts() {
     return Expanded(
       child: InkWell(
         onTap: () {
-          setState(() => _tab = index);
+          setState(() {
+            _tab = index;
+
+            if (index == 2) {
+              _loadTrainingAttempts();
+            }
+          });
+
+          if (index == 2) {
+            _loadAttemptsStat();
+          }
 
           if (index == 3) {
             _loadGameProgress();
@@ -1317,7 +1329,8 @@ void _loadTrainingAttempts() {
           ],
         ),
         const SizedBox(height: 20),
-        const ExerciseResultScreen(
+        ExerciseResultScreen(
+          key: ValueKey(_trainingAttempts),
           embedded: true,
         ),
       ],

@@ -1,3 +1,4 @@
+import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 import '../../services/exercise_api_service.dart';
 
@@ -22,6 +23,8 @@ class ExerciseResultScreen extends StatefulWidget {
 class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
   List<Map<String, dynamic>> attempts = [];
   int currentIndex = 0;
+  bool _isLoading = true;
+  String? _loadError;
   String _selectedExerciseFilter = 'الكل';
   bool _showAllAttempts = false;
 
@@ -37,27 +40,29 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
   }
 
   Future<void> loadAttempts() async {
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+    });
+
     try {
       final data = await ExerciseApiService().getAllAttempts();
-
-      final exerciseTypes = data
-          .map((attempt) => attempt['exercise_type']?.toString())
-          .whereType<String>()
-          .toSet();
-
-      debugPrint('EXERCISE TYPES: $exerciseTypes');
-      if (data.isNotEmpty) {
-  debugPrint('ATTEMPT COMPARISON: ${data.first['comparison']}');
-}
-
 
       if (!mounted) return;
 
       setState(() {
         attempts = data;
+        _isLoading = false;
       });
     } catch (e) {
       debugPrint('خطأ في جلب المحاولات: $e');
+
+      if (!mounted) return;
+
+      setState(() {
+        _loadError = 'تعذر تحميل محاولات التدريب، حاولي مرة ثانية.';
+        _isLoading = false;
+      });
     }
   }
 
@@ -143,37 +148,51 @@ Container(
     color: Colors.white,
     borderRadius: BorderRadius.circular(14),
     border: Border.all(
-      color: const Color(0xFFE9E0D2),
+      color: TaleeqTheme.borderSubtle,
+      width: 1,
     ),
+    boxShadow: TaleeqTheme.cardShadow
   ),
-  child: DropdownButtonHideUnderline(
-    child: DropdownButton<String>(
-      value: _selectedExerciseFilter,
-      isExpanded: true,
-      icon: const Icon(
-        Icons.keyboard_arrow_down_rounded,
-        color: Color(0xFF578B80),
-      ),
-      style: const TextStyle(
-        color: Color(0xFF203E3A),
-        fontSize: 14,
-        fontWeight: FontWeight.w600,
-      ),
-      items: [
-        'الكل',
-        'القراءة',
-        'وصف الصورة',
-        'سؤال وجواب',
-        'سرد القصة',
-        'الكلام الحر',
-        'محاكاة موقف',
-      ].map((filter) {
-        return DropdownMenuItem<String>(
-          value: filter,
+  child:
+DropdownButtonHideUnderline(
+  child: DropdownButton<String>(
+    value: _selectedExerciseFilter,
+    isExpanded: true,
+    itemHeight: 48,
+    menuMaxHeight: 300,
+    dropdownColor: Colors.white,
+    borderRadius: BorderRadius.circular(14),
+
+    icon: const Icon(
+      Icons.keyboard_arrow_down_rounded,
+      color: Color(0xFF578B80),
+      size: 20,
+    ),
+
+    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: const Color(0xFF203E3A),
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+    ),
+
+    items: [
+      'الكل',
+      'القراءة',
+      'وصف الصورة',
+      'سؤال وجواب',
+      'سرد القصة',
+      'الكلام الحر',
+    ].map((filter) {
+      return DropdownMenuItem<String>(
+        value: filter,
+        child: Align(
+          alignment: Alignment.centerRight,
           child: Text(filter),
-        );
-      }).toList(),
-      onChanged: (value) {
+        ),
+      );
+    }).toList(),
+
+    onChanged: (value) {
       if (value == null) return;
 
       setState(() {
@@ -181,8 +200,8 @@ Container(
         _showAllAttempts = false;
       });
     },
-    ),
   ),
+),
 ),
 
 const SizedBox(height: 16),
@@ -194,8 +213,10 @@ Container(
     color: Colors.white,
     borderRadius: BorderRadius.circular(20),
     border: Border.all(
-      color: const Color(0xFFE9E0D2),
-    ),
+    color: TaleeqTheme.borderSubtle,
+    width: 1,
+  ),
+    boxShadow: TaleeqTheme.cardShadow
   ),
   child: Row(
     children: [
@@ -210,7 +231,7 @@ Container(
             Text(
               latestScore == null
                   ? '—'
-                  : '${latestScore.toStringAsFixed(1)}/100',
+                  : '${latestScore.toStringAsFixed(1)}%',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -236,7 +257,7 @@ Container(
             Text(
               bestScore == null
                   ? '—'
-                  : '${bestScore.toStringAsFixed(1)}/100',
+                  : '${bestScore.toStringAsFixed(1)}%',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -357,8 +378,10 @@ if (visibleAttempts.isEmpty)
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: const Color(0xFFE9E0D2),
+        color: TaleeqTheme.borderSubtle,
+        width: 1,
       ),
+      boxShadow: TaleeqTheme.cardShadow
     ),
     child: Row(
       children: [
@@ -414,7 +437,7 @@ Column(
   children: [
     Text(
       score is num
-          ? '${score.toStringAsFixed(1)}/100'
+          ? '${score.toStringAsFixed(1)}%'
           : '—',
       style: const TextStyle(
         fontSize: 16,
@@ -488,22 +511,61 @@ if (filteredAttempts.length > 5)
 
   @override
   Widget build(BuildContext context) {
+
+    if (_isLoading && (widget.embedded || widget.result == null)) {
+        return const SizedBox(
+          height: 450,
+          child: Center(
+            child: CircularProgressIndicator(
+              color: Color(0xFF006B63),
+            ),
+          ),
+        );
+      }
+
+      if (_loadError != null && (widget.embedded || widget.result == null)) {
+        return SizedBox(
+          height: 450,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _loadError!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: loadAttempts,
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        );
+      }
+
       if (widget.embedded) {
         return _buildProgressSummary();
       }
-        if (attempts.isEmpty && widget.result == null) {
-      return const Scaffold(
-        body: Center(
-          child: Text('ما عندك محاولات سابقة حتى الآن'),
-        ),
-      );
-    }
+          if (attempts.isEmpty && widget.result == null) {
+        return const Scaffold(
+          body: Center(
+            child: Text('ما عندك محاولات سابقة حتى الآن'),
+          ),
+        );
+      }
 
 
 
     
     final result = widget.result ??
         attempts[currentIndex];
+
+    final speechEvents = result['speech_events'];
+    debugPrint('SPEECH EVENTS: ${result['speech_events']}');
+    final List<dynamic> events =
+        speechEvents is List ? speechEvents : [];
 
     final exercise = widget.exercise ?? result;
     debugPrint('EXERCISE RESULT: $result');
@@ -582,7 +644,7 @@ final scoreChange =
     final metrics = Map<String , dynamic>.from(result['metrics']);
 
     final stuttering = (metrics['stuttering_percent'] as num).toDouble();
-    final repetition = (metrics['stuttering_percent'] as num).toDouble();
+    final repetition = (metrics['repetition_percent'] as num).toDouble();
     final prolongation = (metrics['prolongation_percent'] as num).toDouble();
     final blocks = (metrics['block_percent'] as num).toDouble();
 
@@ -646,123 +708,133 @@ final scoreChange =
 
 
               //first box
+                            
               Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 255, 255, 255),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: const Color(0xFFE9E0D2)
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.04),
-                          blurRadius: 5,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                 
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(19),
+                  border: Border.all(
+                    color: TaleeqTheme.borderSubtle,
+                  ),
+                  boxShadow: TaleeqTheme.cardShadow,
+                ),
+               
+                              
 
                     child: Column(
-                    children: [
-
-
-                      Align(
-                        alignment: Alignment.centerRight,
-                      child:Column (
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [ 
-                      
-                      Text(
-                        exerciseTitle,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF203E3A),
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3EEE4),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          difficulty == 'Medium'
-                              ? 'متوسط'
-                              : difficulty == 'Easy'
-                                  ? 'سهل'
-                                  : difficulty == 'Hard'
-                                      ? 'صعب'
-                                      : difficulty,
-                          style: const TextStyle(
-                            color: Color(0xFF806B49),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-
-                    ])),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'درجتك الإجمالية',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF203E3A),
-                        ),
-                      ),
-
-                            const SizedBox(height: 12),
-
-                      
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 6),
-                                child: Text(
-                                  ' 100/',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    color: Color(0xFF7A8E8B),
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                totalScore.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontSize: 60,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1,
-                                  color: Color(0xFF203E3A),
-                                ),
-                              ),
-                              
-                            ],
-                          ),
-                          
+                              Row(
+                                textDirection: TextDirection.rtl,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  // يمين: اسم التمرين والصعوبة
+                                  Expanded(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          exerciseTitle,
+                                          textAlign: TextAlign.right,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 19,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF203E3A),
+                                          ),
+                                        ),
 
-                      const SizedBox(height: 24,),
+                                        const SizedBox(height: 9),
+
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 13,
+                                            vertical: 5,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFF3EEE4),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Text(
+                                            difficulty == 'Medium'
+                                                ? 'متوسط'
+                                                : difficulty == 'Easy'
+                                                    ? 'سهل'
+                                                    : difficulty == 'Hard'
+                                                        ? 'صعب'
+                                                        : difficulty,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF806B49),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 12),
+
+                                  Container(
+                                    width: 1,
+                                    height: 54,
+                                    color: TaleeqTheme.borderSubtle,
+                                  ),
+
+                                  const SizedBox(width: 12),
+
+                                  // يسار: النسبة
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        '${totalScore.toStringAsFixed(1)}%',
+                                        textDirection: TextDirection.ltr,
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.2,
+                                          color: Color(0xFF006B63),
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 5),
+
+                                      const Text(
+                                        'درجتك الإجمالية',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF647773),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+
+                                
+
+                      const SizedBox(height: 5),
 
                       const Divider(
-                        color: Color(0xFFE9E0D2),
+                        color: Color.fromARGB(255, 218, 227, 232),
                         thickness: 1,
                       ),
 
-                      const SizedBox(height: 20,),
+                      const SizedBox(height: 5,),
 
                       Row(
                   children: [
@@ -774,9 +846,9 @@ final scoreChange =
                     const SizedBox(width: 9),
                     const Expanded(
                       child: Text(
-                        'مقاييس الأداء',
+                        'مقاييس الاداء',
                         style: TextStyle(
-                          fontSize: 19,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF006B63),
                         ),
@@ -802,7 +874,7 @@ final scoreChange =
                               textDirection: TextDirection.rtl,
                             ),
                             content: const Text(
-                              'الطلاقة: مدى سلاسة الكلام واستمراره.\n\n'
+                              'الطلاقة: مدى سلاسة الكلام واستمراره بدون تأتأه.\n\n'
                               'الإيقاع: مدى انتظام توقيت الكلام والوقفات.\n\n'
                               'التحكم بالسرعة: مدى مناسبة سرعة الكلام.\n\n'
                               'الالتزام بالمهمة: مدى ارتباط الكلام بالمطلوب في التمرين.\n\n'
@@ -812,7 +884,7 @@ final scoreChange =
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('فهمت'),
+                                child: const Text('حسنًا'),
                               ),
                             ],
                           ),
@@ -853,24 +925,23 @@ final scoreChange =
                   //end of first box
 
               Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 255, 255, 255),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: const Color(0xFFE9E0D2)
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color.fromARGB(255, 0, 0, 0).withOpacity(0.04),
-                          blurRadius: 5,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                 
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(19),
+                  border: Border.all(
+                    color: TaleeqTheme.borderSubtle,
+                  ),
+                  boxShadow: TaleeqTheme.cardShadow,
+                ),
 
                     child: Column(
                     children: [
@@ -886,7 +957,7 @@ final scoreChange =
                       child: Text(
                         'نسب التأتأة',
                         style: TextStyle(
-                          fontSize: 19,
+                          fontSize: 16,
                           fontWeight: FontWeight.w800,
                           color: Color(0xFF006B63),
                         ),
@@ -912,16 +983,16 @@ final scoreChange =
                               textDirection: TextDirection.rtl,
                             ),
                             content: const Text(
-                              'نسبة التأتأة الكلية: تقدير لمقدار الكلام المتأثر بالتأتأة.\n\n'
-                              'التكرار: إعادة صوت أو مقطع أو كلمة.\n\n'
-                              'الإطالة: مدّ الصوت أكثر من المعتاد.\n\n'
-                              'التوقف: تعثّر في خروج الكلام.',
+                              'نسبة التأتأة الكلية: مجموع نسبة مقدار الكلام المتأثر بالتأتأة.\n\n'
+                              'التكرار:  لا إرادي للأصوات أو المقاطع اللفظية الأولى للكلمات (مثل: قـ-قـ-قال).\n\n'
+                              'الاطالة: مد الصوت الصامت أو الصائت بشكل غير مقصود أثناء نطق الكلمة (مثل: سسسـارة)\n\n'
+                              'التوقف: انحباس مؤقت لتدفق الهواء والصوت مما يعيق خروج الكلمة لحظياً.',
                               textDirection: TextDirection.rtl,
                             ),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(dialogContext),
-                                child: const Text('فهمت'),
+                                child: const Text('حسنًا'),
                               ),
                             ],
                           ),
@@ -947,7 +1018,7 @@ final scoreChange =
                     Text(
                       '${stuttering.toStringAsFixed(1)}%',
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF006B63),
                       ),
@@ -980,7 +1051,7 @@ final scoreChange =
                 ),
 
                 const SizedBox(height: 20),
-                const Divider(color: Color(0xFFE9E0D2)),
+                const Divider(color: Color.fromARGB(255, 218, 227, 232)),
                 const SizedBox(height: 20),
 
                 _metricRow(
@@ -1001,36 +1072,57 @@ final scoreChange =
                   Icons.pause_circle_outline_rounded,
                   const Color(0xFFFF765B),
                 ),
-              ],)
+              ],
+              )
 
               ),
 
 
+              _buildSpeechEvents(events),
+
+
+              
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 20,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(19),
                   border: Border.all(
-                    color: const Color(0xFFE9E0D2),
+                    color: TaleeqTheme.borderSubtle,
                   ),
+                  boxShadow: TaleeqTheme.cardShadow,
                 ),
+
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'ملاحظات لتحسين أدائك',
+                    Row(children: [
+                      const Icon(
+                      Icons.note_alt_outlined,
+                      color: Color(0xFF006B63),
+                      size: 25,
+                    ),
+                    const SizedBox(width: 9),
+                    const Expanded(
+                      child:Text( 'ملاحظات لتحسين اداءك',
                       style: TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF203E3A),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF006B63),
                       ),
                     ),
+                    ),
+                    
+                    ],),
+        
 
                     const SizedBox(height: 20),
 
@@ -1107,34 +1199,52 @@ final scoreChange =
   }
 
 
+
 Widget _feedbackCard(
   String title,
   String description,
   bool isStrength,
 ) {
+  final Color accentColor = isStrength
+      ? const Color(0xFF087F73)
+      : const Color(0xFFB38B57);
+
+  final Color backgroundColor = isStrength
+      ? const Color(0xFFF3F8F6)
+      : const Color(0xFFFAF7F0);
+
+  final Color borderColor = isStrength
+      ? const Color(0xFFE1E9E5)
+      : const Color(0xFFECE4D6);
+
   return Container(
     width: double.infinity,
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: isStrength
-          ? const Color(0xFFE8F1EF)
-          : const Color(0xFFF7F1E7),
-      borderRadius: BorderRadius.circular(14),
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: borderColor),
     ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(
-          isStrength
-              ? Icons.check_circle_outline
-              : Icons.lightbulb_outline,
-          color: isStrength
-              ? const Color(0xFF578B80)
-              : const Color(0xFFAD8B58),
-          size: 24,
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(11),
+          ),
+          child: Icon(
+            isStrength
+                ? Icons.check_circle_outline_rounded
+                : Icons.lightbulb_outline_rounded,
+            color: accentColor,
+            size: 21,
+          ),
         ),
 
-        const SizedBox(width: 12),
+        const SizedBox(width: 10),
 
         Expanded(
           child: Column(
@@ -1143,19 +1253,19 @@ Widget _feedbackCard(
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                   color: Color(0xFF203E3A),
                 ),
               ),
 
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
 
               Text(
                 description,
                 style: const TextStyle(
-                  fontSize: 14,
-                  height: 1.7,
+                  fontSize: 13,
+                  height: 1.6,
                   color: Color(0xFF526F6A),
                 ),
               ),
@@ -1166,7 +1276,6 @@ Widget _feedbackCard(
     ),
   );
 }
-
 
   Widget _metricCard(String title , double value , bool highlighted){
     return Container(
@@ -1201,6 +1310,7 @@ Widget _feedbackCard(
 
 
   
+
 Widget _performanceMetricRow(
   String title,
   double score,
@@ -1208,51 +1318,56 @@ Widget _performanceMetricRow(
   Color color,
 ) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 24),
+    padding: const EdgeInsets.only(bottom: 16),
     child: Column(
       children: [
         Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 25,
+                size: 21,
               ),
             ),
-            const SizedBox(width: 12),
+
+            const SizedBox(width: 10),
+
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF203E3A),
                 ),
               ),
             ),
+
             Text(
-              '${score.toStringAsFixed(0)}/100',
+              '${score.toStringAsFixed(0)}%',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+
+        const SizedBox(height: 10),
+
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: (score / 100).clamp(0.0, 1.0),
-            minHeight: 10,
+            minHeight: 7,
             backgroundColor: const Color(0xFFE8EEEB),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
@@ -1265,6 +1380,7 @@ Widget _performanceMetricRow(
 
   
 
+
 Widget _metricRow(
   String title,
   double value,
@@ -1272,51 +1388,56 @@ Widget _metricRow(
   Color color,
 ) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 24),
+    padding: const EdgeInsets.only(bottom: 16),
     child: Column(
       children: [
         Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 25,
+                size: 21,
               ),
             ),
-            const SizedBox(width: 12),
+
+            const SizedBox(width: 10),
+
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF203E3A),
                 ),
               ),
             ),
+
             Text(
               '${value.toStringAsFixed(1)}%',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+
+        const SizedBox(height: 10),
+
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: (value / 100).clamp(0.0, 1.0),
-            minHeight: 10,
+            minHeight: 7,
             backgroundColor: const Color(0xFFE8EEEB),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
@@ -1326,6 +1447,151 @@ Widget _metricRow(
   );
 }
 
+Widget _buildSpeechEvents(List<dynamic> events) {
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 8,
+    ),
+    padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 20,
+    ),
+    decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+        color: TaleeqTheme.borderSubtle,
+        ),
+    boxShadow: TaleeqTheme.cardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.record_voice_over_rounded,
+              color: Color(0xFF006B63),
+              size: 21,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'مواضع التأتأة',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF006B63),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        if (events.isEmpty)
+          const Text(
+            'لم يتم رصد مواضع تأتأة في هذه المحاولة.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF667A75),
+            ),
+          )
+        else
+          ...events.map((event) {
+            if (event is! Map) {
+              return const SizedBox.shrink();
+            }
+
+            final data = Map<String, dynamic>.from(event);
+            final type =
+                (data['event_type'] ?? '').toString().toLowerCase();
+            final word =
+                (data['word_or_sound'] ?? '').toString();
+
+            String label;
+            IconData eventIcon;
+
+            if (type == 'repetition') {
+              label = 'التكرار';
+              eventIcon = Icons.repeat_rounded;
+            } else if (type == 'prolongation') {
+              label = 'الإطالة';
+              eventIcon = Icons.graphic_eq_rounded;
+            } else if (type == 'block') {
+              label = 'التوقف';
+              eventIcon = Icons.pause_circle_outline_rounded;
+            } else {
+              label = 'موضع تأتأة';
+              eventIcon = Icons.record_voice_over_rounded;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F8F6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE1E9E5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8EAE5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      eventIcon,
+                      color: const Color(0xFF006B63),
+                      size: 22,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF006B63),
+                          ),
+                        ),
+                        if (word.trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            word,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF203E3A),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    ),
+  );
+}
 
 
 

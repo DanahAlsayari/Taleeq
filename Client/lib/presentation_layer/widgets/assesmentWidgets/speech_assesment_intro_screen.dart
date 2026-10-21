@@ -1,3 +1,4 @@
+import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 
 import 'pre_assesment_success_screen.dart';
@@ -40,9 +41,10 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                       icon: const Icon(Icons.arrow_back),
                     ),
                   ),
-
-                  const JourneyStepper(currentStep: 3),
-                  const SizedBox(height: 28.0),
+if (!isRetake) ...[
+  const JourneyStepper(currentStep: 3),
+  const SizedBox(height: 28.0),
+],
                   Align(
                     alignment: AlignmentDirectional.centerStart,
 
@@ -210,13 +212,15 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SpeechAssesmentQuestionsScreen(),
+                  builder: (context) => SpeechAssesmentQuestionsScreen(
+  isRetake: isRetake,
+),
                 ),
               );
             },
 
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6FA7A3),
+              backgroundColor: TaleeqTheme.primaryTeal,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18.0),
               ),

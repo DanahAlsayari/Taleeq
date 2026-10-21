@@ -7,6 +7,7 @@ from fastapi import (
     File,
     HTTPException,
     UploadFile,
+    Form
 )
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,7 @@ router = APIRouter(
 async def analyze_exercise_audio(
     exercise_id: UUID,
     file: UploadFile = File(...),
+    technique_id: int | None = Form(None),
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -60,6 +62,7 @@ async def analyze_exercise_audio(
     print(
     f"🎙️ RECEIVED {file.filename} "
     f"| EXERCISE: {exercise_id} "
+    f"| SELECTED TECHNIQUE: {technique_id}"
     f"| SIZE: {len(audio_bytes)} "
     f"| FORMAT: {audio_format}"
     )
@@ -73,6 +76,7 @@ async def analyze_exercise_audio(
             exercise_id=exercise_id,
             audio_bytes=audio_bytes,
             audio_format=audio_format,
+            technique_id=technique_id,
         )
 
     except ValueError as error:
@@ -175,6 +179,9 @@ def get_all_exercise_attempts(
                 "block_percent": attempt.block_percent,
             },
             "feedback": attempt.feedback,
+            "speech_events": (
+                (attempt.raw_openai_response or {}).get("speech_events", [])
+            ),
             "audio_duration_seconds": attempt.audio_duration_seconds,
         }
         for attempt in attempts

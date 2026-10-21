@@ -43,7 +43,7 @@ class TrainingController extends ChangeNotifier {
       _openDropdownExerciseId == exerciseId;
 
   Difficulty difficultyOf(TrainingExercise exercise) =>
-      _selected[exercise.id] ?? exercise.defaultDifficulty;
+      _selected[exercise.id] ?? Difficulty.easy;
 
   ExerciseSelection selectionFor(TrainingExercise exercise) =>
       ExerciseSelection(

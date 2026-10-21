@@ -1,3 +1,4 @@
+
 from sqlalchemy import Column, Integer, String, Text, JSON
 
 from data_and_integration_layer.database.connection import Base
@@ -21,7 +22,5 @@ class Technique(Base):
 
     tips = Column(JSON, nullable=True)
 
-    # Optional instructional video
-    video_url = Column(Text, nullable=True)
-    video_source = Column(String(30), nullable=True)
-    video_title = Column(String(150), nullable=True)
+    # Optional instructional audio
+    audio_url = Column(Text, nullable=True)

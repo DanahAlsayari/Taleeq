@@ -134,9 +134,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     String initialValue = '',
   }) async {
-    final controller = TextEditingController(
-      text: initialValue,
-    );
+  String goalText = initialValue;
 
     final result = await showDialog<String>(
       context: context,
@@ -155,9 +153,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            content: TextField(
-              controller: controller,
-              autofocus: true,
+           content: TextFormField(
+  initialValue: initialValue,
+  onChanged: (value) {
+    goalText = value;
+  },
+  autofocus: true,
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'اكتب هدفك التدريبي',
@@ -192,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               ElevatedButton(
                 onPressed: () {
-                  final value = controller.text.trim();
+                  final value = goalText.trim();
 
                   if (value.isNotEmpty) {
                     Navigator.pop(dialogContext, value);
@@ -214,7 +215,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    controller.dispose();
+
     return result;
   }
 
