@@ -80,14 +80,42 @@ class OpenAIExerciseAnalyzer:
             difficulty: str,
             content: dict,
             instructions: str,
-            technique_name: str,
-            technique_description: str,
-            technique_steps: list | dict,
+            technique_name: str | None = None,
+            technique_description: str | None = None,
+            technique_steps: list | dict | None = None,
         ) -> ExerciseAnalysisResult:
             self.audio_validator._validate_audio(audio_bytes)
 
             print("AUDIO VALIDATION PASSED — CALLING OPENAI")
 
+            technique_prompt = ""
+
+            if technique_name is not None:
+                technique_prompt = f"""
+            SELECTED TECHNIQUE:
+            Name: {technique_name}
+            Description: {technique_description or ""}
+            Steps: {json.dumps(technique_steps, ensure_ascii=False)}
+
+            TECHNIQUE-AWARE EVALUATION:
+            The user is practicing this technique during the exercise.
+
+            Do not penalize intentional speech behaviors consistent
+            with the technique, including changes in pace, rhythm,
+            pauses, repetitions, or prolongations.
+
+            Exclude technique-consistent intentional behaviors from
+            stuttering events and percentages. Continue detecting
+            genuine stuttering when supported by audible evidence.
+
+            Evaluate timing, speed control, and task adherence
+            according to the technique's goals and steps.
+
+            Do not assume the technique was performed correctly
+            or infer intention without sufficient audible evidence.
+
+            Keep all existing metrics and scoring rules unchanged.
+            """
 
             prompt = f"""
 You are Taleeq's audio-based speech fluency analyzer.
@@ -110,29 +138,7 @@ the provided text. For other exercise types, evaluate how well the
 speaker fulfills the requested task.
 Do not require exact wording unless the exercise requires it.
 
-SELECTED TECHNIQUE:
-Name: {technique_name}
-Description: {technique_description}
-Steps: {json.dumps(technique_steps, ensure_ascii=False)}
-
-TECHNIQUE-AWARE EVALUATION:
-The user is practicing this technique during the exercise.
-
-Do not penalize intentional speech behaviors consistent
-with the technique, including changes in pace, rhythm,
-pauses, repetitions, or prolongations.
-
-Exclude technique-consistent intentional behaviors from
-stuttering events and percentages. Continue detecting
-genuine stuttering when supported by audible evidence.
-
-Evaluate timing, speed control, and task adherence
-according to the technique's goals and steps.
-
-Do not assume the technique was performed correctly
-or infer intention without sufficient audible evidence.
-
-Keep all existing metrics and scoring rules unchanged.
+{technique_prompt}
 
 AUDIO USABILITY:
 Determine whether speech is sufficiently intelligible for reliable

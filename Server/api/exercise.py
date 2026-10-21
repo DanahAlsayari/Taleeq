@@ -31,7 +31,7 @@ router = APIRouter(
 async def analyze_exercise_audio(
     exercise_id: UUID,
     file: UploadFile = File(...),
-    technique_id: int = Form(...),
+    technique_id: int | None = Form(None),
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):

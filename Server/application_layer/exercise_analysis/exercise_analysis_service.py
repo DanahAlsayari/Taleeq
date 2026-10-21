@@ -34,7 +34,7 @@ class ExerciseAnalysisService:
         exercise_id: UUID,
         audio_bytes: bytes,
         audio_format: str,
-        technique_id: int,
+        technique_id: int | None = None,
     ):
 
         #find exercise
@@ -51,15 +51,18 @@ class ExerciseAnalysisService:
             raise ValueError("Exercise not found.")
 
         # Find technique
-        technique = (
-            self.db.query(Technique)
-            .filter(Technique.id == technique_id)
-            .first()
-        )
+        technique = None
 
-        if not technique:
-            raise ValueError("Technique not found.")
-            
+        if technique_id is not None:
+            technique = (
+                self.db.query(Technique)
+                .filter(Technique.id == technique_id)
+                .first()
+            )
+
+            if technique is None:
+                raise ValueError("Technique not found.")
+
 
         #analyze
         analysis = self.audio_analyzer.analyze_audio(
@@ -69,9 +72,9 @@ class ExerciseAnalysisService:
             difficulty=exercise.difficulty,
             content=exercise.content,
             instructions=exercise.instructions,
-            technique_name=technique.name_ar,
-            technique_description=technique.description,
-            technique_steps=technique.steps,
+            technique_name=technique.name_ar if technique else None,
+            technique_description=technique.description if technique else None,
+            technique_steps=technique.steps if technique else None,
         )
 
     

@@ -176,7 +176,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       final result = await ExerciseApiService().analyzeExerciseAudio(
         exerciseId: widget.exercise['id'].toString(),
         recordingPath: recordingPath!,
-        techniqueId: widget.technique!.id,
+        techniqueId: widget.technique?.id,
     );
 
     if (!mounted) return;
@@ -953,7 +953,9 @@ bottomNavigationBar: Padding(
           child: SizedBox(
             height: 58,
             child: ElevatedButton(
-              onPressed: _isSubmitting ? null : _submitExercise,
+              onPressed: _isSubmitting || isRecording || recordingPath == null
+                    ? null
+                    : _submitExercise,
               style: ElevatedButton.styleFrom(
                 backgroundColor: TrainingColors.primary,
                 foregroundColor: Colors.white,
