@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
 import '../../services/auth_storage.dart';
 import '../../services/profile_service.dart';
@@ -8,7 +9,6 @@ import '../widgets/profile_header.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
-import 'package:client/features/training/presentation/training_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key, this.isActive = true});
@@ -20,15 +20,6 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  @override
-  void didUpdateWidget(covariant ProfileScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (widget.isActive && !oldWidget.isActive) {
-      _loadProfileData();
-    }
-  }
-
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color background = Color(0xFFFCFAF6);
   static const Color darkText = Color(0xFF233330);
@@ -55,6 +46,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant ProfileScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.isActive && !oldWidget.isActive) {
+      _loadProfileData();
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController.dispose();
     super.dispose();
@@ -74,11 +74,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         _goals
           ..clear()
-          ..addAll(goals.map((goal) => Map<String, dynamic>.from(goal as Map)));
+          ..addAll(
+            goals.map(
+              (goal) => Map<String, dynamic>.from(goal as Map),
+            ),
+          );
 
         _reminderEnabled = reminder['enabled'] as bool? ?? true;
 
-        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
+        _reminderTime = _parseTime(
+          reminder['reminder_time']?.toString(),
+        );
 
         _isLoading = false;
         _errorMessage = null;
@@ -104,9 +110,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return const TimeOfDay(hour: 18, minute: 0);
     }
 
+    final hour = int.tryParse(parts[0]) ?? 18;
+    final minute = int.tryParse(parts[1]) ?? 0;
+
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return const TimeOfDay(hour: 18, minute: 0);
+    }
+
     return TimeOfDay(
-      hour: int.tryParse(parts[0]) ?? 18,
-      minute: int.tryParse(parts[1]) ?? 0,
+      hour: hour,
+      minute: minute,
     );
   }
 
@@ -121,7 +134,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     String initialValue = '',
   }) async {
-    final controller = TextEditingController(text: initialValue);
+    final controller = TextEditingController(
+      text: initialValue,
+    );
 
     final result = await showDialog<String>(
       context: context,
@@ -150,11 +165,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fillColor: Colors.white,
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: border),
+                  borderSide: const BorderSide(
+                    color: border,
+                  ),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: darkGreen, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: darkGreen,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -165,7 +185,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -192,11 +214,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
+    controller.dispose();
     return result;
   }
 
   Future<void> _addGoal() async {
-    final goal = await _showGoalDialog(title: 'إضافة هدف جديد');
+    final goal = await _showGoalDialog(
+      title: 'إضافة هدف جديد',
+    );
 
     if (goal == null || !mounted) return;
 
@@ -210,7 +235,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_scrollController.hasClients) return;
+        if (!mounted || !_scrollController.hasClients) return;
 
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -224,7 +249,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editGoal(int index) async {
+    if (index < 0 || index >= _goals.length) return;
+
     final currentGoal = _goals[index];
+    final goalId = currentGoal['id'] as int;
 
     final updatedGoal = await _showGoalDialog(
       title: 'تعديل الهدف',
@@ -235,21 +263,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final updated = await _profileService.updateGoal(
-        currentGoal['id'] as int,
-        updatedGoal,
+        goalId,
+        goal: updatedGoal,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _goals[index] = updated;
+        final updatedIndex = _goals.indexWhere(
+          (goal) => goal['id'] == goalId,
+        );
+
+        if (updatedIndex != -1) {
+          _goals[updatedIndex] = updated;
+        }
       });
     } catch (_) {
       _showError('تعذر تعديل الهدف');
     }
   }
 
+  Future<void> _toggleGoal(int index) async {
+    if (index < 0 || index >= _goals.length) return;
+
+    final currentGoal = _goals[index];
+    final goalId = currentGoal['id'] as int;
+    final isCompleted = currentGoal['is_completed'] == true;
+
+    try {
+      final updatedGoal = await _profileService.updateGoal(
+        goalId,
+        isCompleted: !isCompleted,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final updatedIndex = _goals.indexWhere(
+          (goal) => goal['id'] == goalId,
+        );
+
+        if (updatedIndex != -1) {
+          _goals[updatedIndex] = updatedGoal;
+        }
+      });
+    } catch (_) {
+      _showError('تعذر تحديث حالة الهدف');
+    }
+  }
+
   Future<void> _deleteGoal(int index) async {
+    if (index < 0 || index >= _goals.length) return;
+
+    final goalId = _goals[index]['id'] as int;
+
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
@@ -262,9 +329,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: const Text(
               'حذف الهدف',
-              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: darkText,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            content: const Text('هل أنت متأكد من حذف هذا الهدف؟'),
+            content: const Text(
+              'هل أنت متأكد من حذف هذا الهدف؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -272,7 +344,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -292,11 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    if (shouldDelete != true || !mounted) {
-      return;
-    }
-
-    final goalId = _goals[index]['id'] as int;
+    if (shouldDelete != true || !mounted) return;
 
     try {
       await _profileService.deleteGoal(goalId);
@@ -304,7 +374,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       setState(() {
-        _goals.removeAt(index);
+        _goals.removeWhere(
+          (goal) => goal['id'] == goalId,
+        );
       });
     } catch (_) {
       _showError('تعذر حذف الهدف');
@@ -324,9 +396,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
 
       setState(() {
-        _reminderEnabled = reminder['enabled'] as bool? ?? enabled;
+        _reminderEnabled =
+            reminder['enabled'] as bool? ?? enabled;
 
-        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
+        _reminderTime = _parseTime(
+          reminder['reminder_time']?.toString(),
+        );
       });
     } catch (_) {
       _showError('تعذر تحديث التذكير');
@@ -334,36 +409,212 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changeReminderStatus(bool value) async {
-    await _updateReminder(enabled: value, time: _reminderTime);
+    await _updateReminder(
+      enabled: value,
+      time: _reminderTime,
+    );
   }
 
+  // ==========================================
+  // ساعة التذكير الجديدة - بتصميم طليق
+  // ==========================================
+
   Future<void> _changeReminderTime() async {
-    final selectedTime = await showTimePicker(
+    final initialDateTime = DateTime(
+      2026,
+      1,
+      1,
+      _reminderTime.hour,
+      _reminderTime.minute,
+    );
+
+    DateTime selectedDateTime = initialDateTime;
+
+    final selectedTime = await showModalBottomSheet<TimeOfDay>(
       context: context,
-      initialTime: _reminderTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: darkGreen,
-              onPrimary: Colors.white,
-              surface: background,
-              onSurface: darkText,
+      backgroundColor: background,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+      ),
+      builder: (sheetContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // مؤشر السحب
+                Container(
+                  width: 42,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: border,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                const Text(
+                  'تحديد وقت التذكير',
+                  style: TextStyle(
+                    color: darkText,
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 6),
+
+                const Text(
+                  'اختاري الوقت المناسب لتذكيرك بالتدريب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Color(0xFF7C918C),
+                    fontSize: 13,
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // عجلة اختيار الوقت
+                Container(
+                  height: 210,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: border),
+                  ),
+                  child: CupertinoTheme(
+                    data: const CupertinoThemeData(
+                      brightness: Brightness.light,
+                      primaryColor: darkGreen,
+                      textTheme: CupertinoTextThemeData(
+                        dateTimePickerTextStyle: TextStyle(
+                          color: darkGreen,
+                          fontSize: 23,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    child: Localizations.override(
+                      context: sheetContext,
+                      locale: const Locale('en', 'US'),
+                      child: Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: CupertinoDatePicker(
+                          mode: CupertinoDatePickerMode.time,
+                          initialDateTime: initialDateTime,
+                          use24hFormat: false,
+                          minuteInterval: 1,
+                          backgroundColor: Colors.white,
+                          onDateTimeChanged: (dateTime) {
+                            selectedDateTime = dateTime;
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                const Text(
+                  'مرري للأعلى أو الأسفل لتغيير الوقت',
+                  style: TextStyle(
+                    color: Color(0xFF7C918C),
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 26),
+
+                // أزرار إلغاء وحفظ
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.pop(sheetContext);
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: darkGreen,
+                            side: const BorderSide(
+                              color: darkGreen,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'إلغاء',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(width: 12),
+
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(
+                              sheetContext,
+                              TimeOfDay(
+                                hour: selectedDateTime.hour,
+                                minute: selectedDateTime.minute,
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: darkGreen,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          child: const Text(
+                            'حفظ',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ),
-          child: Directionality(
-            textDirection: TextDirection.rtl,
-            child: child!,
           ),
         );
       },
     );
 
-    if (selectedTime == null || !mounted) {
-      return;
-    }
+    if (selectedTime == null || !mounted) return;
 
-    await _updateReminder(enabled: _reminderEnabled, time: selectedTime);
+    await _updateReminder(
+      enabled: _reminderEnabled,
+      time: selectedTime,
+    );
   }
 
   void _showError(String message) {
@@ -371,7 +622,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message, textAlign: TextAlign.center),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+        ),
         backgroundColor: Colors.red,
       ),
     );
@@ -390,9 +644,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             title: const Text(
               'تسجيل الخروج',
-              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: darkText,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            content: const Text('هل تريد تسجيل الخروج من حسابك؟'),
+            content: const Text(
+              'هل تريد تسجيل الخروج من حسابك؟',
+            ),
             actions: [
               TextButton(
                 onPressed: () {
@@ -400,7 +659,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 child: const Text(
                   'إلغاء',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(
+                    color: Colors.grey,
+                  ),
                 ),
               ),
               ElevatedButton(
@@ -427,7 +688,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      MaterialPageRoute(
+        builder: (context) => const WelcomeScreen(),
+      ),
       (route) => false,
     );
   }
@@ -447,7 +710,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildLoading() {
-    return const Center(child: CircularProgressIndicator(color: darkGreen));
+    return const Center(
+      child: CircularProgressIndicator(
+        color: darkGreen,
+      ),
+    );
   }
 
   Widget _buildError() {
@@ -457,12 +724,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline_rounded, color: darkGreen, size: 42),
+            const Icon(
+              Icons.error_outline_rounded,
+              color: darkGreen,
+              size: 42,
+            ),
             const SizedBox(height: 12),
             Text(
               _errorMessage ?? 'حدث خطأ',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: darkText, fontSize: 15),
+              style: const TextStyle(
+                color: darkText,
+                fontSize: 15,
+              ),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
@@ -485,7 +759,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: _logout,
               child: const Text(
                 'تسجيل الخروج',
-                style: TextStyle(color: darkGreen),
+                style: TextStyle(
+                  color: darkGreen,
+                ),
               ),
             ),
           ],
@@ -509,7 +785,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ProfileHeader(name: _name, email: _email),
+              ProfileHeader(
+                name: _name,
+                email: _email,
+              ),
 
               const SizedBox(height: 24),
 
@@ -517,7 +796,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 10),
 
-              AccountCard(name: _name, email: _email),
+              AccountCard(
+                name: _name,
+                email: _email,
+              ),
 
               const SizedBox(height: 24),
 
@@ -526,12 +808,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 10),
 
               TrainingGoalsSection(
-                goals: _goals
-                    .map((goal) => goal['goal']?.toString() ?? '')
-                    .toList(),
+                goals: _goals,
                 onAddGoal: _addGoal,
                 onEditGoal: _editGoal,
                 onDeleteGoal: _deleteGoal,
+                onToggleGoal: _toggleGoal,
               ),
 
               const SizedBox(height: 24),
@@ -549,14 +830,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 28),
 
-              LogoutButton(onPressed: _logout),
+              LogoutButton(
+                onPressed: _logout,
+              ),
 
               const SizedBox(height: 25),
 
               const Center(
                 child: Text(
                   'طليق • الإصدار 1.0.0',
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -588,8 +874,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: _isLoading
             ? _buildLoading()
             : _errorMessage != null
-            ? _buildError()
-            : _buildProfile(),
+                ? _buildError()
+                : _buildProfile(),
       ),
     );
   }

@@ -229,7 +229,7 @@ def submit_pre_assessment(
 
             normalized_goal = goal_text.casefold()
             if normalized_goal not in existing_goals:
-                db.add(TrainingGoal(user_id=current_user.id, goal=goal_text))
+                db.add(TrainingGoal(user_id=current_user.id, goal=goal_text, source="assessment"))
                 existing_goals.add(normalized_goal)
 
     # Persist submission and newly selected goals together.

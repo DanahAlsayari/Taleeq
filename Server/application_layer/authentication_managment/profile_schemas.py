@@ -8,12 +8,15 @@ class TrainingGoalCreate(BaseModel):
 
 
 class TrainingGoalUpdate(BaseModel):
-    goal: str
+    goal: str | None = None
+    is_completed: bool | None = None
 
 
 class TrainingGoalOut(BaseModel):
     id: int
     goal: str
+    is_completed: bool
+    source: str
 
     class Config:
         from_attributes = True

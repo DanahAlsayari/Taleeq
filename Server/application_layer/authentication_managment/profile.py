@@ -89,15 +89,21 @@ def update_goal(
             detail="Goal not found",
         )
 
-    goal_text = data.goal.strip()
+    # Update goal text only if provided
+    if data.goal is not None:
+        goal_text = data.goal.strip()
 
-    if not goal_text:
-        raise HTTPException(
-            status_code=400,
-            detail="Goal cannot be empty",
-        )
+        if not goal_text:
+            raise HTTPException(
+                status_code=400,
+                detail="Goal cannot be empty",
+            )
 
-    goal.goal = goal_text
+        goal.goal = goal_text
+
+    # Update completion status only if provided
+    if data.is_completed is not None:
+        goal.is_completed = data.is_completed
 
     db.commit()
     db.refresh(goal)

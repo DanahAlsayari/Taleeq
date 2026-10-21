@@ -55,16 +55,26 @@ class ProfileService {
     return _decodeMap(response);
   }
 
+  // Update goal text or completion status
   Future<Map<String, dynamic>> updateGoal(
-    int goalId,
-    String goal,
-  ) async {
+    int goalId, {
+    String? goal,
+    bool? isCompleted,
+  }) async {
+    final Map<String, dynamic> data = {};
+
+    if (goal != null) {
+      data['goal'] = goal;
+    }
+
+    if (isCompleted != null) {
+      data['is_completed'] = isCompleted;
+    }
+
     final response = await http.put(
       Uri.parse('${ApiConfig.authBaseUrl}/profile/goals/$goalId'),
       headers: await _headers(),
-      body: jsonEncode({
-        'goal': goal,
-      }),
+      body: jsonEncode(data),
     );
 
     return _decodeMap(response);
