@@ -433,14 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 fontSize: 15,
                                               ),
                                             ),
-                                            const SizedBox(height: 3),
-                                            Text(
-                                              _arabicDate(date),
-                                              style: const TextStyle(
-                                                color: Color(0xFF526B68),
-                                                fontSize: 12,
-                                              ),
-                                            ),
+                                            
                                           ],
                                         ),
                                       ),
