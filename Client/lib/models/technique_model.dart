@@ -9,7 +9,6 @@ class TechniqueModel {
   final String? example;
   final List<String> tips;
   final String? audioUrl;
-  
 
   const TechniqueModel({
     required this.id,
@@ -21,7 +20,6 @@ class TechniqueModel {
     this.example,
     required this.tips,
     this.audioUrl,
-
   });
 
   factory TechniqueModel.fromJson(Map<String, dynamic> json) {

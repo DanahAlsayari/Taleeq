@@ -1245,7 +1245,7 @@ void _loadTrainingAttempts() {
                         history.length == 1
                             ? 'أحدث تقييم'
                             : index == 0
-                            ? 'أحدث تقييم - ١ من ${_arabicNumber(history.length)}'
+                            ? 'أحدث تقييم • ١ من ${_arabicNumber(history.length)}'
                             : 'تقييم ${_arabicNumber(index + 1)} من ${_arabicNumber(history.length)}',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.cairo(
