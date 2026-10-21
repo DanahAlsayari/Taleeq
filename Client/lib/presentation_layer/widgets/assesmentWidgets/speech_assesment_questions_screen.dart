@@ -20,13 +20,17 @@ import '../../widgets/journey_stepper.dart';
 import 'dart:async';
 
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
-  const SpeechAssesmentQuestionsScreen({super.key});
+  final bool isRetake;
+
+  const SpeechAssesmentQuestionsScreen({
+    super.key,
+    this.isRetake = false,
+  });
 
   @override
   State<SpeechAssesmentQuestionsScreen> createState() =>
       _SpeechAssesmentQuestionsScreen();
 }
-
 class _SpeechAssesmentQuestionsScreen
     extends State<SpeechAssesmentQuestionsScreen> {
   AppLifecycleListener? lifecycleListener;
@@ -129,7 +133,10 @@ class _SpeechAssesmentQuestionsScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => FluencyProfileScreen(profileData: profileData),
+          builder: (context) => FluencyProfileScreen(
+  profileData: profileData,
+  isRetake: widget.isRetake,
+),
         ),
       );
     } catch (e) {

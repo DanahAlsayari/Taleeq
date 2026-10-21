@@ -41,12 +41,14 @@ class FluencyProfileScreen extends StatefulWidget {
   final FluencyProfileData? profileData;
   final bool isHistoryView;
   final bool isPreview;
+  final bool isRetake;
 
   const FluencyProfileScreen({
     super.key,
     this.profileData,
     this.isHistoryView = false,
     this.isPreview = false,
+    this.isRetake = false,
   });
 
   @override
@@ -223,93 +225,137 @@ if (widget.profileData != null) {
       child: Scaffold(
         backgroundColor: TaleeqTheme.warmBackground,
 
-        bottomNavigationBar: widget.isHistoryView
-            ? null
-            : SafeArea(
-                top: false,
-                child: Container(
-                  color: TaleeqTheme.warmBackground,
-                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Light background for text only
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: TaleeqTheme.softTeal.withValues(alpha: 0.45),
-                          borderRadius: BorderRadius.circular(22),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.auto_awesome_rounded,
-                                  color: TaleeqTheme.primaryTeal,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'خطوتك القادمة',
-                                  style: GoogleFonts.cairo(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: TaleeqTheme.primaryTeal,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
-                              style: GoogleFonts.cairo(
-                                fontSize: 12,
-                                color: TaleeqTheme.darkSlate,
-                                height: 1.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
 
-                      const SizedBox(height: 12),
+bottomNavigationBar: widget.isHistoryView
+    ? null
+    : widget.isRetake
+        ? SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final navigator = Navigator.of(context);
 
-                      // Separate button without light green background
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pushNamedAndRemoveUntil(
-                              context,
-                              '/home',
-                              (route) => false,
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: TaleeqTheme.primaryTeal,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                          child: Text(
-                            'ابدأ خطتي',
-                            style: GoogleFonts.cairo(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    navigator.popUntil(
+                      (route) =>
+                          route.settings.name ==
+                              'retake-assessment-intro' ||
+                          route.isFirst,
+                    );
+
+                    if (navigator.canPop()) {
+                      navigator.pop();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TaleeqTheme.primaryTeal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    'العودة إلى تقدمي',
+                    style: GoogleFonts.cairo(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
               ),
+            ),
+          )
+        : SafeArea(
+        top: false,
+        child: Container(
+          color: TaleeqTheme.warmBackground,
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Next step card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: TaleeqTheme.softTeal.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: TaleeqTheme.primaryTeal,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'خطوتك القادمة',
+                          style: GoogleFonts.cairo(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: TaleeqTheme.primaryTeal,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'بناءً على نتائج تقييمك، جهزنا لك خطة تدريب مخصصة تركز على احتياجاتك وتطور طلاقتك.',
+                      style: GoogleFonts.cairo(
+                        fontSize: 12,
+                        color: TaleeqTheme.darkSlate,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Start plan button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/home',
+                      (route) => false,
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TaleeqTheme.primaryTeal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    'ابدأ خطتي',
+                    style: GoogleFonts.cairo(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
 
         body: SafeArea(
           child: ScrollConfiguration(
@@ -455,12 +501,13 @@ if (widget.profileData != null) {
             child: Padding(
               padding: const EdgeInsets.only(right: 12),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  JourneyStepper(currentStep: 4),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    if (!widget.isRetake)
+      JourneyStepper(currentStep: 4),
 
-                  Text(
-                    'ملف طلاقتي',
+    Text(
+      'ملف طلاقتي',
                     textAlign: TextAlign.right,
                     style: GoogleFonts.cairo(
                       fontSize: 28,

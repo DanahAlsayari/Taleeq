@@ -118,17 +118,19 @@ void _loadTrainingAttempts() {
     _loadAttemptsStat();
   }
 
-  Future<void> _retakeAssessment() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const SpeechAssesmentIntroScreen(isRetake: true),
-      ),
-    );
+ Future<void> _retakeAssessment() async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      settings: const RouteSettings(name: 'retake-assessment-intro'),
+      builder: (context) =>
+          const SpeechAssesmentIntroScreen(isRetake: true),
+    ),
+  );
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    _retry();
-  }
+  _retry();
+}
 
   @override
   Widget build(BuildContext context) {

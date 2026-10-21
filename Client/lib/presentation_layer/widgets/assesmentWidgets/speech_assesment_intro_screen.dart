@@ -212,7 +212,9 @@ if (!isRetake) ...[
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const SpeechAssesmentQuestionsScreen(),
+                  builder: (context) => SpeechAssesmentQuestionsScreen(
+  isRetake: isRetake,
+),
                 ),
               );
             },
