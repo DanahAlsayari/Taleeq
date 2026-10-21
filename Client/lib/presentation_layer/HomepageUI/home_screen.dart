@@ -1089,23 +1089,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Icon(
-            completed ? Icons.check_circle_outline : Icons.assignment_outlined,
-            color: Colors.white,
-            size: 26,
+child: Column(
+  crossAxisAlignment: CrossAxisAlignment.stretch,
+  children: [
+    Row(
+  textDirection: TextDirection.rtl,
+  mainAxisAlignment: MainAxisAlignment.start,
+  children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.15),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 8),
-          Text(
+          child: Icon(
+            completed
+                ? Icons.check_circle_outline
+                : Icons.assignment_outlined,
+            color: Colors.white,
+            size: 34,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
             completed ? 'جلساتك التدريبية' : 'أكمل تقييمك',
+            textAlign: TextAlign.right,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
           ),
+        ),
+      ],
+    ),
           const SizedBox(height: 10),
           Text(
             completed
