@@ -7,27 +7,23 @@ import 'package:just_audio/just_audio.dart';
 
 import 'package:client/presentation_layer/widgets/audio_waveform.dart';
 
-import 'package:client/presentation_layer/exerciseUI/exercise_result_screen.dart' ;
+import 'package:client/presentation_layer/exerciseUI/exercise_result_screen.dart';
+
 import '../../services/exercise_api_service.dart';
 import 'exercise_success_screen.dart';
 import '../widgets/main_navigation_screen.dart';
+
 class ExerciseScreen extends StatefulWidget {
   final TechniqueModel? technique;
   final Map<String, dynamic> exercise;
 
-  const ExerciseScreen({super.key,
-  this.technique, 
-   required this.exercise ,});
-   
-
+  const ExerciseScreen({super.key, this.technique, required this.exercise});
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
 }
 
 class _ExerciseScreenState extends State<ExerciseScreen> {
-  
-
   bool isRecording = false; // Replace with your actual recording state
   bool _isSubmitting = false;
   bool isPlaying = false;
@@ -46,7 +42,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   bool hasStartedPlaying = false;
   int savedRecordingSeconds = 0;
 
-@override
+  @override
   void initState() {
     super.initState();
 
@@ -61,7 +57,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     player.playerStateStream.listen((position) {
       if (!mounted) return;
 
-      
       if (position.processingState == ProcessingState.completed) {
         setState(() {
           isPlaying = false;
@@ -69,18 +64,11 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         });
       }
     });
-   
   }
-
-
-
-  
 
   Map<String, dynamic> get exerciseData => widget.exercise;
 
-
-   
- void startAmplitudeTimer() {
+  void startAmplitudeTimer() {
     recordingService.startAmplitudeTimer((values) {
       if (!mounted || !isRecording) return;
 
@@ -91,11 +79,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       });
     });
   }
-   void stopAmplitudeTimer() {
+
+  void stopAmplitudeTimer() {
     recordingService.stopAmplitudeTimer();
   }
 
- void startRecordingTimer() {
+  void startRecordingTimer() {
     recordingService.startRecordingTimer(
       (seconds) {
         if (!mounted) return;
@@ -118,13 +107,12 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     );
   }
 
-   String formatTime(int seconds) {
+  String formatTime(int seconds) {
     final minutes = seconds ~/ 60;
     final remainingSeconds = seconds % 60;
 
     return '${minutes.toString().padLeft(2, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
-
 
   void stopRecordingTimer() {
     recordingService.stopRecordingTimer();
@@ -143,7 +131,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
       if (!mounted) return;
 
-      
       setState(() {
         isRecording = false;
 
@@ -152,87 +139,75 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
           savedRecordingSeconds = recordingSeconds;
         }
       });
-
     } finally {
       isStoppingRecording = false;
     }
   }
 
+  Future<void> _submitExercise() async {
+    if (isRecording) {
+      ErrorSnackBar.show(context, 'أوقفي التسجيل أولًا قبل الإرسال');
+      return;
+    }
 
-Future<void> _submitExercise() async {
-  if (isRecording) {
-    ErrorSnackBar.show(context, 'أوقفي التسجيل أولًا قبل الإرسال');
-    return;
-  }
+    if (recordingPath == null) {
+      ErrorSnackBar.show(context, 'سجّلي إجابتك أولًا');
+      return;
+    }
 
-  
-  if (recordingPath == null) {
-    ErrorSnackBar.show(context, 'سجّلي إجابتك أولًا');
-    return;
-  }
+    if (!recordingService.isRecordingDurationValid(savedRecordingSeconds)) {
+      ErrorSnackBar.show(
+        context,
+        'مدة التسجيل قصيرة جدًا. يرجى التسجيل لمدة 15 ثانية على الأقل.',
+      );
+      return;
+    }
 
-  if (!recordingService.isRecordingDurationValid(savedRecordingSeconds)) {
-    ErrorSnackBar.show(
-      context,
-      'مدة التسجيل لازم تكون 15 ثانية على الأقل، أعيدي التسجيل',
-    );
-    return;
-  }
+    setState(() {
+      _isSubmitting = true;
+    });
 
-  setState(() {
-    _isSubmitting = true;
-  });
+    try {
+      final result = await ExerciseApiService().analyzeExerciseAudio(
+        exerciseId: widget.exercise['id'].toString(),
+        recordingPath: recordingPath!,
+      );
 
-  try {
-    final result = await ExerciseApiService().analyzeExerciseAudio(
-      exerciseId: widget.exercise['id'].toString(),
-      recordingPath: recordingPath!,
-    );
+      if (!mounted) return;
 
-    if (!mounted) return;
+      debugPrint('Exercise analysis result: $result');
 
-    debugPrint('Exercise analysis result: $result');
-
-    
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ExerciseSuccessScreen(
-          result: result,
-          exercise: widget.exercise,
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) =>
+              ExerciseSuccessScreen(result: result, exercise: widget.exercise),
         ),
-      ),
-    );
-} catch (e) {
-  if (!mounted) return;
+      );
+    } catch (e) {
+      if (!mounted) return;
 
-  debugPrint('Exercise analysis error: $e');
+      debugPrint('Exercise analysis error: $e');
 
-  ErrorSnackBar.show(
-    context,
-    e.toString().replaceFirst('Exception: ', ''),
-  );
-} finally {
-    if (mounted) {
-      setState(() {
-        _isSubmitting = false;
-      });
+      ErrorSnackBar.show(context, e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
-     if (_isSubmitting) {
+    if (_isSubmitting) {
       return const Scaffold(
         backgroundColor: Color(0xFFFCFAF6),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(
-                color: Color(0xFF6FA7A3),
-              ),
+              CircularProgressIndicator(color: Color(0xFF6FA7A3)),
               SizedBox(height: 16),
               Text(
                 'نجهّز لك تحليل تمرينك...',
@@ -245,10 +220,7 @@ Future<void> _submitExercise() async {
               SizedBox(height: 6),
               Text(
                 'لحظات ونعرض لك النتائج',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF8FA39F),
-                ),
+                style: TextStyle(fontSize: 12, color: Color(0xFF8FA39F)),
               ),
             ],
           ),
@@ -268,13 +240,13 @@ Future<void> _submitExercise() async {
                   SizedBox(
                     height: 58.0,
                     width: double.infinity,
-                  child: Stack(
-                    children: [
-                      Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () async {
+                    child: Stack(
+                      children: [
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: IconButton(
+                            icon: const Icon(Icons.arrow_back),
+                            onPressed: () async {
                               if (isRecording) {
                                 ErrorSnackBar.show(
                                   context,
@@ -289,96 +261,55 @@ Future<void> _submitExercise() async {
 
                               Navigator.pop(context);
                             },
-                        )
-                      ),
-                      Align(
-                        
-                        alignment: AlignmentDirectional.center,
-                        child: Text(
-                          'تمرين',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1F5F5A),
-                            
                           ),
                         ),
-                      ),
-                    
-                    ]
-                  )
+                        Align(
+                          alignment: AlignmentDirectional.center,
+                          child: Text(
+                            'تمرين',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1F5F5A),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  
-              
-                 const SizedBox(height: 20.0),
+
+                  const SizedBox(height: 20.0),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
-                  child:
-                  Wrap(
-                    alignment: WrapAlignment.start,
-                    textDirection: TextDirection.rtl,
-                    spacing: 1.0,
-                    runSpacing: 8.0,
+                    child: Wrap(
+                      alignment: WrapAlignment.start,
+                      textDirection: TextDirection.rtl,
+                      spacing: 1.0,
+                      runSpacing: 8.0,
 
-                    children: [
-                      
+                      children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14.0,
+                            vertical: 6.0,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFCFE4E1),
                             borderRadius: BorderRadius.circular(18),
                           ),
-                          
-                            child: Text(
-                          switch (exerciseData['type']?.toString().trim().toLowerCase()) {
-                            'reading' => 'القراءة',
-                            'picture description' => 'وصف الصورة',
-                            'question & answer' => 'سؤال وجواب',
-                            'storytelling' => 'سرد القصص',
-                            'free speech' => 'التحدث الحر',
-                            _ => exerciseData['type']?.toString() ?? '',
-                          },
-                          style: const TextStyle(
-                            color: Color(0xFF1F5F5A),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                          ),
-                      Container(
-                         padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEAF4F2),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        
+
                           child: Text(
-                          {
-                            'easy': 'سهل',
-                            'medium': 'متوسط',
-                            'hard': 'صعب',
-                          }[exerciseData['difficulty']?.toString().toLowerCase()] ??
-                              exerciseData['difficulty'].toString(),
-                            style: const TextStyle(
-                              color: Color(0xFF6FA7A3),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                      ),
-                      
-                  
-                
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14.0 , vertical: 6.0),
-                        height: 30,
-                        decoration: BoxDecoration(
-                          color: const Color.fromARGB(255, 255, 255, 255),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFFCFE4E1), width: 1.25),
-                        ),
-                                                  child: Text(
-                          widget.technique?.nameAr ?? 'بدون تقنية',
+                            switch (exerciseData['type']
+                                ?.toString()
+                                .trim()
+                                .toLowerCase()) {
+                              'reading' => 'القراءة',
+                              'picture description' => 'وصف الصورة',
+                              'question & answer' => 'سؤال وجواب',
+                              'storytelling' => 'سرد القصص',
+                              'free speech' => 'التحدث الحر',
+                              _ => exerciseData['type']?.toString() ?? '',
+                            },
                             style: const TextStyle(
                               color: Color(0xFF1F5F5A),
                               fontWeight: FontWeight.bold,
@@ -386,17 +317,66 @@ Future<void> _submitExercise() async {
                             ),
                           ),
                         ),
-                    ]
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14.0,
+                            vertical: 6.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEAF4F2),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+
+                          child: Text(
+                            {
+                                  'easy': 'سهل',
+                                  'medium': 'متوسط',
+                                  'hard': 'صعب',
+                                }[exerciseData['difficulty']
+                                    ?.toString()
+                                    .toLowerCase()] ??
+                                exerciseData['difficulty'].toString(),
+                            style: const TextStyle(
+                              color: Color(0xFF6FA7A3),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14.0,
+                            vertical: 6.0,
+                          ),
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFFCFE4E1),
+                              width: 1.25,
+                            ),
+                          ),
+                          child: Text(
+                            widget.technique?.nameAr ?? 'بدون تقنية',
+                            style: const TextStyle(
+                              color: Color(0xFF1F5F5A),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  ),
-                  
-                  
-                      const SizedBox(height: 20.0),
+
+                  const SizedBox(height: 20.0),
                   Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: Text(
                       exerciseData['title'],
-                      
+
                       style: const TextStyle(
                         color: Color.fromARGB(255, 8, 8, 8),
                         fontWeight: FontWeight.bold,
@@ -425,7 +405,7 @@ Future<void> _submitExercise() async {
                         ),
                       ],
                     ),
-                    
+
                     child: Align(
                       child: exerciseData['type'] == 'Reading'
                           ? Text(
@@ -448,123 +428,126 @@ Future<void> _submitExercise() async {
                           ? Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
-                              children:  [
-                                
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.chat_bubble_outline,
-                                        color: Color(0xFF6FA7A3),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          exerciseData['content']['question']?.toString() ?? '',
-                                          textAlign: TextAlign.center,
-                                          softWrap: true,
-                                          style: const TextStyle(
-                                            color: Color(0xFF1F5F5A),
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  )
-
-                                
-                                
-                                ,
-                                
-                              ],
-                              
-                            )
-
-
-                          // Storytelling
-                          
-                          :exerciseData['type'] == 'Storytelling'
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Icon(
-                                      Icons.auto_stories_outlined,
-                                      size: 30,
+                                      Icons.chat_bubble_outline,
                                       color: Color(0xFF6FA7A3),
                                     ),
-                                    const SizedBox(height: 10),
-                                    const Text(
-                                      'احكِ لنا قصة',
-                                      style: TextStyle(
-                                        color: Color(0xFF1F5F5A),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        exerciseData['content']['question']
+                                                ?.toString() ??
+                                            '',
+                                        textAlign: TextAlign.center,
+                                        softWrap: true,
+                                        style: const TextStyle(
+                                          color: Color(0xFF1F5F5A),
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 18,
+                                          height: 1.5,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    
+                                  ],
+                                ),
+                              ],
+                            )
+                          // Storytelling
+                          : exerciseData['type'] == 'Storytelling'
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.auto_stories_outlined,
+                                  size: 30,
+                                  color: Color(0xFF6FA7A3),
+                                ),
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'احكِ لنا قصة',
+                                  style: TextStyle(
+                                    color: Color(0xFF1F5F5A),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
 
-
-                                    Row(
-                                      children: (exerciseData['content']['image_urls'] as List<dynamic>)
+                                Row(
+                                  children:
+                                      (exerciseData['content']['image_urls']
+                                              as List<dynamic>)
                                           .map(
                                             (url) => Expanded(
                                               child: Padding(
-                                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 4,
+                                                    ),
                                                 child: ClipRRect(
-                                                  borderRadius: BorderRadius.circular(10),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
                                                   child: Image.network(
                                                     url.toString(),
                                                     height: 110,
                                                     fit: BoxFit.cover,
-                                                    errorBuilder: (context, error, stackTrace) {
-                                                      return const Icon(Icons.broken_image_outlined);
-                                                    },
+                                                    errorBuilder:
+                                                        (
+                                                          context,
+                                                          error,
+                                                          stackTrace,
+                                                        ) {
+                                                          return const Icon(
+                                                            Icons
+                                                                .broken_image_outlined,
+                                                          );
+                                                        },
                                                   ),
                                                 ),
                                               ),
                                             ),
                                           )
                                           .toList(),
-                                    ),
-                                  ],
-                                )
-
+                                ),
+                              ],
+                            )
                           // Free Speech
                           : exerciseData['type'] == 'Free Speech'
-                              ? Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(
-                                      Icons.record_voice_over_outlined,
-                                      size: 42,
-                                      color: Color(0xFF6FA7A3),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    const Text(
-                                      'تحدث بحرية',
-                                      style: TextStyle(
-                                        color: Color(0xFF1F5F5A),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 20,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      exerciseData['content']['prompt'] ??
-                                          exerciseData['content']['topic'] ??
-                                          '',
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: Color(0xFF2E3A38),
-                                        fontSize: 17,
-                                        height: 1.6,
-                                      ),
-                                    ),
-                                  ],
-                                )
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.record_voice_over_outlined,
+                                  size: 42,
+                                  color: Color(0xFF6FA7A3),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'تحدث بحرية',
+                                  style: TextStyle(
+                                    color: Color(0xFF1F5F5A),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  exerciseData['content']['prompt'] ??
+                                      exerciseData['content']['topic'] ??
+                                      '',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xFF2E3A38),
+                                    fontSize: 17,
+                                    height: 1.6,
+                                  ),
+                                ),
+                              ],
+                            )
                           : const SizedBox.shrink(),
                     ),
                   ),
@@ -572,15 +555,247 @@ Future<void> _submitExercise() async {
                   const SizedBox(height: 20.0),
 
                   if (!isRecording && recordingPath == null)
+                    Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () async {
+                            if (await recordingService.startRecording(
+                              'exercise_recording',
+                            )) {
+                              setState(() {
+                                amplitudes.clear();
+                                recordingSeconds = 0;
+                                isRecording = true;
+                              });
 
-                Column(
-                    children: [                
-                  GestureDetector(
-                    onTap:() async {
-                      if (await recordingService.startRecording('exercise_recording')) {
-                         setState(() {
+                              startAmplitudeTimer();
+                              startRecordingTimer();
+                            }
+                          },
+                          child: Container(
+                            width: 140,
+                            height: 140,
+                            decoration: BoxDecoration(
+                              color: Color(0xFFEAF4F2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  color: Color(0xFF6FA7A3),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.mic,
+                                  color: Colors.white,
+                                  size: 38,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16.0),
+                        const Text(
+                          "اضغط للبدء في التسجيل",
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2E3A38),
+                          ),
+                        ),
+                        const SizedBox(height: 4.0),
+                      ],
+                    ),
+
+                  if (isRecording)
+                    Column(
+                      children: [
+                        Container(
+                          width: 225,
+                          height: 70,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFBE9E7),
+                            borderRadius: BorderRadius.circular(35),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.circle,
+                                color: Color(0xFFE57373),
+                                size: 12,
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                "التسجيل جار",
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2E3A38),
+                                ),
+                              ),
+                              const SizedBox(width: 20),
+                              Text(
+                                formatTime(recordingSeconds),
+                                style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF2E3A38),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        AudioWaveform(amplitudes: amplitudes),
+                        const SizedBox(height: 24),
+
+                        // stop recording
+                        GestureDetector(
+                          onTap: () async {
+                            await finishRecording();
+                          },
+                          child: Container(
+                            width: 100,
+                            height: 100,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF287D78),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.stop_rounded,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          "اضغط للإيقاف",
+                          style: TextStyle(
+                            fontFamily: 'Tajawal',
+                            fontSize: 14,
+                            color: Color(0xFF8FA39F),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                  // after recording Ui
+                  if (recordingPath != null && !isRecording)
+                    Column(
+                      children: [
+                        AudioWaveform(
+                          amplitudes: amplitudes,
+                          progress:
+                              hasStartedPlaying && savedRecordingSeconds > 0
+                              ? (playbackPosition.inMilliseconds /
+                                        (savedRecordingSeconds * 1000))
+                                    .clamp(0.0, 1.0)
+                                    .toDouble()
+                              : 0.0,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  // play record
+                                  onTap: () async {
+                                    if (isPlaying) {
+                                      await recordingService.pauseAudio();
+
+                                      setState(() {
+                                        isPlaying = false;
+                                      });
+
+                                      return;
+                                    }
+
+                                    if (recordingPath != null) {
+                                      final currentPath = recordingPath!;
+
+                                      if (loadedAudioPath != currentPath) {
+                                        await recordingService.loadAudio(
+                                          currentPath,
+                                        );
+
+                                        loadedAudioPath = currentPath;
+
+                                        playbackPosition = Duration.zero;
+                                      }
+
+                                      if (player.processingState ==
+                                          ProcessingState.completed) {
+                                        await player.seek(Duration.zero);
+                                      }
+
+                                      setState(() {
+                                        isPlaying = true;
+                                        hasStartedPlaying = true;
+                                      });
+
+                                      await recordingService.resumeAudio();
+                                    }
+                                  },
+                                  child: Container(
+                                    width: 58,
+                                    height: 58,
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFFD7EBE8),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: const Color(0xFF287D78),
+                                      size: 30,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  formatTime(
+                                    hasStartedPlaying
+                                        ? playbackPosition.inSeconds
+                                        : savedRecordingSeconds,
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF8FA39F),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            GestureDetector(
+                              // re-record
+                              onTap: () async {
+                                await recordingService.stopAudio();
+                                await player.seek(Duration.zero);
+
+                                if (await recordingService.startRecording(
+                                  "exercise_recording",
+                                )) {
+                                  setState(() {
+                                    recordingPath = null;
+                                    savedRecordingSeconds = 0;
                                     amplitudes.clear();
+
                                     recordingSeconds = 0;
+
+                                    playbackPosition = Duration.zero;
+
+                                    loadedAudioPath = null;
+
+                                    hasStartedPlaying = false;
+
+                                    isPlaying = false;
                                     isRecording = true;
                                   });
 
@@ -588,316 +803,56 @@ Future<void> _submitExercise() async {
                                   startRecordingTimer();
                                 }
                               },
-                    child : Container(
-                      width: 140,
-                      height: 140,
-                      decoration: BoxDecoration(
-                        color:  Color(0xFFEAF4F2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF6FA7A3),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.mic,
-                            color: Colors.white,
-                            size: 38,
-                          ),
-                        ),
-                      ),
-                      
-                    ),
-                  
-                  ),
-                  const SizedBox(height: 16.0),
-                            const Text(
-                              "اضغط للبدء في التسجيل",
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2E3A38),
-                              ),
-                            ),
-                            const SizedBox(height: 4.0),
-
-                ],
-                ),
-
-
-                if (isRecording)
-                        Column(
-                          children: [
-                            Container(
-                              width: 225,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFBE9E7),
-                                borderRadius: BorderRadius.circular(35),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.circle,
-                                    color: Color(0xFFE57373),
-                                    size: 12,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "التسجيل جار",
-                                    style: TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF2E3A38),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Text(
-                                    formatTime(recordingSeconds),
-                                    style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w500,
-                                      color: Color(0xFF2E3A38),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 28),
-                            AudioWaveform(amplitudes: amplitudes),
-                            const SizedBox(height: 24),
-
-                            // stop recording
-                            GestureDetector(
-                              onTap: () async {
-                                await finishRecording();
-                              },
                               child: Container(
-                                width: 100,
-                                height: 100,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF287D78),
-                                  shape: BoxShape.circle,
+                                height: 54,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
                                 ),
-                                child: const Icon(
-                                  Icons.stop_rounded,
+                                decoration: BoxDecoration(
                                   color: Colors.white,
-                                  size: 40,
+                                  border: Border.all(
+                                    color: const Color(0xFFD7EBE8),
+                                  ),
+                                  borderRadius: BorderRadius.circular(18),
                                 ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              "اضغط للإيقاف",
-                              style: TextStyle(
-                                fontFamily: 'Tajawal',
-                                fontSize: 14,
-                                color: Color(0xFF8FA39F),
-                              ),
-                            ),
-                          ],
-                        ),
-
-
-                        // after recording Ui
-                      if (recordingPath != null &&
-                          !isRecording)
-                        Column(
-                          children: [
-                            AudioWaveform(
-                              amplitudes:
-                                  amplitudes
-                                  ,
-                              progress: hasStartedPlaying && savedRecordingSeconds > 0
-                                  ? (playbackPosition.inMilliseconds /
-                                            (savedRecordingSeconds * 1000))
-                                        .clamp(0.0, 1.0)
-                                        .toDouble()
-                                  : 0.0,
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
+                                child: const Row(
                                   children: [
-                                    GestureDetector(
-                                      // play record
-                                      onTap: () async {
-                                        if (isPlaying) {
-                                          await recordingService.pauseAudio();
-
-                                          setState(() {
-                                            isPlaying = false;
-                                          });
-
-                                          return;
-                                        }
-
-                                        if (recordingPath != null) 
-                                            {
-                                          final currentPath =
-                                              recordingPath!;
-
-                                          if (loadedAudioPath != currentPath) {
-                                            await recordingService.loadAudio(
-                                              currentPath,
-                                            );
-
-                                            loadedAudioPath = currentPath;
-
-                                            playbackPosition = Duration.zero;
-                                          }
-
-                                          if (player.processingState ==
-                                              ProcessingState.completed) {
-                                            await player.seek(Duration.zero);
-                                          }
-
-                                          setState(() {
-                                            isPlaying = true;
-                                            hasStartedPlaying = true;
-                                          });
-
-                                          await recordingService.resumeAudio();
-                                        }
-                                      },
-                                      child: Container(
-                                        width: 58,
-                                        height: 58,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFD7EBE8),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(
-                                          isPlaying
-                                              ? Icons.pause
-                                              : Icons.play_arrow,
-                                          color: const Color(0xFF287D78),
-                                          size: 30,
-                                        ),
-                                      ),
+                                    Icon(
+                                      Icons.refresh,
+                                      color: Color(0xFF6FA7A3),
+                                      size: 22,
                                     ),
-                                    const SizedBox(width: 10),
+                                    SizedBox(width: 8),
                                     Text(
-                                      formatTime(
-                                        hasStartedPlaying
-                                            ? playbackPosition.inSeconds
-                                            : savedRecordingSeconds,
-                                      ),
-                                      style: const TextStyle(
+                                      "إعادة التسجيل",
+                                      style: TextStyle(
+                                        fontFamily: 'Tajawal',
                                         fontSize: 14,
-                                        color: Color(0xFF8FA39F),
+                                        color: Color(0xFF6FA7A3),
                                       ),
                                     ),
                                   ],
                                 ),
-                                GestureDetector(
-                                  // re-record
-                                  onTap: () async {
-                                    await recordingService.stopAudio();
-                                    await player.seek(Duration.zero);
-
-                                    if (await recordingService.startRecording(
-                                      "exercise_recording",
-                                    )) {
-                                      setState(() {
-                                        recordingPath = null;
-                                        savedRecordingSeconds = 0;
-                                        amplitudes.clear();
-
-                                        recordingSeconds = 0;
-
-                                        playbackPosition = Duration.zero;
-
-                                        loadedAudioPath = null;
-
-                                        hasStartedPlaying = false;
-
-                                        isPlaying = false;
-                                        isRecording = true;
-                                      });
-
-                                      startAmplitudeTimer();
-                                      startRecordingTimer();
-                                    }
-                                  },
-                                  child: Container(
-                                    height: 54,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 18,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      border: Border.all(
-                                        color: const Color(0xFFD7EBE8),
-                                      ),
-                                      borderRadius: BorderRadius.circular(18),
-                                    ),
-                                    child: const Row(
-                                      children: [
-                                        Icon(
-                                          Icons.refresh,
-                                          color: Color(0xFF6FA7A3),
-                                          size: 22,
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text(
-                                          "إعادة التسجيل",
-                                          style: TextStyle(
-                                            fontFamily: 'Tajawal',
-                                            fontSize: 14,
-                                            color: Color(0xFF6FA7A3),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                    
+                      ],
+                    ),
 
-
-
-
-
-
-
-
-
-
-
-
-
-//////////////////////////////////////////
-///         Add your recording controls and other UI elements hereconst SizedBox(height: 16.0),
+                  //////////////////////////////////////////
+                  ///         Add your recording controls and other UI elements hereconst SizedBox(height: 16.0),
 
                   // Recording Ui
-                  
-
-
 
                   /////////////////////////////////
-                  
-                ]
+                ],
               ),
             ),
-           
-
-
-    )
-        )
+          ),
+        ),
       ),
-/*
+      /*
 
 bottomNavigationBar: Padding(
         padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
@@ -981,54 +936,46 @@ bottomNavigationBar: Padding(
       ),
 */
 
-    // Fixed bottom button
-    bottomNavigationBar: Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-      decoration: const BoxDecoration(
-        color: TaleeqColors.background,
-        border: Border(
-          top: BorderSide(color: TaleeqColors.border),
+      // Fixed bottom button
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        decoration: const BoxDecoration(
+          color: TaleeqColors.background,
+          border: Border(top: BorderSide(color: TaleeqColors.border)),
         ),
-      ),
-      child: SafeArea(
-        top: false,
-        
-child: SizedBox(
-  height: 58,
-  child: ElevatedButton(
-    onPressed: _isSubmitting ? null : _submitExercise,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: TaleeqColors.medium,
-      foregroundColor: Colors.white,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(
-          _isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل',
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
+        child: SafeArea(
+          top: false,
+
+          child: SizedBox(
+            height: 58,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _submitExercise,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TaleeqColors.medium,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Icon(Icons.send_rounded, size: 22),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 10),
-        const Icon(
-          Icons.send_rounded,
-          size: 22,
-        ),
-      ],
-    ),
-  ),
-),
-
       ),
-    ),
-
-
     );
   }
 }
