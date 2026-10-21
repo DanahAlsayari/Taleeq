@@ -816,12 +816,9 @@ SizedBox(
       mainAxisAlignment: MainAxisAlignment.center,
       textDirection: TextDirection.ltr,
       mainAxisSize: MainAxisSize.min,
-      children: [       Icon(
-          Icons.home_outlined,
-          size: 21,
-        ),        SizedBox(width: 8),
+      children: [            SizedBox(width: 8),
         Text(
-          'العودة إلى الصفحة الرئيسية',
+          'العودة إلى التمارين ',
           textDirection: TextDirection.rtl,
           style: TextStyle(
             fontSize: 14,

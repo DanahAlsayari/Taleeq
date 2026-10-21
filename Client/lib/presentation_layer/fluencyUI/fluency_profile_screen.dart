@@ -75,13 +75,14 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   void initState() {
     super.initState();
 
-    if ((widget.isHistoryView || widget.isPreview) &&
-        widget.profileData != null) {
-      _data = widget.profileData!;
-      _isLoading = false;
-    } else {
-      _loadFluencyProfile();
-    }
+    
+if (widget.profileData != null) {
+  _data = widget.profileData!;
+  _isLoading = false;
+} else {
+  _loadFluencyProfile();
+}
+
   }
 
   Future<void> _loadFluencyProfile() async {
@@ -397,7 +398,7 @@ class _FluencyProfileScreenState extends State<FluencyProfileScreen> {
   }
 
   Widget _buildTabs() {
-    const tabTitles = ['نظرة عامة', 'أنماط التلعثم', 'نتائج المهام'];
+    const tabTitles = ['نظرة عامة', 'أنماط التأتأة', 'نتائج المهام'];
 
     return Container(
       padding: const EdgeInsets.all(5),
@@ -1519,47 +1520,7 @@ class _TaskResultsCard extends StatelessWidget {
             ),
             padding: EdgeInsets.zero,
           ),
-          const SizedBox(height: 16),
-          Text(
-            'الكلمات والأصوات المكتشفة',
-            style: GoogleFonts.cairo(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: TaleeqTheme.darkSlate,
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (safeSpeechEvents.isEmpty)
-            Text(
-              'لم تُرصد كلمات أو أصوات متعثرة في هذه المهمة',
-              style: GoogleFonts.cairo(
-                fontSize: 12,
-                color: TaleeqTheme.textMuted,
-              ),
-            )
-          else if (safePercent == 0)
-            Text(
-              'لم يتم رصد أي نمط تأتأة',
-              style: GoogleFonts.cairo(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: TaleeqTheme.textMuted,
-              ),
-            ),
-          const SizedBox(height: 12),
-          LinearPercentIndicator(
-            lineHeight: 12,
-            animation: true,
-            animationDuration: 1000,
-            isRTL: true,
-            percent: safePercent / 100,
-            barRadius: const Radius.circular(8),
-            backgroundColor: TaleeqTheme.softTeal.withValues(alpha: 0.35),
-            linearGradient: const LinearGradient(
-              colors: [TaleeqTheme.mediumTeal, TaleeqTheme.primaryTeal],
-            ),
-            padding: EdgeInsets.zero,
-          ),
+          
           const SizedBox(height: 16),
           Text(
             'الكلمات والأصوات المكتشفة',

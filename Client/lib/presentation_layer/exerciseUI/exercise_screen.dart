@@ -449,23 +449,31 @@ Future<void> _submitExercise() async {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children:  [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.chat_bubble_outline,
-                                      color: Color(0xFF6FA7A3),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      exerciseData['content']['question'],
-                                      style: TextStyle(
-                                        color: Color(0xFF1F5F5A),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
+                                
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.chat_bubble_outline,
+                                        color: Color(0xFF6FA7A3),
                                       ),
-                                    ),
-                                  ],
-                                )
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          exerciseData['content']['question']?.toString() ?? '',
+                                          textAlign: TextAlign.center,
+                                          softWrap: true,
+                                          style: const TextStyle(
+                                            color: Color(0xFF1F5F5A),
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 18,
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+
                                 
                                 
                                 ,
@@ -984,30 +992,39 @@ bottomNavigationBar: Padding(
       ),
       child: SafeArea(
         top: false,
-        child: SizedBox(
-          height: 58,
-          child: ElevatedButton.icon(
-            onPressed: _isSubmitting ? null : _submitExercise,
-            icon: const Icon(
-              Icons.send_rounded,
-              size: 22,
-            ),
-            label: Text(
-              _isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TaleeqColors.medium,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
+        
+child: SizedBox(
+  height: 58,
+  child: ElevatedButton(
+    onPressed: _isSubmitting ? null : _submitExercise,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: TaleeqColors.medium,
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+      ),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          _isSubmitting ? 'جاري التحليل...' : 'إرسال التسجيل',
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
           ),
         ),
+        const SizedBox(width: 10),
+        const Icon(
+          Icons.send_rounded,
+          size: 22,
+        ),
+      ],
+    ),
+  ),
+),
+
       ),
     ),
 
