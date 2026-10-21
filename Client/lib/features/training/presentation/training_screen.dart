@@ -10,8 +10,10 @@ import 'widgets/taleeq_svg_icon.dart';
 import 'widgets/training_category_card.dart';
 import 'widgets/training_exercise_card.dart';
 import '../../../presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
+
 import 'package:client/presentation_layer/exerciseUI/exercise_screen.dart';
 import 'package:client/services/technique_service.dart';
+
 import '../../../presentation_layer/trainingUI/Games/dont_say_it_screen.dart';
 import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
 
@@ -80,8 +82,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       case ExerciseType.realLifeScenarios:
       case ExerciseType.countingChallenge:
       case ExerciseType.dontSayIt:
-          return false;
-        
+        return false;
     }
   }
 
@@ -92,29 +93,26 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     // Navigate directly to the selected game.
     switch (selection.type) {
-        case ExerciseType.countingChallenge:
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => NamingChallengeScreen(
-            difficulty: selection.difficulty.id,
+      case ExerciseType.countingChallenge:
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                NamingChallengeScreen(difficulty: selection.difficulty.id),
           ),
-        ),
-      );
-      return;
+        );
+        return;
 
-    case ExerciseType.dontSayIt:
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => DontSayItScreen(
-            difficulty: selection.difficulty.id,
+      case ExerciseType.dontSayIt:
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) =>
+                DontSayItScreen(difficulty: selection.difficulty.id),
           ),
-        ),
-      );
-      return;
+        );
+        return;
       default:
         break;
     }
-
 
     // Other categories are handled by their own exercise flows.
     if (!_usesSpeechApi(selection.type)) {
@@ -142,29 +140,30 @@ class _TrainingScreenState extends State<TrainingScreen> {
             exercise: ExerciseDetails.fromJson(exerciseData),
             onStart: (data) async {
               // TODO: Connect to Latifah's Exercise Execution screen.
-            try {
+              try {
+                debugPrint('Exercise ID: ${data.exerciseId}');
+                debugPrint('Exercise Type: ${data.exercise.type}');
+                debugPrint('Technique ID: ${data.techniqueId}');
+                final techniqueId = data.techniqueId;
 
-              debugPrint('Exercise ID: ${data.exerciseId}');
-              debugPrint('Exercise Type: ${data.exercise.type}');
-              debugPrint('Technique ID: ${data.techniqueId}');
-              final selectedTechnique =
-                  await TechniqueService().getTechnique(data.techniqueId);
+                final selectedTechnique = techniqueId == null
+                    ? null
+                    : await TechniqueService().getTechnique(techniqueId);
 
-              if (!context.mounted) return;
+                if (!context.mounted) return;
 
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExerciseScreen(
-                    exercise: exerciseData,
-                    technique: selectedTechnique,
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ExerciseScreen(
+                      exercise: exerciseData,
+                      technique: selectedTechnique,
+                    ),
                   ),
-                ),
-              );
-            } catch (error) {
-              debugPrint('Failed to open exercise: $error');
-            }
-
+                );
+              } catch (error) {
+                debugPrint('Failed to open exercise: $error');
+              }
             },
           ),
         ),
@@ -270,7 +269,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-         
             const SizedBox(height: 14),
             Text('التدريب', style: TrainingText.screenTitle),
             const SizedBox(height: 4),
@@ -309,7 +307,6 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 }
 
-
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.onRetry});
 
@@ -332,4 +329,3 @@ class _ErrorView extends StatelessWidget {
     );
   }
 }
-

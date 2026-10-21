@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'package:client/models/technique_model.dart';
 import 'package:client/services/technique_service.dart';
 import 'package:client/theme/taleeq_theme.dart';
+
+import 'technique_audio_player.dart';
 
 class TechniqueInstructionsScreen extends StatefulWidget {
   final int techniqueId;
@@ -66,32 +67,6 @@ class _TechniqueInstructionsScreenState
     setState(_loadTechnique);
   }
 
-  Future<void> _openVideo(String videoUrl) async {
-    try {
-      final uri = Uri.parse(videoUrl);
-
-      if (uri.scheme != 'https' && uri.scheme != 'http') {
-        throw Exception('Unsupported video URL');
-      }
-
-      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-      if (!opened) {
-        throw Exception('Could not open video');
-      }
-    } catch (error) {
-      if (kDebugMode) {
-        debugPrint('[TechniqueScreen] Video error: $error');
-      }
-
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح الفيديو، حاول مرة أخرى.')),
-      );
-    }
-  }
-
   Widget _sectionCard({required Widget child, Color color = Colors.white}) {
     return Container(
       width: double.infinity,
@@ -149,7 +124,8 @@ class _TechniqueInstructionsScreenState
   }
 
   Widget _buildTechnique(TechniqueModel technique) {
-
+    final audioUrl = technique.audioUrl;
+    final hasAudio = audioUrl != null && audioUrl.trim().isNotEmpty;
     return _sectionCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -179,7 +155,15 @@ class _TechniqueInstructionsScreenState
             style: const TextStyle(fontSize: 15, height: 1.7),
           ),
           const SizedBox(height: 22),
-          
+          if (hasAudio) ...[
+            const Text(
+              'استمع إلى مثال التقنية',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TechniqueAudioPlayer(audioUrl: audioUrl),
+            const SizedBox(height: 20),
+          ],
           const Text(
             'خطوات تطبيق التقنية',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),

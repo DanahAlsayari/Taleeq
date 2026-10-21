@@ -2,7 +2,9 @@ import 'package:client/features/training/presentation/theme/training_theme.dart'
 import 'package:flutter/material.dart';
 import 'package:client/services/technique_service.dart';
 import 'package:client/models/technique_model.dart';
+
 import 'technique_audio_player.dart';
+
 // ==================== COLORS ====================
 class TaleeqColors {
   static const primary = Color(0xFF1F5F5A);
@@ -81,12 +83,12 @@ class Technique {
 
 class ExerciseStartData {
   final ExerciseDetails exercise;
-  final Technique technique;
+  final Technique? technique;
 
-  const ExerciseStartData({required this.exercise, required this.technique});
+  const ExerciseStartData({required this.exercise, this.technique});
 
   String get exerciseId => exercise.id;
-  int get techniqueId => technique.id;
+  int? get techniqueId => technique?.id;
 }
 
 Technique techniqueFromModel(TechniqueModel model) => Technique(
@@ -140,6 +142,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
   String? techniqueError;
   int selectionRequest = 0;
   bool _showTechniqueList = false;
+  bool withoutTechniqueSelected = true;
   final ScrollController _pageScrollController = ScrollController();
   late Future<ExerciseDetails> exerciseFuture;
   ExerciseDetails? loadedExercise;
@@ -434,6 +437,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                       // The technique selector and its instructions share one card.
                       TechniqueSelector(
                         technique: selectedTechnique!,
+                        withoutTechnique: withoutTechniqueSelected,
                         onTap: () {
                           final opening = !_showTechniqueList;
 
@@ -467,7 +471,21 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                                 child: TechniqueInlineList(
                                   techniques: availableTechniques,
                                   selectedId: selectedTechnique!.id,
-                                  onSelect: selectTechnique,
+                                  noneSelected: withoutTechniqueSelected,
+
+                                  onSelect: (technique) {
+                                    setState(() {
+                                      withoutTechniqueSelected = false;
+                                    });
+                                    selectTechnique(technique);
+                                  },
+
+                                  onSelectNone: () {
+                                    setState(() {
+                                      withoutTechniqueSelected = true;
+                                      _showTechniqueList = false;
+                                    });
+                                  },
                                 ),
                               )
                             : const SizedBox(width: double.infinity),
@@ -475,11 +493,12 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                       const SizedBox(height: 12),
                       const Divider(height: 1, color: TaleeqColors.border),
                       const SizedBox(height: 14),
-                      TechniqueInstructionsCard(
-                        key: ValueKey(selectedTechnique!.id),
-                        technique: selectedTechnique!,
-                        embedded: true,
-                      ),
+                      if (!withoutTechniqueSelected)
+                        TechniqueInstructionsCard(
+                          key: ValueKey(selectedTechnique!.id),
+                          technique: selectedTechnique!,
+                          embedded: true,
+                        ),
                     ],
                   ),
                 ),
@@ -503,25 +522,25 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                 height: 58,
                 child: ElevatedButton.icon(
                   onPressed:
-                      selectedTechnique == null ||
-                          loadingTechniques ||
+                      loadingTechniques ||
                           loadingDetails ||
-                          techniqueError != null
-                      ? null
-                      : loadedExercise == null
+                          techniqueError != null ||
+                          loadedExercise == null ||
+                          (!withoutTechniqueSelected &&
+                              selectedTechnique == null)
                       ? null
                       : () => widget.onStart(
                           ExerciseStartData(
                             exercise: loadedExercise!,
-                            technique: selectedTechnique!,
+                            technique: withoutTechniqueSelected
+                                ? null
+                                : selectedTechnique,
                           ),
                         ),
-                  
                   label: const Text(
                     'ابدأ التمرين',
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                   ),
-                  
                   style: ElevatedButton.styleFrom(
                     backgroundColor: TrainingColors.primary,
                     foregroundColor: Colors.white,
@@ -695,12 +714,15 @@ class TechniqueSelector extends StatelessWidget {
   final VoidCallback onTap;
   final bool embedded;
   final bool expanded;
+  final bool withoutTechnique;
+
   const TechniqueSelector({
     super.key,
     required this.technique,
     required this.onTap,
     this.embedded = false,
     this.expanded = false,
+    this.withoutTechnique = false,
   });
   @override
   Widget build(BuildContext context) {
@@ -715,8 +737,10 @@ class TechniqueSelector extends StatelessWidget {
               color: TaleeqColors.soft,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.graphic_eq_rounded,
+            child: Icon(
+              withoutTechnique
+                  ? Icons.block_outlined
+                  : Icons.graphic_eq_rounded,
               color: TaleeqColors.primary,
             ),
           ),
@@ -726,7 +750,7 @@ class TechniqueSelector extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  technique.nameAr,
+                  withoutTechnique ? 'بدون تقنية' : technique.nameAr,
                   style: const TextStyle(
                     fontSize: 19,
                     fontWeight: FontWeight.w900,
@@ -734,8 +758,12 @@ class TechniqueSelector extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  technique.nameEn,
-                  textDirection: TextDirection.ltr,
+                  withoutTechnique
+                      ? 'ابدأ التمرين مباشرة دون استخدام تقنية'
+                      : technique.nameEn,
+                  textDirection: withoutTechnique
+                      ? TextDirection.rtl
+                      : TextDirection.ltr,
                   textAlign: TextAlign.right,
                   style: const TextStyle(
                     fontSize: 12,
@@ -746,35 +774,35 @@ class TechniqueSelector extends StatelessWidget {
             ),
           ),
 
-TextButton(
-  onPressed: onTap,
-  style: TextButton.styleFrom(
-    foregroundColor: TaleeqColors.primary,
-    backgroundColor: const Color(0xFFE1F0ED),
-    shape: const StadiumBorder(),
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    minimumSize: const Size(0, 44),
-  ),
-  child: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        expanded ? 'إغلاق' : 'تغيير',
-        style: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      const SizedBox(width: 6),
-      Icon(
-        expanded
-            ? Icons.keyboard_arrow_up_rounded
-            : Icons.keyboard_arrow_down_rounded,
-        size: 20,
-      ),
-    ],
-  ),
-),
+          TextButton(
+            onPressed: onTap,
+            style: TextButton.styleFrom(
+              foregroundColor: TaleeqColors.primary,
+              backgroundColor: const Color(0xFFE1F0ED),
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              minimumSize: const Size(0, 44),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  expanded ? 'إغلاق' : 'تغيير',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -786,12 +814,16 @@ class TechniqueInlineList extends StatelessWidget {
   final List<Technique> techniques;
   final int selectedId;
   final ValueChanged<Technique> onSelect;
+  final bool noneSelected;
+  final VoidCallback onSelectNone;
 
   const TechniqueInlineList({
     super.key,
     required this.techniques,
     required this.selectedId,
     required this.onSelect,
+    required this.noneSelected,
+    required this.onSelectNone,
   });
 
   @override
@@ -801,11 +833,73 @@ class TechniqueInlineList extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
-      itemCount: techniques.length,
+      itemCount: techniques.length + 1,
       separatorBuilder: (_, __) => const SizedBox(height: 7),
       itemBuilder: (context, index) {
+        if (index == techniques.length) {
+          return Material(
+            color: noneSelected ? const Color(0xFFEEF6F5) : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(13),
+              side: BorderSide(
+                color: noneSelected
+                    ? TaleeqColors.primary
+                    : TaleeqColors.border,
+                width: noneSelected ? 1.5 : 1,
+              ),
+            ),
+            child: InkWell(
+              onTap: onSelectNone,
+              borderRadius: BorderRadius.circular(13),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.block_outlined,
+                      color: TaleeqColors.primary,
+                      size: 28,
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'بدون تقنية',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: TaleeqColors.text,
+                            ),
+                          ),
+                          Text(
+                            'ابدأ التمرين دون استخدام تقنية',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: TaleeqColors.muted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (noneSelected)
+                      const Icon(
+                        Icons.check_circle_rounded,
+                        color: TaleeqColors.primary,
+                        size: 22,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
         final technique = techniques[index];
-        final selected = technique.id == selectedId;
+        final selected = !noneSelected && technique.id == selectedId;
         return Material(
           color: selected ? const Color(0xFFEEF6F5) : Colors.white,
           shape: RoundedRectangleBorder(
@@ -888,12 +982,14 @@ class TechniqueInlineList extends StatelessWidget {
 // ==================== TECHNIQUE INSTRUCTIONS ====================
 class TechniqueInstructionsCard extends StatefulWidget {
   final Technique technique;
+  final bool withoutTechnique;
   final bool embedded;
 
   const TechniqueInstructionsCard({
     super.key,
     required this.technique,
     this.embedded = false,
+    this.withoutTechnique = false,
   });
 
   @override
@@ -912,7 +1008,6 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
     3: 'تحدث بوتيرة مريحة تمنحك وقتًا لنطق الكلمات بوضوح.',
     4: 'استخدم وقفات قصيرة بين العبارات لتنظيم الكلام.',
     5: 'انطق مقاطع الكلام مع إيقاع منتظم ومريح.',
-    6: 'تدرّب على تأتأة خفيفة ومقصودة لتقليل الخوف منها.',
     7: 'بعد التأتأة، توقف قليلًا ثم أعد الكلمة بلطف.',
     8: 'خفف الشد أثناء التأتأة وأكمل الكلمة براحة.',
   };
