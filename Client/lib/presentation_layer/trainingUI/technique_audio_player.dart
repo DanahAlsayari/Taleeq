@@ -143,7 +143,7 @@ class _TechniqueAudioPlayerState extends State<TechniqueAudioPlayer> {
                             ),
                           )
                         : Transform.flip(
-                            flipX: !(isPlaying && !isCompleted),
+                            flipX: false,
                             child: Icon(
                               isPlaying && !isCompleted
                                   ? Icons.pause_circle_filled
