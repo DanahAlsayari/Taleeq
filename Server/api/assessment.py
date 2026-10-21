@@ -38,6 +38,7 @@ from data_and_integration_layer.database.models.assessment import (
 )
 
 from data_and_integration_layer.database.models.user import User
+from data_and_integration_layer.database.models.training_goal import TrainingGoal
 
 from data_and_integration_layer.database.Repositories.assessment_repository import (
     AssessmentRepository,
@@ -206,6 +207,32 @@ def submit_pre_assessment(
     )
 
     db.add(submission)
+
+    # Save the selected goals from pre-assessment question 6.
+    goal_answer = next(
+        (answer for answer in data.answers if answer.question_id == 6),
+        None,
+    )
+
+    if goal_answer is not None:
+        existing_goals = {
+            item.goal.strip().casefold()
+            for item in db.query(TrainingGoal)
+            .filter(TrainingGoal.user_id == current_user.id)
+            .all()
+        }
+
+        for selected_goal in goal_answer.selected_options:
+            goal_text = selected_goal.strip()
+            if not goal_text:
+                continue
+
+            normalized_goal = goal_text.casefold()
+            if normalized_goal not in existing_goals:
+                db.add(TrainingGoal(user_id=current_user.id, goal=goal_text))
+                existing_goals.add(normalized_goal)
+
+    # Persist submission and newly selected goals together.
     db.commit()
     db.refresh(submission)
 
