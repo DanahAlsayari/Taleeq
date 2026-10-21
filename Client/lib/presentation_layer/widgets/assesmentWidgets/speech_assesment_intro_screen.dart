@@ -40,9 +40,10 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                       icon: const Icon(Icons.arrow_back),
                     ),
                   ),
-
-                  const JourneyStepper(currentStep: 3),
-                  const SizedBox(height: 28.0),
+if (!isRetake) ...[
+  const JourneyStepper(currentStep: 3),
+  const SizedBox(height: 28.0),
+],
                   Align(
                     alignment: AlignmentDirectional.centerStart,
 
