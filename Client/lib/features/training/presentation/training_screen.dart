@@ -6,7 +6,6 @@ import '../data/training_api_service.dart';
 import '../logic/training_controller.dart';
 import 'theme/training_theme.dart';
 import 'widgets/taleeq_bottom_nav.dart';
-import 'widgets/taleeq_svg_icon.dart';
 import 'widgets/training_category_card.dart';
 import 'widgets/training_exercise_card.dart';
 import '../../../presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
@@ -55,6 +54,72 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
   bool _isStartingExercise = false;
 
+  // =========================================================
+  // Coming Soon Dialog
+  // =========================================================
+
+  void _showComingSoonDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  color: TrainingColors.primary,
+                  size: 26,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'التدريب قريبًا',
+                    style: TextStyle(
+                      color: TrainingColors.primary,
+                      fontSize: 19,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'تمارين الحياة الواقعية ستكون متاحة قريبًا '
+              'في تحديث قادم من طليق.',
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.7,
+                color: Color(0xFF555555),
+              ),
+              textAlign: TextAlign.right,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text(
+                  'حسنًا',
+                  style: TextStyle(
+                    color: TrainingColors.primary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -86,10 +151,20 @@ class _TrainingScreenState extends State<TrainingScreen> {
     }
   }
 
+  // =========================================================
+  // Start Exercise
+  // =========================================================
+
   Future<void> _startExercise(TrainingExercise exercise) async {
     if (_isStartingExercise) return;
 
     final selection = _controller.selectionFor(exercise);
+
+    // Real-life scenarios are coming soon.
+    if (selection.type == ExerciseType.realLifeScenarios) {
+      _showComingSoonDialog();
+      return;
+    }
 
     // Navigate directly to the selected game.
     switch (selection.type) {
@@ -110,6 +185,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
           ),
         );
         return;
+
       default:
         break;
     }
@@ -144,6 +220,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
                 debugPrint('Exercise ID: ${data.exerciseId}');
                 debugPrint('Exercise Type: ${data.exercise.type}');
                 debugPrint('Technique ID: ${data.techniqueId}');
+
                 final techniqueId = data.techniqueId;
 
                 final selectedTechnique = techniqueId == null
@@ -173,7 +250,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_errorMessage(error), textAlign: TextAlign.center),
+          content: Text(
+            _errorMessage(error),
+            textAlign: TextAlign.center,
+          ),
           backgroundColor: const Color(0xFFB55252),
           behavior: SnackBarBehavior.floating,
         ),
@@ -208,6 +288,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     return 'تعذر تحميل التمرين. تأكدي من تشغيل السيرفر وحاولي مجددًا';
   }
+
+  // =========================================================
+  // Build Screen
+  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -262,6 +346,93 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
+  // =========================================================
+  // Exercise Card
+  // =========================================================
+
+  Widget _buildExerciseCard(TrainingExercise exercise) {
+    final comingSoon =
+        _controller.selectionFor(exercise).type ==
+        ExerciseType.realLifeScenarios;
+
+    final card = TrainingExerciseCard(
+      key: ValueKey(exercise.id),
+      exercise: exercise,
+      difficulty: _controller.difficultyOf(exercise),
+      isDropdownOpen: _controller.isDropdownOpen(exercise.id),
+      onToggleDropdown: () => _controller.toggleDropdown(exercise),
+      onDifficultySelected: (d) =>
+          _controller.selectDifficulty(exercise, d),
+      onStart: () => _startExercise(exercise),
+    );
+
+    // Keep all other exercises unchanged.
+    if (!comingSoon) {
+      return card;
+    }
+
+    // Real-life exercises: Coming Soon.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _showComingSoonDialog,
+      child: Stack(
+        children: [
+          // Disable interactions with the original card.
+          AbsorbPointer(
+            child: Opacity(
+              opacity: 0.55,
+              child: card,
+            ),
+          ),
+
+          // Coming Soon badge.
+          Positioned(
+            top: 8,
+            left: 8,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F0ED),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFCFE4E1),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.schedule_rounded,
+                      color: Color(0xFF1F5F5A),
+                      size: 14,
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      'التدريب قريبًا',
+                      style: TextStyle(
+                        color: Color(0xFF1F5F5A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================================================
+  // Training Content
+  // =========================================================
+
   Widget _buildContent() {
     return Center(
       child: ConstrainedBox(
@@ -270,12 +441,19 @@ class _TrainingScreenState extends State<TrainingScreen> {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
             const SizedBox(height: 14),
-            Text('التدريب', style: TrainingText.screenTitle),
+
+            Text(
+              'التدريب',
+              style: TrainingText.screenTitle,
+            ),
+
             const SizedBox(height: 4),
+
             Text(
               'تمارين مخصصة بناءً على ملف طلاقتك',
               style: TrainingText.screenSubtitle,
             ),
+
             const SizedBox(height: 14),
 
             for (final category in _controller.categories) ...[
@@ -285,17 +463,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
                 isExpanded: _controller.isExpanded(category.id),
                 onToggle: () => _controller.toggleCategory(category.id),
                 exercises: [
-                  for (final e in category.exercises)
-                    TrainingExerciseCard(
-                      key: ValueKey(e.id),
-                      exercise: e,
-                      difficulty: _controller.difficultyOf(e),
-                      isDropdownOpen: _controller.isDropdownOpen(e.id),
-                      onToggleDropdown: () => _controller.toggleDropdown(e),
-                      onDifficultySelected: (d) =>
-                          _controller.selectDifficulty(e, d),
-                      onStart: () => _startExercise(e),
-                    ),
+                  for (final exercise in category.exercises)
+                    _buildExerciseCard(exercise),
                 ],
               ),
               const SizedBox(height: 14),
@@ -307,8 +476,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
   }
 }
 
+// =========================================================
+// Error View
+// =========================================================
+
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
+  const _ErrorView({
+    required this.onRetry,
+  });
 
   final VoidCallback onRetry;
 
@@ -318,11 +493,17 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('تعذّر تحميل التمارين', style: TrainingText.categoryTitle),
+          Text(
+            'تعذّر تحميل التمارين',
+            style: TrainingText.categoryTitle,
+          ),
           const SizedBox(height: 12),
           TextButton(
             onPressed: onRetry,
-            child: Text('إعادة المحاولة', style: TrainingText.exerciseTitle),
+            child: Text(
+              'إعادة المحاولة',
+              style: TrainingText.exerciseTitle,
+            ),
           ),
         ],
       ),
