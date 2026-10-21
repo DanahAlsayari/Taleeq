@@ -13,6 +13,7 @@ class ExerciseApiService {
   Future<Map<String, dynamic>> analyzeExerciseAudio({
     required String exerciseId,
     required String recordingPath,
+    required int techniqueId,
   }) async {
     final token = await AuthStorage.getToken();
 
@@ -33,6 +34,7 @@ class ExerciseApiService {
     final request = http.MultipartRequest('POST', uri);
 
     request.headers['Authorization'] = 'Bearer $token';
+    request.fields['technique_id'] = techniqueId.toString();
 
     request.files.add(await http.MultipartFile.fromPath('file', recordingPath));
     late final http.Response response;

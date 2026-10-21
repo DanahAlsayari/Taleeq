@@ -203,7 +203,17 @@ void _loadTrainingAttempts() {
     return Expanded(
       child: InkWell(
         onTap: () {
-          setState(() => _tab = index);
+          setState(() {
+            _tab = index;
+
+            if (index == 2) {
+              _loadTrainingAttempts();
+            }
+          });
+
+          if (index == 2) {
+            _loadAttemptsStat();
+          }
 
           if (index == 3) {
             _loadGameProgress();
@@ -1317,7 +1327,8 @@ void _loadTrainingAttempts() {
           ],
         ),
         const SizedBox(height: 20),
-        const ExerciseResultScreen(
+        ExerciseResultScreen(
+          key: ValueKey(_trainingAttempts),
           embedded: true,
         ),
       ],

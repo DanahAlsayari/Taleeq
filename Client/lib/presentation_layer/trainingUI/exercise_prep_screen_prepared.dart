@@ -1,3 +1,4 @@
+import 'package:client/features/training/presentation/theme/training_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:client/services/technique_service.dart';
 import 'package:client/models/technique_model.dart';
@@ -522,7 +523,7 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                   ),
                   
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: TaleeqColors.medium,
+                    backgroundColor: TrainingColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(18),

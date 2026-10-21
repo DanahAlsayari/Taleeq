@@ -1,8 +1,8 @@
+import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:client/features/training/presentation/training_screen.dart';
 
 import 'package/../../widgets/main_navigation_screen.dart';
-
 
 class ExerciseSuccessScreen extends StatelessWidget {
   final Map<String, dynamic> result;
@@ -76,6 +76,11 @@ class ExerciseSuccessScreen extends StatelessWidget {
     final scoreChange =
         (comparison['score_change'] as num?)?.toDouble();
 
+    final speechEvents = result['speech_events'];
+    debugPrint('SPEECH EVENTS: ${result['speech_events']}');
+    final List<dynamic> events =
+        speechEvents is List ? speechEvents : [];
+
 
         
     return Scaffold(
@@ -145,18 +150,12 @@ Container(
   width: double.infinity,
   padding: const EdgeInsets.all(24),
   decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(24),
-    border: Border.all(
-      color: const Color(0xFFE9E0D2),
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.04),
-        blurRadius: 12,
-        offset: const Offset(0, 5),
-      ),
-    ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+        color: TaleeqTheme.borderSubtle,
+        ),
+    boxShadow: TaleeqTheme.cardShadow,
   ),
   child: Column(
     children: [
@@ -175,18 +174,9 @@ Container(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(bottom: 6),
-            child: Text(
-              ' 100 /',
-              style: TextStyle(
-                fontSize: 22,
-                color: Color(0xFF7A8E8B),
-              ),
-            ),
-          ),
+
           Text(
-            totalScore.toStringAsFixed(1),
+            '${totalScore.toStringAsFixed(1)}%',
             style: const TextStyle(
               fontSize: 60,
               fontWeight: FontWeight.w800,
@@ -251,7 +241,7 @@ Container(
         ),
 
       const Divider(
-        color: Color(0xFFE9E0D2),
+        color: Color.fromARGB(255, 210, 225, 233),
       ),
 
       const SizedBox(height: 7),
@@ -375,13 +365,14 @@ SizedBox(
 
 Container(
   width: double.infinity,
-  padding: const EdgeInsets.all(20),
+  padding: const EdgeInsets.all(16),
   decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(
-      color: const Color(0xFFE9E0D2),
-    ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+        color: TaleeqTheme.borderSubtle,
+        ),
+    boxShadow: TaleeqTheme.cardShadow,
   ),
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -434,7 +425,7 @@ Container(
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('فهمت'),
+                      child: const Text('حسنًا'),
                     ),
                   ],
                 ),
@@ -444,34 +435,35 @@ Container(
         ],
       ),
 
-      const SizedBox(height: 20),
+      const SizedBox(height: 18),
 
+      
       _performanceMetricRow(
         'الطلاقة',
         (scores['fluency_score'] as num?)?.toDouble() ?? 0,
         Icons.record_voice_over_rounded,
-        const Color(0xFF006B63),
+        const Color(0xFF087F73),
       ),
 
       _performanceMetricRow(
         'الإيقاع',
         (scores['rhythm_score'] as num?)?.toDouble() ?? 0,
         Icons.graphic_eq_rounded,
-        const Color(0xFF5FAFA8),
+        const Color(0xFF4D9BA0),
       ),
 
       _performanceMetricRow(
         'التحكم بالسرعة',
         (scores['speed_control_score'] as num?)?.toDouble() ?? 0,
         Icons.speed_rounded,
-        const Color(0xFF508B9B),
+        const Color(0xFF527FA8),
       ),
 
       _performanceMetricRow(
         'الالتزام بالمهمة',
         (scores['task_adherence_score'] as num?)?.toDouble() ?? 0,
         Icons.task_alt_rounded,
-        const Color(0xFFB28B56),
+        const Color(0xFFB38B57),
       ),
     ],
   ),
@@ -480,11 +472,8 @@ Container(
 
 
 
-const SizedBox(height: 10),
+const SizedBox(height: 12),
 
-const Divider(color: Color(0xFFE9E0D2)),
-
-const SizedBox(height: 10),
 
 
 
@@ -492,9 +481,12 @@ Container(
   width: double.infinity,
   padding: const EdgeInsets.all(20),
   decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(22),
-    border: Border.all(color: const Color(0xFFE9E0D2)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+        color: TaleeqTheme.borderSubtle,
+        ),
+    boxShadow: TaleeqTheme.cardShadow,
   ),
   child: Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -543,7 +535,7 @@ Container(
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(dialogContext),
-                      child: const Text('فهمت'),
+                      child: const Text('حسنًا'),
                     ),
                   ],
                 ),
@@ -569,7 +561,7 @@ Container(
           Text(
             '${stuttering.toStringAsFixed(1)}%',
             style: const TextStyle(
-              fontSize: 26,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
               color: Color(0xFF006B63),
             ),
@@ -609,23 +601,28 @@ Container(
         'التكرار',
         repetition,
         Icons.repeat_rounded,
-        const Color(0xFF006B63),
+        const Color(0xFF087F73),
       ),
+
       _metricRow(
         'الإطالة',
         prolongation,
         Icons.graphic_eq_rounded,
-        const Color(0xFF5FAFA8),
+        const Color(0xFF4D9BA0),
       ),
+
       _metricRow(
         'التوقف',
         blocks,
         Icons.pause_circle_outline_rounded,
-        const Color(0xFFFF765B),
+        const Color(0xFFC47A50),
       ),
     ],
   ),
 ),
+const SizedBox(height: 12),
+
+_buildSpeechEvents(events),
                     ],
                   ),
                 ),
@@ -692,30 +689,72 @@ SizedBox(
     );
   }
 
-  Widget _performanceMetricRow(
-     String title, double score, IconData icon, Color color, ) 
-     {
-      return Padding( 
-        padding: const EdgeInsets.only(bottom: 24),
-         child: Column(
-           children: [
-             Row( children: 
-             [ Container(
-               width: 46, 
-               height: 46,
-                decoration: BoxDecoration( color: color.withValues(alpha: 0.12),
-                 borderRadius: BorderRadius.circular(14), ), 
-                 child: Icon( icon, color: color, size: 25, ), ),
-              const SizedBox(width: 12),
-             Expanded( child: Text( title, style: const TextStyle( fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF203E3A), ), ), ), 
-             Text( '${score.toStringAsFixed(0)}/100', style: TextStyle( fontSize: 16, fontWeight: FontWeight.w800, color: color, ), ), ], ), 
-             
-             const SizedBox(height: 14),
-             
-            ClipRRect( borderRadius: BorderRadius.circular(12), 
-            child: LinearProgressIndicator( value: (score / 100).clamp(0.0, 1.0), minHeight: 10, backgroundColor: const Color(0xFFE8EEEB), valueColor: AlwaysStoppedAnimation<Color>(color),
-             ), ), ], ), ); }
 
+Widget _performanceMetricRow(
+  String title,
+  double score,
+  IconData icon,
+  Color color,
+) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 16),
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(
+                icon,
+                color: color,
+                size: 21,
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF203E3A),
+                ),
+              ),
+            ),
+
+            Text(
+              '${score.toStringAsFixed(0)}%',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: (score / 100).clamp(0.0, 1.0),
+            minHeight: 7,
+            backgroundColor: const Color(0xFFE8EEEB),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
+    ),
+  );
+}
   
 
 Widget _metricRow(
@@ -725,58 +764,209 @@ Widget _metricRow(
   Color color,
 ) {
   return Padding(
-    padding: const EdgeInsets.only(bottom: 24),
+    padding: const EdgeInsets.only(bottom: 16),
     child: Column(
       children: [
         Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                color: color.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(11),
               ),
               child: Icon(
                 icon,
                 color: color,
-                size: 25,
+                size: 21,
               ),
             ),
-            const SizedBox(width: 12),
+
+            const SizedBox(width: 10),
+
             Expanded(
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF203E3A),
                 ),
               ),
             ),
+
             Text(
               '${value.toStringAsFixed(1)}%',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: color,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 14),
+
+        const SizedBox(height: 10),
+
         ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
             value: (value / 100).clamp(0.0, 1.0),
-            minHeight: 10,
+            minHeight: 7,
             backgroundColor: const Color(0xFFE8EEEB),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
+        
+      ],
+
+    ),
+    
+  );
+}
+
+Widget _buildSpeechEvents(List<dynamic> events) {
+  return Container(
+    width: double.infinity,
+    
+    padding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 20,
+    ),
+    decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(19),
+        border: Border.all(
+        color: TaleeqTheme.borderSubtle,
+        ),
+    boxShadow: TaleeqTheme.cardShadow,
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        
+        const Row(
+          children: [
+            Icon(
+              Icons.record_voice_over_rounded,
+              color: Color(0xFF006B63),
+              size: 21,
+            ),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'مواضع التأتأة',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF006B63),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        if (events.isEmpty)
+          const Text(
+            'لم يتم رصد مواضع تأتأة في هذه المحاولة.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF667A75),
+            ),
+          )
+        else
+          ...events.map((event) {
+            if (event is! Map) {
+              return const SizedBox.shrink();
+            }
+
+            final data = Map<String, dynamic>.from(event);
+            final type =
+                (data['event_type'] ?? '').toString().toLowerCase();
+            final word =
+                (data['word_or_sound'] ?? '').toString();
+
+            String label;
+            IconData eventIcon;
+
+            if (type == 'repetition') {
+              label = 'التكرار';
+              eventIcon = Icons.repeat_rounded;
+            } else if (type == 'prolongation') {
+              label = 'الإطالة';
+              eventIcon = Icons.graphic_eq_rounded;
+            } else if (type == 'block') {
+              label = 'التوقف';
+              eventIcon = Icons.pause_circle_outline_rounded;
+            } else {
+              label = 'موضع تأتأة';
+              eventIcon = Icons.record_voice_over_rounded;
+            }
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F8F6),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: const Color(0xFFE1E9E5),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD8EAE5),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      eventIcon,
+                      color: const Color(0xFF006B63),
+                      size: 22,
+                    ),
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF006B63),
+                          ),
+                        ),
+                        if (word.trim().isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            word,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF203E3A),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
       ],
     ),
   );
 }
-
 }

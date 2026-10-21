@@ -1,3 +1,4 @@
+import 'package:client/features/training/presentation/theme/training_theme.dart';
 import 'package:client/presentation_layer/error_snackbar.dart';
 import 'package:client/presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
 import 'package:client/services/recording_service.dart';
@@ -171,10 +172,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       final result = await ExerciseApiService().analyzeExerciseAudio(
         exerciseId: widget.exercise['id'].toString(),
         recordingPath: recordingPath!,
-      );
+        techniqueId: widget.technique!.id,
+    );
 
-      if (!mounted) return;
-
+    if (!mounted) return;
       debugPrint('Exercise analysis result: $result');
 
       Navigator.of(context).pushReplacement(
@@ -951,7 +952,7 @@ bottomNavigationBar: Padding(
             child: ElevatedButton(
               onPressed: _isSubmitting ? null : _submitExercise,
               style: ElevatedButton.styleFrom(
-                backgroundColor: TaleeqColors.medium,
+                backgroundColor: TrainingColors.primary,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),

@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 from io import BytesIO
 from mutagen import File as MutagenFile
+from data_and_integration_layer.database.models.technique import Technique
 
 from data_and_integration_layer.database.models.speech_exercise import (
     SpeechExercise,
@@ -33,6 +34,7 @@ class ExerciseAnalysisService:
         exercise_id: UUID,
         audio_bytes: bytes,
         audio_format: str,
+        technique_id: int,
     ):
 
         #find exercise
@@ -47,6 +49,16 @@ class ExerciseAnalysisService:
 
         if not exercise:
             raise ValueError("Exercise not found.")
+
+        # Find technique
+        technique = (
+            self.db.query(Technique)
+            .filter(Technique.id == technique_id)
+            .first()
+        )
+
+        if not technique:
+            raise ValueError("Technique not found.")
             
 
         #analyze
@@ -57,6 +69,9 @@ class ExerciseAnalysisService:
             difficulty=exercise.difficulty,
             content=exercise.content,
             instructions=exercise.instructions,
+            technique_name=technique.name_ar,
+            technique_description=technique.description,
+            technique_steps=technique.steps,
         )
 
     
@@ -138,6 +153,10 @@ class ExerciseAnalysisService:
                 "score_change": score_change,
             },
             "audio_duration_seconds": audio_duration_seconds,
+            "speech_events": (
+                (analysis.raw_openai_response or {}).get("speech_events", [])
+            ),
+
 
         }
 

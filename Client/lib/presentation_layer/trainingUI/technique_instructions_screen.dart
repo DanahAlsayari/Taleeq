@@ -149,8 +149,6 @@ class _TechniqueInstructionsScreenState
   }
 
   Widget _buildTechnique(TechniqueModel technique) {
-    final videoUrl = technique.videoUrl;
-    final hasVideo = videoUrl != null && videoUrl.trim().isNotEmpty;
 
     return _sectionCard(
       child: Column(
@@ -181,38 +179,7 @@ class _TechniqueInstructionsScreenState
             style: const TextStyle(fontSize: 15, height: 1.7),
           ),
           const SizedBox(height: 22),
-          if (hasVideo) ...[
-            const Text(
-              'شاهد شرح التقنية',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () => _openVideo(videoUrl),
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                height: 160,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: TaleeqTheme.softTeal,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.play_circle_fill_rounded,
-                      size: 56,
-                      color: TaleeqTheme.primaryTeal,
-                    ),
-                    SizedBox(height: 8),
-                    Text('شاهد الفيديو التعليمي'),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-          ],
+          
           const Text(
             'خطوات تطبيق التقنية',
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
