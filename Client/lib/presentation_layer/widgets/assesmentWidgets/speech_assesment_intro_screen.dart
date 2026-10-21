@@ -1,3 +1,4 @@
+import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 
 import 'pre_assesment_success_screen.dart';
@@ -217,7 +218,7 @@ if (!isRetake) ...[
             },
 
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6FA7A3),
+              backgroundColor: TaleeqTheme.primaryTeal,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18.0),
               ),

@@ -169,6 +169,10 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     });
 
     try {
+      if (isPlaying) {
+        await recordingService.stopAudio();
+      }
+
       final result = await ExerciseApiService().analyzeExerciseAudio(
         exerciseId: widget.exercise['id'].toString(),
         recordingPath: recordingPath!,
@@ -177,7 +181,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
     if (!mounted) return;
       debugPrint('Exercise analysis result: $result');
-
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) =>

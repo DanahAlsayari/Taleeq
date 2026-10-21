@@ -1,3 +1,4 @@
+import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 
 import '../../../services/assessment_api_service.dart';
@@ -959,7 +960,7 @@ class _SpeechAssesmentQuestionsScreen
                   }
                 : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6FA7A3),
+              backgroundColor: TaleeqTheme.primaryTeal,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18.0),
               ),
