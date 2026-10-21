@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:client/services/technique_service.dart';
 import 'package:client/models/technique_model.dart';
-
+import 'technique_audio_player.dart';
 // ==================== COLORS ====================
 class TaleeqColors {
   static const primary = Color(0xFF1F5F5A);
@@ -64,6 +64,7 @@ class Technique {
   final List<String> steps;
   final String? example;
   final List<String> tips;
+  final String? audioUrl;
 
   const Technique({
     required this.id,
@@ -73,6 +74,7 @@ class Technique {
     this.steps = const [],
     this.example,
     this.tips = const [],
+    this.audioUrl,
   });
 }
 
@@ -94,6 +96,7 @@ Technique techniqueFromModel(TechniqueModel model) => Technique(
   steps: model.steps,
   example: model.example,
   tips: model.tips,
+  audioUrl: model.audioUrl,
 );
 
 // ==================== SCREEN ====================
@@ -1069,6 +1072,14 @@ class _TechniqueInstructionsCardState extends State<TechniqueInstructionsCard> {
                                     color: TaleeqColors.text,
                                   ),
                                 ),
+
+                                if (technique.audioUrl?.trim().isNotEmpty ??
+                                    false) ...[
+                                  const SizedBox(height: 12),
+                                  TechniqueAudioPlayer(
+                                    audioUrl: technique.audioUrl!,
+                                  ),
+                                ],
                               ],
                             ),
                           ),

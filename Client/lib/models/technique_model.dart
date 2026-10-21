@@ -1,3 +1,4 @@
+
 class TechniqueModel {
   final int id;
   final String nameAr;
@@ -7,9 +8,7 @@ class TechniqueModel {
   final List<String> steps;
   final String? example;
   final List<String> tips;
-  final String? videoUrl;
-  final String? videoSource;
-  final String? videoTitle;
+  final String? audioUrl;
 
   const TechniqueModel({
     required this.id,
@@ -20,9 +19,7 @@ class TechniqueModel {
     required this.steps,
     this.example,
     required this.tips,
-    this.videoUrl,
-    this.videoSource,
-    this.videoTitle,
+    this.audioUrl,
   });
 
   factory TechniqueModel.fromJson(Map<String, dynamic> json) {
@@ -35,9 +32,7 @@ class TechniqueModel {
       steps: List<String>.from(json['steps'] as List),
       example: json['example'] as String?,
       tips: List<String>.from(json['tips'] ?? []),
-      videoUrl: json['video_url'] as String?,
-      videoSource: json['video_source'] as String?,
-      videoTitle: json['video_title'] as String?,
+      audioUrl: json['audio_url'] as String?,
     );
   }
 }
