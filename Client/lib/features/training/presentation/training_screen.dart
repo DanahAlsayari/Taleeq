@@ -15,12 +15,6 @@ import 'package:client/services/technique_service.dart';
 import '../../../presentation_layer/trainingUI/Games/dont_say_it_screen.dart';
 import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
 
-// TODO (Integration):
-// Connect this callback to the Instructions screen.
-// Pass the selected exercise data (id, type, title,
-// instructions, difficulty, and content).
-// Do not mark the exercise as completed here.
-// Completion must happen after the user finishes the exercise.
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({
     super.key,
@@ -34,7 +28,6 @@ class TrainingScreen extends StatefulWidget {
 
   final ValueChanged<ExerciseSelection> onStartExercise;
 
-  /// Receives the exercise returned by FastAPI.
   final ValueChanged<Map<String, dynamic>>? onExerciseFetched;
 
   final TrainingRepository? repository;
@@ -80,41 +73,116 @@ class _TrainingScreenState extends State<TrainingScreen> {
       case ExerciseType.realLifeScenarios:
       case ExerciseType.countingChallenge:
       case ExerciseType.dontSayIt:
-          return false;
-        
+        return false;
     }
   }
+
+  // =========================================================
+  // Coming Soon Dialog
+  // =========================================================
+
+  void _showComingSoonDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Row(
+              children: [
+                Icon(
+                  Icons.schedule_rounded,
+                  color: TrainingColors.primary,
+                  size: 27,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'التدريب قريبًا',
+                    style: TextStyle(
+                      color: Color(0xFF1F5F5A),
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            content: const Text(
+              'تمارين الحياة الواقعية ستكون متاحة قريبًا '
+              'في تحديث قادم من طليق.',
+              style: TextStyle(
+                fontSize: 15,
+                color: Color(0xFF555555),
+                height: 1.7,
+              ),
+              textAlign: TextAlign.right,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text(
+                  'حسنًا',
+                  style: TextStyle(
+                    color: TrainingColors.primary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // =========================================================
+  // Start Exercise
+  // =========================================================
 
   Future<void> _startExercise(TrainingExercise exercise) async {
     if (_isStartingExercise) return;
 
     final selection = _controller.selectionFor(exercise);
 
+    // Real-life scenarios are coming soon.
+    if (selection.type == ExerciseType.realLifeScenarios) {
+      _showComingSoonDialog();
+      return;
+    }
+
     // Navigate directly to the selected game.
     switch (selection.type) {
-        case ExerciseType.countingChallenge:
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => NamingChallengeScreen(
-            difficulty: selection.difficulty.id,
+      case ExerciseType.countingChallenge:
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => NamingChallengeScreen(
+              difficulty: selection.difficulty.id,
+            ),
           ),
-        ),
-      );
-      return;
+        );
+        return;
 
-    case ExerciseType.dontSayIt:
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => DontSayItScreen(
-            difficulty: selection.difficulty.id,
+      case ExerciseType.dontSayIt:
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => DontSayItScreen(
+              difficulty: selection.difficulty.id,
+            ),
           ),
-        ),
-      );
-      return;
+        );
+        return;
+
       default:
         break;
     }
-
 
     // Other categories are handled by their own exercise flows.
     if (!_usesSpeechApi(selection.type)) {
@@ -127,44 +195,42 @@ class _TrainingScreenState extends State<TrainingScreen> {
     });
 
     try {
-      final exerciseData = await _apiService.fetchRandomExercise(selection);
+      final exerciseData =
+          await _apiService.fetchRandomExercise(selection);
 
       if (!mounted) return;
 
-      // Notify the parent that exercise data has been fetched.
       widget.onExerciseFetched?.call(exerciseData);
 
-      // Navigate to Exercise Prep with the real exercise data.
       await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ExercisePrepScreen(
             exercise: ExerciseDetails.fromJson(exerciseData),
             onStart: (data) async {
-              // TODO: Connect to Latifah's Exercise Execution screen.
-            try {
+              try {
+                debugPrint('Exercise ID: ${data.exerciseId}');
+                debugPrint('Exercise Type: ${data.exercise.type}');
+                debugPrint('Technique ID: ${data.techniqueId}');
 
-              debugPrint('Exercise ID: ${data.exerciseId}');
-              debugPrint('Exercise Type: ${data.exercise.type}');
-              debugPrint('Technique ID: ${data.techniqueId}');
-              final selectedTechnique =
-                  await TechniqueService().getTechnique(data.techniqueId);
+                final selectedTechnique =
+                    await TechniqueService()
+                        .getTechnique(data.techniqueId);
 
-              if (!context.mounted) return;
+                if (!context.mounted) return;
 
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExerciseScreen(
-                    exercise: exerciseData,
-                    technique: selectedTechnique,
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ExerciseScreen(
+                      exercise: exerciseData,
+                      technique: selectedTechnique,
+                    ),
                   ),
-                ),
-              );
-            } catch (error) {
-              debugPrint('Failed to open exercise: $error');
-            }
-
+                );
+              } catch (error) {
+                debugPrint('Failed to open exercise: $error');
+              }
             },
           ),
         ),
@@ -174,7 +240,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_errorMessage(error), textAlign: TextAlign.center),
+          content: Text(
+            _errorMessage(error),
+            textAlign: TextAlign.center,
+          ),
           backgroundColor: const Color(0xFFB55252),
           behavior: SnackBarBehavior.floating,
         ),
@@ -210,6 +279,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
     return 'تعذر تحميل التمرين. تأكدي من تشغيل السيرفر وحاولي مجددًا';
   }
 
+  // =========================================================
+  // Build Screen
+  // =========================================================
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -232,7 +305,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
                   }
 
                   if (_controller.error != null) {
-                    return _ErrorView(onRetry: _controller.load);
+                    return _ErrorView(
+                      onRetry: _controller.load,
+                    );
                   }
 
                   return _buildContent();
@@ -263,6 +338,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
     );
   }
 
+  // =========================================================
+  // Training Content
+  // =========================================================
+
   Widget _buildContent() {
     return Center(
       child: ConstrainedBox(
@@ -270,14 +349,20 @@ class _TrainingScreenState extends State<TrainingScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-         
             const SizedBox(height: 14),
-            Text('التدريب', style: TrainingText.screenTitle),
+
+            Text(
+              'التدريب',
+              style: TrainingText.screenTitle,
+            ),
+
             const SizedBox(height: 4),
+
             Text(
               'تمارين مخصصة بناءً على ملف طلاقتك',
               style: TrainingText.screenSubtitle,
             ),
+
             const SizedBox(height: 14),
 
             for (final category in _controller.categories) ...[
@@ -285,21 +370,14 @@ class _TrainingScreenState extends State<TrainingScreen> {
                 key: ValueKey(category.id),
                 category: category,
                 isExpanded: _controller.isExpanded(category.id),
-                onToggle: () => _controller.toggleCategory(category.id),
+                onToggle: () =>
+                    _controller.toggleCategory(category.id),
                 exercises: [
-                  for (final e in category.exercises)
-                    TrainingExerciseCard(
-                      key: ValueKey(e.id),
-                      exercise: e,
-                      difficulty: _controller.difficultyOf(e),
-                      isDropdownOpen: _controller.isDropdownOpen(e.id),
-                      onToggleDropdown: () => _controller.toggleDropdown(e),
-                      onDifficultySelected: (d) =>
-                          _controller.selectDifficulty(e, d),
-                      onStart: () => _startExercise(e),
-                    ),
+                  for (final exercise in category.exercises)
+                    _buildExerciseCard(exercise),
                 ],
               ),
+
               const SizedBox(height: 14),
             ],
           ],
@@ -307,11 +385,101 @@ class _TrainingScreenState extends State<TrainingScreen> {
       ),
     );
   }
+
+  // =========================================================
+  // Exercise Card
+  // =========================================================
+
+  Widget _buildExerciseCard(TrainingExercise exercise) {
+    final comingSoon =
+        _controller.selectionFor(exercise).type ==
+        ExerciseType.realLifeScenarios;
+
+    final card = TrainingExerciseCard(
+      key: ValueKey(exercise.id),
+      exercise: exercise,
+      difficulty: _controller.difficultyOf(exercise),
+      isDropdownOpen:
+          _controller.isDropdownOpen(exercise.id),
+      onToggleDropdown: () =>
+          _controller.toggleDropdown(exercise),
+      onDifficultySelected: (difficulty) =>
+          _controller.selectDifficulty(exercise, difficulty),
+      onStart: () => _startExercise(exercise),
+    );
+
+    // Keep all other exercises unchanged.
+    if (!comingSoon) {
+      return card;
+    }
+
+    // Real-life exercises: Coming Soon.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _showComingSoonDialog,
+      child: Stack(
+        children: [
+          // Prevent interactions with the original card.
+          AbsorbPointer(
+            child: Opacity(
+              opacity: 0.55,
+              child: card,
+            ),
+          ),
+
+          // Coming Soon badge.
+          Positioned(
+            top: 8,
+            left: 8,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F0ED),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFCFE4E1),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.schedule_rounded,
+                      color: Color(0xFF1F5F5A),
+                      size: 14,
+                    ),
+                    SizedBox(width: 5),
+                    Text(
+                      'التدريب قريبًا',
+                      style: TextStyle(
+                        color: Color(0xFF1F5F5A),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
+// =========================================================
+// Error View
+// =========================================================
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.onRetry});
+  const _ErrorView({
+    required this.onRetry,
+  });
 
   final VoidCallback onRetry;
 
@@ -321,15 +489,22 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('تعذّر تحميل التمارين', style: TrainingText.categoryTitle),
+          Text(
+            'تعذّر تحميل التمارين',
+            style: TrainingText.categoryTitle,
+          ),
+
           const SizedBox(height: 12),
+
           TextButton(
             onPressed: onRetry,
-            child: Text('إعادة المحاولة', style: TrainingText.exerciseTitle),
+            child: Text(
+              'إعادة المحاولة',
+              style: TrainingText.exerciseTitle,
+            ),
           ),
         ],
       ),
     );
   }
 }
-
