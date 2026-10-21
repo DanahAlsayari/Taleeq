@@ -130,18 +130,14 @@ class SharedGameRecordingLayout extends StatelessWidget {
               Icon(
                 isRecording
                     ? Icons.mic_rounded
-                    : Icons.hourglass_top_rounded,
+                    : Icons.check_rounded,
                 color: isRecording ? coral : mint,
               ),
               const SizedBox(width: 8),
               Text(
                 isRecording
                     ? 'جاري التسجيل...'
-                    : analyzingMessage,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
+                    : 'تم إسال التسجيل'
               ),
             ],
           ),

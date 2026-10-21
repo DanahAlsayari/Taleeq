@@ -531,7 +531,6 @@ Transform.flip(
           ),
           const SizedBox(height: 12),
 
-          // العودة إلى الصفحة الرئيسية
           SizedBox(
             width: double.infinity,
             height: 48,
@@ -553,10 +552,10 @@ Transform.flip(
                 textDirection: TextDirection.ltr,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-  Icon(Icons.home_outlined, size: 21),
+
   SizedBox(width: 8),
   Text(
-    'العودة إلى الصفحة الرئيسية',
+    'العودة إلى التمارين ',
     textDirection: TextDirection.rtl,
     style: TextStyle(
       fontSize: 14,
