@@ -6,6 +6,24 @@ import 'login_screen.dart';
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
+  Widget _buildWelcomeBody({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight > 24
+                  ? constraints.maxHeight - 24
+                  : 0,
+            ),
+            child: Center(child: child),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Directionality(
@@ -13,19 +31,19 @@ class WelcomeScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFFFFBF6),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: _buildWelcomeBody(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 35),
+                const SizedBox(height: 12),
 
                 Image.asset(
                   'assets/images/taleeq_logo1.png',
-                  height: 190,
+                  height: 180,
                   fit: BoxFit.contain,
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
 
                 const Text(
                   'نسخة أكثر طلاقة منك',
@@ -49,10 +67,10 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
                 Container(
-                  padding: const EdgeInsets.symmetric(vertical: 20.0),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: BoxDecoration(
                     border: Border(
                       top: BorderSide(color: Color(0xFFEEE6D9)),
@@ -110,7 +128,7 @@ class WelcomeScreen extends StatelessWidget {
                   text: 'تابع تقدمك وتطورك',
                 ),
 */
-                const SizedBox(height: 40),
+                const SizedBox(height: 24),
 
                 SizedBox(
                   width: double.infinity,
@@ -173,7 +191,7 @@ class WelcomeScreen extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                const SizedBox(height: 8),
               ],
             ),
           ),

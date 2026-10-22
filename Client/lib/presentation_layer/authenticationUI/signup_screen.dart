@@ -530,8 +530,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       onPressed: _isLoading
                           ? null
                           : () {
-                              Navigator.of(context)
-                                  .popUntil((route) => route.isFirst);
+                              Navigator.of(context).pop();
                             },
                       icon: const Icon(Icons.arrow_back_ios_new),
                     ),

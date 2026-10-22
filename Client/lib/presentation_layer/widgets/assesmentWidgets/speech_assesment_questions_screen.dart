@@ -22,15 +22,13 @@ import 'dart:async';
 class SpeechAssesmentQuestionsScreen extends StatefulWidget {
   final bool isRetake;
 
-  const SpeechAssesmentQuestionsScreen({
-    super.key,
-    this.isRetake = false,
-  });
+  const SpeechAssesmentQuestionsScreen({super.key, this.isRetake = false});
 
   @override
   State<SpeechAssesmentQuestionsScreen> createState() =>
       _SpeechAssesmentQuestionsScreen();
 }
+
 class _SpeechAssesmentQuestionsScreen
     extends State<SpeechAssesmentQuestionsScreen> {
   AppLifecycleListener? lifecycleListener;
@@ -38,9 +36,10 @@ class _SpeechAssesmentQuestionsScreen
 
   final AssessmentApiService _assessmentApiService = AssessmentApiService();
 
- bool _isSubmitting = false;
-bool _isProcessingNext = false;
-int? _assessmentId;
+  bool _isSubmitting = false;
+  bool _isExiting = false;
+  bool _isProcessingNext = false;
+  int? _assessmentId;
 
   @override
   void initState() {
@@ -135,9 +134,9 @@ int? _assessmentId;
         context,
         MaterialPageRoute(
           builder: (context) => FluencyProfileScreen(
-  profileData: profileData,
-  isRetake: widget.isRetake,
-),
+            profileData: profileData,
+            isRetake: widget.isRetake,
+          ),
         ),
       );
     } catch (e) {
@@ -301,6 +300,43 @@ int? _assessmentId;
     }
   }
 
+  Future<void> _exitAssessment() async {
+    if (_isExiting ||
+        _isSubmitting ||
+        _isProcessingNext ||
+        isStoppingRecording) {
+      return;
+    }
+
+    setState(() {
+      _isExiting = true;
+      _isProcessingNext = true;
+    });
+
+    try {
+      if (isRecording) {
+        await finishRecording();
+      }
+
+      await recordingService.stopAudio();
+
+      if (!mounted) return;
+
+      Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+    } catch (_) {
+      if (!mounted) return;
+
+      ErrorSnackBar.show(context, 'تعذر إغلاق التسجيل. حاول مرة أخرى.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isExiting = false;
+          _isProcessingNext = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoadingTasks) {
@@ -374,6 +410,10 @@ int? _assessmentId;
                         alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
                           onPressed: () async {
+                            if (_isExiting ||
+                                _isProcessingNext ||
+                                _isSubmitting)
+                              return;
                             if (isRecording) {
                               ErrorSnackBar.show(
                                 context,
@@ -402,7 +442,11 @@ int? _assessmentId;
                               Navigator.pop(context);
                             }
                           },
-                          icon: const Icon(Icons.arrow_back),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Color(0xFF526B68),
+                            size: 24,
+                          ),
                         ),
                       ),
 
@@ -433,6 +477,26 @@ int? _assessmentId;
                             }),
                           ),
                         ],
+                      ),
+
+                      // Exit the assessment and return home.
+                      Align(
+                        alignment: AlignmentDirectional.topEnd,
+                        child: IconButton(
+                          tooltip: 'العودة إلى الرئيسية',
+                          onPressed:
+                              _isExiting ||
+                                  _isSubmitting ||
+                                  _isProcessingNext ||
+                                  isStoppingRecording
+                              ? null
+                              : _exitAssessment,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF526B68),
+                            size: 24,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -881,98 +945,99 @@ int? _assessmentId;
         child: SizedBox(
           height: 56.0,
           child: ElevatedButton(
+            onPressed: (hasRecording && !_isProcessingNext && !_isSubmitting)
+                ? () async {
+                    if (_isProcessingNext || _isSubmitting) return;
 
-onPressed: (hasRecording && !_isProcessingNext && !_isSubmitting)
-    ? () async {
-        if (_isProcessingNext || _isSubmitting) return;
+                    setState(() {
+                      _isProcessingNext = true;
+                    });
 
-        setState(() {
-          _isProcessingNext = true;
-        });
+                    try {
+                      // Prevent invalid question index
+                      if (currentQuestionIndex < 0 ||
+                          currentQuestionIndex >= questions.length) {
+                        return;
+                      }
 
-        try {
-          // Prevent invalid question index
-          if (currentQuestionIndex < 0 ||
-              currentQuestionIndex >= questions.length) {
-            return;
-          }
+                      final questionIndex = currentQuestionIndex;
 
-          final questionIndex = currentQuestionIndex;
+                      if (isRecording) {
+                        ErrorSnackBar.show(
+                          context,
+                          questionIndex == questions.length - 1
+                              ? "أوقف التسجيل أولًا قبل إرسال التقييم"
+                              : "أوقف التسجيل أولًا قبل الانتقال للسؤال التالي",
+                        );
+                        return;
+                      }
 
-          if (isRecording) {
-            ErrorSnackBar.show(
-              context,
-              questionIndex == questions.length - 1
-                  ? "أوقف التسجيل أولًا قبل إرسال التقييم"
-                  : "أوقف التسجيل أولًا قبل الانتقال للسؤال التالي",
-            );
-            return;
-          }
+                      final path = recordingPaths[questionIndex];
 
-          final path = recordingPaths[questionIndex];
+                      if (path == null) {
+                        ErrorSnackBar.show(context, "سجل إجابتك أولًا");
+                        return;
+                      }
 
-          if (path == null) {
-            ErrorSnackBar.show(context, "سجل إجابتك أولًا");
-            return;
-          }
+                      final duration = recordingDurations[questionIndex] ?? 0;
 
-          final duration = recordingDurations[questionIndex] ?? 0;
+                      if (!recordingService.isRecordingDurationValid(
+                        duration,
+                      )) {
+                        ErrorSnackBar.show(
+                          context,
+                          "مدة التسجيل لازم تكون 15 ثانية على الأقل، أعد التسجيل",
+                        );
+                        return;
+                      }
 
-          if (!recordingService.isRecordingDurationValid(duration)) {
-            ErrorSnackBar.show(
-              context,
-              "مدة التسجيل لازم تكون 15 ثانية على الأقل، أعد التسجيل",
-            );
-            return;
-          }
+                      await recordingService.stopAudio();
+                      await player.seek(Duration.zero);
 
-          await recordingService.stopAudio();
-          await player.seek(Duration.zero);
+                      debugPrint(
+                        'Started validating audio for question ${questionIndex + 1}',
+                      );
 
-          debugPrint(
-            'Started validating audio for question ${questionIndex + 1}',
-          );
+                      await _assessmentApiService.validateAssessmentAudio(
+                        assessmentId: _assessmentId!,
+                        recordingPath: path,
+                      );
 
-          await _assessmentApiService.validateAssessmentAudio(
-            assessmentId: _assessmentId!,
-            recordingPath: path,
-          );
+                      debugPrint(
+                        'Audio validated successfully for question ${questionIndex + 1}',
+                      );
 
-          debugPrint(
-            'Audio validated successfully for question ${questionIndex + 1}',
-          );
+                      if (!mounted) return;
 
-          if (!mounted) return;
+                      if (questionIndex < questions.length - 1) {
+                        if (currentQuestionIndex != questionIndex) return;
 
-          if (questionIndex < questions.length - 1) {
-            if (currentQuestionIndex != questionIndex) return;
+                        setState(() {
+                          currentQuestionIndex = questionIndex + 1;
+                          isPlaying = false;
+                          playbackPosition = Duration.zero;
+                          loadedAudioPath = null;
+                          hasStartedPlaying = false;
+                        });
+                      } else {
+                        await _submitAssessment();
+                      }
+                    } catch (e) {
+                      if (!mounted) return;
 
-            setState(() {
-              currentQuestionIndex = questionIndex + 1;
-              isPlaying = false;
-              playbackPosition = Duration.zero;
-              loadedAudioPath = null;
-              hasStartedPlaying = false;
-            });
-          } else {
-            await _submitAssessment();
-          }
-        } catch (e) {
-          if (!mounted) return;
-
-          ErrorSnackBar.show(
-            context,
-            e.toString().replaceFirst('Exception: ', ''),
-          );
-        } finally {
-          if (mounted) {
-            setState(() {
-              _isProcessingNext = false;
-            });
-          }
-        }
-      }
-    : null,
+                      ErrorSnackBar.show(
+                        context,
+                        e.toString().replaceFirst('Exception: ', ''),
+                      );
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isProcessingNext = false;
+                        });
+                      }
+                    }
+                  }
+                : null,
 
             style: ElevatedButton.styleFrom(
               backgroundColor: TaleeqTheme.primaryTeal,

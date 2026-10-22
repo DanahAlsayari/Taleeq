@@ -94,6 +94,12 @@ class _PreAssessmentQuestionsScreenState
     }
   }
 
+  void _exitAssessment() {
+    if (isSubmitting) return;
+
+    Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -136,8 +142,8 @@ class _PreAssessmentQuestionsScreenState
                 children: [
                   Stack(
                     children: [
-                    Align(
-                          alignment: AlignmentDirectional.centerStart,
+                      Align(
+                        alignment: AlignmentDirectional.centerStart,
                         child: IconButton(
                           onPressed: isSubmitting
                               ? null
@@ -150,20 +156,20 @@ class _PreAssessmentQuestionsScreenState
                                     Navigator.pop(context);
                                   }
                                 },
-                          icon: const Icon(Icons.arrow_back),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Color(0xFF526B68),
+                            size: 24,
+                          ),
                         ),
-                        ),
-            
-                      
-                      
+                      ),
+
                       Column(
                         children: [
                           const SizedBox(height: 35.0),
-                        
-                           JourneyStepper(currentStep: 2),
-                   
-                      
-                          
+
+                          JourneyStepper(currentStep: 2),
+
                           const SizedBox(height: 12.0),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -184,6 +190,18 @@ class _PreAssessmentQuestionsScreenState
                             }),
                           ),
                         ],
+                      ),
+                      Align(
+                        alignment: AlignmentDirectional.topEnd,
+                        child: IconButton(
+                          tooltip: 'العودة إلى الرئيسية',
+                          onPressed: isSubmitting ? null : _exitAssessment,
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF526B68),
+                            size: 24,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -322,10 +340,7 @@ class _PreAssessmentQuestionsScreenState
                     currentQuestionIndex == questions.length - 1
                         ? 'إرسال'
                         : 'التالي',
-                    style: const TextStyle(
-                      fontSize: 16.0,
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(fontSize: 16.0, color: Colors.white),
                   ),
           ),
         ),
