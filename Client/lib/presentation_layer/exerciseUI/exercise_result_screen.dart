@@ -81,6 +81,8 @@ final exerciseTypeMap = {
   'القراءة': 'Reading',
   'وصف الصورة': 'Picture Description',
   'سرد القصة': 'Storytelling',
+  'سؤال وجواب': 'Question & Answer',
+  'التحدث الحر': 'Free Speech',
 };
 
 final selectedType = exerciseTypeMap[_selectedExerciseFilter];
@@ -328,11 +330,12 @@ if (visibleAttempts.isEmpty)
       'Reading' => 'القراءة',
       'Picture Description' => 'وصف الصورة',
       'Storytelling' => 'سرد القصة',
+      'Question & Answer' => 'سؤال وجواب',
+      'Free Speech' => 'التحدث الحر',
       _ => type,
     };
 
-
-    final title = attempt['title']?.toString().trim() ?? '';
+    final title = attempt['exercise_title']?.toString().trim() ?? '';
 
     final exerciseTitle = title.isNotEmpty
         ? title
@@ -602,7 +605,6 @@ final olderAttempts = attempts.where((attempt) {
     return attemptDate.isBefore(currentAttemptDate);
   }
 
-  // إذا ما توفرت التواريخ، نعتمد على ترتيب السجل من الأحدث للأقدم.
   final index = attempts.indexOf(attempt);
   return currentAttemptIndex >= 0 && index > currentAttemptIndex;
 }).toList();
@@ -625,17 +627,21 @@ final previousScore = previousScoreData is Map
     ? (previousScoreData['total_score'] as num?)?.toDouble()
     : null;
 
-final scoreChange =
-    previousScore == null ? null : totalScore - previousScore;
-    final exerciseTitle = (exercise['title'] ?? '').toString().trim().isNotEmpty
-        ? exercise['title'].toString()
-        : (result['exercise_type'] == 'Reading'
-            ? 'تمرين القراءة'
-            : result['exercise_type'] == 'Speaking'
-                ? 'تمرين التحدث'
-                : 'تمرين سابق');
-    final difficulty = exercise['difficulty'] ?? '' ;
+    final scoreChange =
+        previousScore == null ? null : totalScore - previousScore;
+    
+    final exerciseTitle =
+    (result['exercise_title'] ?? '').toString().trim().isNotEmpty
+        ? result['exercise_title'].toString()
+        : (exercise['title'] ?? '').toString().trim().isNotEmpty
+            ? exercise['title'].toString()
+            : 'تمرين سابق';
 
+debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
+    debugPrint('EXERCISE RESULT: $result');
+    final difficulty = exercise['difficulty'] ?? '' ;
+    debugPrint('📝 TITLE FROM API: ${result['exercise_title']}');
+    debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
     final fluency = (scores['fluency_score'] as num).toDouble();
     final rhythm = (scores['rhythm_score'] as num).toDouble();
     final speed = (scores['speed_control_score'] as num).toDouble();
