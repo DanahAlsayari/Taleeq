@@ -123,10 +123,7 @@ class OpenAIAudioAnalyzer:
         print("AUDIO DURATION:", round(duration, 2))
         print("SAMPLE RATE:", sample_rate)
 
-        if duration < 5.0:
-            raise UnusableSpeechError(
-                "التسجيل قصير جدًا. حاولي التحدث لمدة أطول."
-            )
+        
 
         # Analyze consecutive 100 ms windows.
         window_size = max(1, int(sample_rate * 0.1))
@@ -158,7 +155,7 @@ class OpenAIAudioAnalyzer:
         max_peak = float(np.max(peaks))
 
         # Initial thresholds; calibrate against real recordings.
-        MIN_MAX_RMS = 0.003
+        MIN_MAX_RMS = 0.02
         MIN_MAX_PEAK = 0.015
 
         # Count windows with a meaningful signal.

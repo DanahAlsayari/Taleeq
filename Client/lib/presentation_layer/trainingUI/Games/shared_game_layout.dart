@@ -137,7 +137,7 @@ class SharedGameRecordingLayout extends StatelessWidget {
               Text(
                 isRecording
                     ? 'جاري التسجيل...'
-                    : 'تم إسال التسجيل'
+                    : 'تم إرسال التسجيل '
               ),
             ],
           ),

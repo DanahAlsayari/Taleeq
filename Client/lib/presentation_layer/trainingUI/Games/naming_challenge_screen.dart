@@ -1000,7 +1000,7 @@ Widget _scoreSummaryCard({
         ),
         const SizedBox(height: 8),
         Text(
-          '.اذكر أكبر عدد ممكن من الإجابات على الموضوع التالي خلال 20 ثانية',
+          ' اذكر اكبر عدد ممكن من الإجابات على الموضوع التالي خلال 20 ثانية',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
