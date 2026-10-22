@@ -246,30 +246,57 @@ class _SignupOtpScreenState extends State<SignupOtpScreen> {
     super.dispose();
   }
 
+  Widget _buildOtpBody({required Widget child}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: constraints.maxHeight > 48
+                  ? constraints.maxHeight - 48
+                  : 0,
+            ),
+            child: Align(
+              alignment: _accountCreated
+                  ? Alignment.center
+                  : Alignment.topCenter,
+              child: child,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: !_busy && !_accountCreated,
       child: Scaffold(
         backgroundColor: _background,
-        appBar: AppBar(
-          backgroundColor: _background,
-          automaticallyImplyLeading: false,
-          leading: _accountCreated
-              ? null
-              : IconButton(
-                  onPressed: _busy ? null : () => Navigator.of(context).pop(),
-                  icon: const BackButtonIcon(),
-                  color: _teal,
-                ),
-        ),
+        appBar: _accountCreated
+            ? null
+            : AppBar(
+                backgroundColor: _background,
+                automaticallyImplyLeading: false,
+                leading: _accountCreated
+                    ? null
+                    : IconButton(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        icon: const BackButtonIcon(),
+                        color: _teal,
+                      ),
+              ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+          child: _buildOtpBody(
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
+                if (!_accountCreated) const SizedBox(height: 24),
                 Icon(
                   _accountCreated
                       ? Icons.check_circle_outline_rounded

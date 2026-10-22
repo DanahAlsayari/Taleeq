@@ -31,9 +31,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isLoadingAssessmentStatus = true;
   bool _isUpdatingCompletion = false;
   String? _assessmentStatusError;
-  bool _isPreparingWeeklyPlan = false;
-  bool _hasPreviousWeeklyPlan = false;
-  String? _weeklyPlanActionError;
   @override
   void initState() {
     super.initState();
@@ -171,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     setState(() {
       _isLoadingWeeklyPlan = true;
       _weeklyPlanError = null;
-      _hasPreviousWeeklyPlan = false;
     });
 
     try {
@@ -183,29 +179,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _weeklyPlan = plan;
         _isLoadingWeeklyPlan = false;
       });
-
-      if (plan != null) return;
-
-      final today = _riyadhToday();
-      final weekStart = today.subtract(Duration(days: today.weekday % 7));
-      final previousWeek = weekStart.subtract(const Duration(days: 7));
-
-      try {
-        final previousPlan = await _weeklyPlanService.getWeeklyPlan(
-          weekStart: previousWeek.toIso8601String().substring(0, 10),
-        );
-
-        if (!mounted || _weeklyPlan != null) return;
-
-        final previousSessions = previousPlan?['sessions'];
-
-        setState(() {
-          _hasPreviousWeeklyPlan =
-              previousSessions is List && previousSessions.isNotEmpty;
-        });
-      } catch (_) {
-        // Creating a new plan remains available if this check fails.
-      }
     } catch (_) {
       if (!mounted) return;
 
@@ -214,87 +187,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _isLoadingWeeklyPlan = false;
       });
     }
-  }
-
-  Future<void> _prepareWeeklyPlan({required bool copyPrevious}) async {
-    if (_isPreparingWeeklyPlan) return;
-
-    setState(() {
-      _isPreparingWeeklyPlan = true;
-      _weeklyPlanActionError = null;
-    });
-
-    List<Map<String, dynamic>>? copiedSessions;
-
-    try {
-      final today = _riyadhToday();
-      final weekStart = today.subtract(Duration(days: today.weekday % 7));
-
-      String dateKey(DateTime date) {
-        return date.toIso8601String().substring(0, 10);
-      }
-
-      if (copyPrevious) {
-        final previousWeek = weekStart.subtract(const Duration(days: 7));
-
-        final previousPlan = await _weeklyPlanService.getWeeklyPlan(
-          weekStart: dateKey(previousWeek),
-        );
-
-        if (!mounted) return;
-
-        if (previousPlan == null ||
-            (previousPlan['sessions'] as List<dynamic>).isEmpty) {
-          setState(() {
-            _weeklyPlanActionError =
-                'لا يوجد جدول محفوظ للأسبوع الماضي. يمكنك إنشاء جدول جديد.';
-          });
-          return;
-        }
-
-        copiedSessions = <Map<String, dynamic>>[];
-
-        for (final item in previousPlan['sessions'] as List<dynamic>) {
-          final session = Map<String, dynamic>.from(item as Map);
-          final newDate = _parsePracticeDate(session['practice_date'] as String)
-              .add(const Duration(days: 7));
-
-          if (!newDate.isBefore(today)) {
-            copiedSessions.add({
-              'practice_date': dateKey(newDate),
-              'duration_minutes': session['duration_minutes'],
-            });
-          }
-        }
-      } else {
-        final savedPlan = await _weeklyPlanService.saveWeeklyPlan(
-          weekStart: dateKey(weekStart),
-          sessions: <Map<String, dynamic>>[],
-        );
-
-        if (!mounted) return;
-
-        setState(() {
-          _weeklyPlan = savedPlan;
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
-
-      setState(() {
-        _weeklyPlanActionError = 'تعذر تجهيز الخطة. يرجى المحاولة مرة أخرى.';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPreparingWeeklyPlan = false;
-        });
-      }
-    }
-
-    if (!mounted || copiedSessions == null) return;
-
-    await _editWeeklyPlan(initialSessions: copiedSessions);
   }
 
   Future<void> _editWeeklyPlan({
@@ -433,7 +325,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                                 fontSize: 15,
                                               ),
                                             ),
-                                            
                                           ],
                                         ),
                                       ),
@@ -821,16 +712,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              if (!_isLoadingWeeklyPlan && _weeklyPlanError == null)
+              if (!_isLoadingWeeklyPlan &&
+                  _weeklyPlanError == null &&
+                  _weeklyPlan != null)
                 IconButton(
-                  tooltip: _weeklyPlan == null ? 'إنشاء الخطة' : 'تعديل الخطة',
+                  tooltip: 'تعديل الخطة',
                   onPressed: _editWeeklyPlan,
-                  icon: Icon(
-                    _weeklyPlan == null
-                        ? Icons.add_circle_outline
-                        : Icons.edit_outlined,
-                    color: teal,
-                  ),
+                  icon: const Icon(Icons.edit_outlined, color: teal),
                 ),
             ],
           ),
@@ -855,32 +743,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ] else ...[
             if (_weeklyPlan == null) ...[
               const Text(
-                'كيف يناسبك التدريب هذا الأسبوع؟',
+                'اختر أيام التدريب والمدة المناسبة لك',
                 style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
-                onPressed: _isPreparingWeeklyPlan
-                    ? null
-                    : () => _editWeeklyPlan(),
+                onPressed: () => _editWeeklyPlan(),
                 style: FilledButton.styleFrom(backgroundColor: teal),
                 icon: const Icon(Icons.add),
                 label: const Text('إنشاء جدول جديد'),
               ),
-              if (_hasPreviousWeeklyPlan)
-                OutlinedButton(
-                  onPressed: _isPreparingWeeklyPlan
-                      ? null
-                      : () => _prepareWeeklyPlan(copyPrevious: true),
-                  child: const Text('استخدام جدول الأسبوع الماضي'),
-                ),
-              if (_isPreparingWeeklyPlan)
-                const Center(child: CircularProgressIndicator(color: teal)),
-              if (_weeklyPlanActionError != null)
-                Text(
-                  _weeklyPlanActionError!,
-                  style: const TextStyle(color: Color(0xFFB55252), height: 1.5),
-                ),
               const SizedBox(height: 12),
             ],
             if (_weeklyPlan != null) ...[
@@ -1089,41 +961,41 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         borderRadius: BorderRadius.circular(24),
       ),
-child: Column(
-  crossAxisAlignment: CrossAxisAlignment.stretch,
-  children: [
-    Row(
-  textDirection: TextDirection.rtl,
-  mainAxisAlignment: MainAxisAlignment.start,
-  children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.15),
-            shape: BoxShape.circle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  completed
+                      ? Icons.check_circle_outline
+                      : Icons.assignment_outlined,
+                  color: Colors.white,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  completed ? 'جلساتك التدريبية' : 'أكمل تقييمك',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: Icon(
-            completed
-                ? Icons.check_circle_outline
-                : Icons.assignment_outlined,
-            color: Colors.white,
-            size: 34,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(
-            completed ? 'جلساتك التدريبية' : 'أكمل تقييمك',
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-      ],
-    ),
           const SizedBox(height: 10),
           Text(
             completed

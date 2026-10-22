@@ -150,7 +150,10 @@ Do not confuse natural pauses, breathing, or thinking with silence.
 Do not confuse stuttering with unintelligibility.
 
 If unusable, set speech_usable to false, explain briefly in
-validation_reason, set all percentage and score metrics to 0,
+validation_reason using clear, user-friendly Arabic only.
+The validation_reason must describe the specific audio problem
+and must not contain English words or technical error codes.
+Set all percentage and score metrics to 0,
 set speaking_rate_wpm to null, return an empty speech_events array,
 and provide empty strings for all feedback fields.
 
