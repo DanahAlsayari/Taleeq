@@ -702,47 +702,72 @@ async def analyze_dont_say_it(
         "passed": game_result["passed"],
         "speech_analysis": speech_analysis,
     }
-
-#return the last 50 attempts for the current user, including the challenge details and results.
 @router.get("/progress")
 def get_dont_say_it_progress(
     current_user=Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    query = text("""
-        SELECT
-            a.id,
-            a.challenge_id,
-            a.passed,
-            a.target_guessed,
-            a.forbidden_word_spoken,
-            a.game_analysis,
-            a.speech_analysis,
-            a.created_at,
-            c.target_word_ar,
-            c.difficulty
-        FROM dont_say_it_attempts AS a
-        LEFT JOIN dont_say_it_challenges AS c
-            ON c.id = a.challenge_id
-        WHERE a.user_id = :user_id
-        ORDER BY a.created_at DESC
-        LIMIT 50
-    """)
+    user_id = str(current_user.id)
+
+    # All-time totals include every saved attempt.
+    # The history list below contains only the latest 50 attempts.
+    totals = db.execute(
+        text("""
+            SELECT
+                COUNT(*) AS total_attempts,
+                COALESCE(SUM(c.duration_seconds), 0)
+                    AS total_duration_seconds,
+                COALESCE(
+                    SUM(CASE WHEN a.passed THEN 1 ELSE 0 END),
+                    0
+                ) AS passed_count
+            FROM dont_say_it_attempts AS a
+            LEFT JOIN dont_say_it_challenges AS c
+                ON c.id = a.challenge_id
+            WHERE a.user_id = :user_id
+        """),
+        {"user_id": user_id},
+    ).mappings().first()
 
     rows = db.execute(
-        query,
-        {"user_id": str(current_user.id)},
+        text("""
+            SELECT
+                a.id,
+                a.challenge_id,
+                a.passed,
+                a.target_guessed,
+                a.forbidden_word_spoken,
+                a.game_analysis,
+                a.speech_analysis,
+                a.created_at,
+                c.target_word_ar,
+                c.difficulty,
+                c.duration_seconds
+            FROM dont_say_it_attempts AS a
+            LEFT JOIN dont_say_it_challenges AS c
+                ON c.id = a.challenge_id
+            WHERE a.user_id = :user_id
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT 50
+        """),
+        {"user_id": user_id},
     ).mappings().all()
 
     return {
-        "total_attempts": len(rows),
-        "passed_count": sum(1 for row in rows if row["passed"]),
+        "total_attempts": int(totals["total_attempts"] or 0),
+        "total_duration_seconds": int(
+            totals["total_duration_seconds"] or 0
+        ),
+        "passed_count": int(totals["passed_count"] or 0),
         "attempts": [
             {
                 "id": row["id"],
                 "challenge_id": row["challenge_id"],
                 "target_word": row["target_word_ar"],
                 "difficulty": row["difficulty"],
+                "duration_seconds": int(
+                    row["duration_seconds"] or 0
+                ),
                 "passed": row["passed"],
                 "target_guessed": row["target_guessed"],
                 "forbidden_word_spoken": row["forbidden_word_spoken"],
@@ -750,7 +775,8 @@ def get_dont_say_it_progress(
                 "speech_analysis": row["speech_analysis"],
                 "created_at": (
                     row["created_at"].isoformat()
-                    if row["created_at"] else None
+                    if row["created_at"]
+                    else None
                 ),
             }
             for row in rows

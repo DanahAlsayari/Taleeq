@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:convert';
 
 import 'package:client/services/exercise_api_service.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,13 @@ class _ProgressScreenState extends State<ProgressScreen> {
   late Future<Map<String, dynamic>> _gameProgress;
 
   late Future<List<Map<String, dynamic>>> _trainingAttempts;
+  
+
+String _trainingGameFilter = 'الكل';
+String _selectedTrainingFilter = 'الكل';
+  int _gameAttemptsCount = 0;
+int _gameDurationSeconds = 0;
+
 
    Map<String, int> stats = {
   'total_attempts': 0,
@@ -45,15 +53,58 @@ class _ProgressScreenState extends State<ProgressScreen> {
   };
   
 
- 
 Future<void> _loadGameProgress() async {
   final future = _gameProgressService.getAllGameAttempts();
 
-    setState(() {
-      _gameProgress = future;
+  setState(() {
+    _gameProgress = future;
+  });
+
+  try {
+    final data = await future;
+
+    final dontSayIt = Map<String, dynamic>.from(
+      data['dont_say_it'] as Map? ?? {},
+    );
+
+    final namingRaw = data['naming_challenge'];
+    final naming = namingRaw is Map
+        ? Map<String, dynamic>.from(namingRaw)
+        : <String, dynamic>{};
+
+    final namingDataRaw = naming['data'];
+    final namingData = namingDataRaw is Map
+        ? Map<String, dynamic>.from(namingDataRaw)
+        : naming;
+
+    final dontAttemptsRaw = dontSayIt['attempts'];
+    final namingAttemptsRaw = namingData['attempts'];
+
+    final dontAttempts = dontAttemptsRaw is List
+        ? dontAttemptsRaw.whereType<Map>().toList()
+        : <Map>[];
+
+    final namingAttempts = namingAttemptsRaw is List
+        ? namingAttemptsRaw.whereType<Map>().toList()
+        : <Map>[];
+
+    final allAttempts = [...dontAttempts, ...namingAttempts];
+
+    final durationSeconds = allAttempts.fold<int>(0, (total, attempt) {
+      final value = attempt['duration_seconds'];
+      if (value is num) return total + value.toInt();
+      return total + (int.tryParse(value?.toString() ?? '') ?? 0);
     });
 
-  await future;
+    if (!mounted) return;
+
+    setState(() {
+      _gameAttemptsCount = allAttempts.length;
+      _gameDurationSeconds = durationSeconds;
+    });
+  } catch (e) {
+    debugPrint('خطأ في تحميل إحصائيات الألعاب: $e');
+  }
 }
 void _loadTrainingAttempts() {
   _trainingAttempts = ExerciseApiService().getAllAttempts();
@@ -78,45 +129,89 @@ void _loadTrainingAttempts() {
     );
   }
 
-  
   Future<void> _loadAttemptsStat() async {
-    try {
-      final statsData =
-          await ExerciseApiService().getAttemptsStat();
+  try {
+    final statsData = await ExerciseApiService().getAttemptsStat();
 
-      if (!mounted) return;
+    if (!mounted) return;
 
-      setState(() {
-        stats = statsData;
-      });
-    } catch (e) {
-      debugPrint('خطأ في جلب إحصائيات التمارين: $e');
-    }
+    setState(() {
+      stats = statsData;
+    });
+  } catch (error) {
+    debugPrint('خطأ في جلب إحصائيات التمارين: $error');
   }
+}
+
+Future<void> _loadCombinedTrainingStats() async {
+  try {
+    final gameData = await _gameProgressService.getAllGameAttempts();
+
+    Map<String, dynamic> asMap(dynamic value) {
+      if (value is Map) {
+        return Map<String, dynamic>.from(value);
+      }
+
+      return <String, dynamic>{};
+    }
+
+    int intValue(Map<String, dynamic> source, String key) {
+      final value = source[key];
+
+      if (value is num) return value.toInt();
+
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    final dontSayIt = asMap(gameData['dont_say_it']);
+    final namingChallenge = asMap(gameData['naming_challenge']);
+
+    final exerciseStats =
+        await ExerciseApiService().getAttemptsStat();
+
+    if (!mounted) return;
+
+    setState(() {
+      stats = {
+        'total_attempts':
+            intValue(exerciseStats, 'total_attempts') +
+            intValue(dontSayIt, 'total_attempts') +
+            intValue(namingChallenge, 'total_attempts'),
+        'total_duration_seconds':
+            intValue(exerciseStats, 'total_duration_seconds') +
+            intValue(dontSayIt, 'total_duration_seconds') +
+            intValue(namingChallenge, 'total_duration_seconds'),
+      };
+    });
+  } catch (error) {
+    debugPrint('خطأ في إحصائيات التدريب الموحّدة: $error');
+
+    await _loadAttemptsStat();
+  }
+}
 
 
+@override
+void initState() {
+  super.initState();
 
+  _tab = widget.initialTab.clamp(0, 2).toInt();
 
-
-  @override
-  void initState() {
-    super.initState();
-    _tab = widget.initialTab;
+  _loadProgress();
+  _loadGameProgress();
+  _loadCombinedTrainingStats();
+  _loadTrainingAttempts();
+}
+void _retry() {
+  setState(() {
+    _assessmentIndex = 0;
     _loadProgress();
     _loadGameProgress();
-    _loadAttemptsStat();
     _loadTrainingAttempts();
-  }
+  });
 
-  void _retry() {
-    setState(() {
-      _assessmentIndex = 0;
-      _loadProgress();
-      _loadGameProgress();
-      _loadTrainingAttempts();
-    });
-    _loadAttemptsStat();
-  }
+  _loadCombinedTrainingStats();
+}
 
  Future<void> _retakeAssessment() async {
   await Navigator.of(context).push(
@@ -134,9 +229,11 @@ void _loadTrainingAttempts() {
 
   @override
   Widget build(BuildContext context) {
+    final totalAttempts =
+        (stats['total_attempts'] ?? 0) + _gameAttemptsCount;
 
-    final totalAttempts = stats['total_attempts'] ?? 0;
-    final totalSeconds = stats['total_duration_seconds'] ?? 0;
+    final totalSeconds =
+        (stats['total_duration_seconds'] ?? 0) + _gameDurationSeconds;
     final totalMinutes = totalSeconds ~/ 60;
 
     final totalRemainingSeconds = totalSeconds % 60;
@@ -178,7 +275,7 @@ void _loadTrainingAttempts() {
                   _tabButton('نظرة عامة', 0),
                   _tabButton('التقييمات', 1),
                   _tabButton('التدريب', 2),
-                  _tabButton('الألعاب', 3),
+                  
                 ],
               ),
             ),
@@ -190,7 +287,7 @@ void _loadTrainingAttempts() {
                 _historyView(isOverview: true),
                 _historyView(isOverview: false),
                 _trainingView(),
-                _gamesView(),
+                
               ],
             ),
           ),
@@ -204,23 +301,20 @@ void _loadTrainingAttempts() {
 
     return Expanded(
       child: InkWell(
-        onTap: () {
-          setState(() {
-            _tab = index;
+onTap: () {
+  setState(() {
+    _tab = index;
 
-            if (index == 2) {
-              _loadTrainingAttempts();
-            }
-          });
+    if (index == 2) {
+      _loadTrainingAttempts();
+    }
+  });
 
-          if (index == 2) {
-            _loadAttemptsStat();
-          }
-
-          if (index == 3) {
-            _loadGameProgress();
-          }
-        },
+  if (index == 2) {
+    _loadCombinedTrainingStats();
+    _loadGameProgress();
+  }
+},
         borderRadius: BorderRadius.circular(14),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -1293,50 +1387,115 @@ void _loadTrainingAttempts() {
         ),
       ],
     );
-  }
+  }Widget _trainingView() {
+  return FutureBuilder<Map<String, dynamic>>(
+    future: _gameProgress,
+    builder: (context, snapshot) {
+      Map<String, dynamic> asMap(dynamic value) {
+        if (value is Map) {
+          return Map<String, dynamic>.from(value);
+        }
 
-  Widget _trainingView() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
-      children: [
-        const Text(
-          'سجل التدريب',
-          style: TextStyle(fontSize: 23, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'تابع تمارينك وجلساتك التدريبية.',
-          style: TextStyle(color: TaleeqTheme.textMuted),
-        ),
-        const SizedBox(height: 20),
-        Row(
+        return <String, dynamic>{};
+      }
+
+      final data = snapshot.data ?? <String, dynamic>{};
+
+      final dontSayIt = asMap(data['dont_say_it']);
+      final namingChallenge = asMap(data['naming_challenge']);
+
+      // Support either a direct response or a nested "data" response.
+      final nestedNamingData = namingChallenge['data'];
+      final namingData = nestedNamingData is Map
+          ? Map<String, dynamic>.from(nestedNamingData)
+          : namingChallenge;
+
+      final dontRaw = dontSayIt['attempts'];
+      final namingRaw = namingData['attempts'];
+
+      final dontAttempts = dontRaw is List
+          ? dontRaw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
+
+      final namingAttempts = namingRaw is List
+          ? namingRaw
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList()
+          : <Map<String, dynamic>>[];
+
+      final totalAttempts = stats['total_attempts'] ?? 0;
+      final totalSeconds = stats['total_duration_seconds'] ?? 0;
+
+      final totalMinutes = totalSeconds ~/ 60;
+      final remainingSeconds = totalSeconds % 60;
+
+      final durationLabel = totalMinutes > 0
+          ? '$totalMinutes د و$remainingSeconds ث'
+          : '$remainingSeconds ث';
+
+      return RefreshIndicator(
+        color: TaleeqTheme.primaryTeal,
+        onRefresh: () async {
+          await _loadGameProgress();
+          await _loadCombinedTrainingStats();
+          _loadTrainingAttempts();
+        },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
           children: [
-            Expanded(
-              child: _trainingTile(
-                Icons.menu_book_rounded,
-                '${stats['total_attempts'] ?? 0} تمرين',
-                TaleeqTheme.softTeal,
+            const Text(
+              'سجل التدريب',
+              style: TextStyle(
+                fontSize: 23,
+                fontWeight: FontWeight.bold,
+                color: TaleeqTheme.darkSlate,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _trainingTile(
-                Icons.timer_outlined,
-                '${(stats['total_duration_seconds'] ?? 0) ~/ 60} دقيقة',
-                TaleeqTheme.softPeach,
+            const SizedBox(height: 8),
+            const Text(
+              'تابع تمارينك وجلساتك التدريبية.',
+              style: TextStyle(
+                color: TaleeqTheme.textMuted,
               ),
+            ),
+            const SizedBox(height: 20),
+
+            // Combined totals: speech exercises + both games.
+            Row(
+              children: [
+                Expanded(
+                  child: _trainingTile(
+                    Icons.menu_book_rounded,
+                    '$totalAttempts محاولة',
+                    TaleeqTheme.softTeal,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _trainingTile(
+                    Icons.timer_outlined,
+                    durationLabel,
+                    TaleeqTheme.softPeach,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+            ExerciseResultScreen(
+              key: ValueKey(_trainingAttempts),
+              embedded: true,
             ),
           ],
         ),
-        const SizedBox(height: 20),
-        ExerciseResultScreen(
-          key: ValueKey(_trainingAttempts),
-          embedded: true,
-        ),
-      ],
-    );
-  }
-
+      );
+    },
+  );
+}
   Widget _trainingTile(IconData icon, String label, Color color) {
     return _surface(
       child: Column(
@@ -1577,6 +1736,7 @@ void _loadTrainingAttempts() {
                 icon: Icons.record_voice_over_rounded,
                 latest: _latestGameStutteringPercent(dontAttempts),
                 lowest: _lowestGameStutteringPercent(dontAttempts),
+                change: _latestGameStutteringChange(dontAttempts),
               ),
 
               const SizedBox(height: 12),
@@ -1586,9 +1746,8 @@ void _loadTrainingAttempts() {
                 icon: Icons.lightbulb_outline_rounded,
                 latest: _latestGameStutteringPercent(namingScores),
                 lowest: _lowestGameStutteringPercent(namingScores),
+                change: _latestGameStutteringChange(namingScores),
               ),
-
-              const SizedBox(height: 28),
 
               const Text(
                 'سجل المحاولات',
@@ -2093,29 +2252,62 @@ Widget _historyValue(String label, String value) {
 }
 
 double? _attemptStutteringPercent(Map<String, dynamic> item) {
-  final speechAnalysis = item['speech_analysis'];
-
-  if (speechAnalysis is Map) {
-    for (final key in [
-      'stuttering_percent',
-      'stuttering_percentage',
-      'overall_stuttering_percent',
-    ]) {
-      final value = speechAnalysis[key];
-      if (value is num) return value.toDouble();
+  // The API may return analysis as a decoded map or as a JSON string.
+  dynamic decodeIfJson(dynamic value) {
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+        try {
+          return jsonDecode(trimmed);
+        } catch (_) {
+          return value;
+        }
+      }
     }
+    return value;
   }
 
-  for (final key in [
+  const percentKeys = <String>{
     'stuttering_percent',
     'stuttering_percentage',
     'overall_stuttering_percent',
-  ]) {
-    final value = item[key];
-    if (value is num) return value.toDouble();
+    'stuttering_rate_percent',
+    'stuttering_rate',
+  };
+
+  double? findPercent(dynamic raw, {int depth = 0}) {
+    if (depth > 6) return null;
+    final value = decodeIfJson(raw);
+
+    if (value is Map) {
+      // First prefer explicitly named stuttering percentage fields.
+      for (final entry in value.entries) {
+        if (percentKeys.contains(entry.key.toString().toLowerCase())) {
+          final candidate = decodeIfJson(entry.value);
+          if (candidate is num) return candidate.toDouble();
+          if (candidate is String) {
+            final parsed = double.tryParse(candidate);
+            if (parsed != null) return parsed;
+          }
+        }
+      }
+      // Some responses wrap the analysis in nested objects.
+      for (final entry in value.entries) {
+        final found = findPercent(entry.value, depth: depth + 1);
+        if (found != null) return found;
+      }
+    } else if (value is List) {
+      for (final entry in value) {
+        final found = findPercent(entry, depth: depth + 1);
+        if (found != null) return found;
+      }
+    }
+    return null;
   }
 
-  return null;
+  return findPercent(item['speech_analysis']) ??
+      findPercent(item['game_analysis']) ??
+      findPercent(item);
 }
 
 double? _latestGameStutteringPercent(List<Map<String, dynamic>> attempts) {
@@ -2142,6 +2334,27 @@ double? _latestGameStutteringPercent(List<Map<String, dynamic>> attempts) {
   return null;
 }
 
+double? _latestGameStutteringChange(List<Map<String, dynamic>> attempts) {
+  final sorted = [...attempts]
+    ..sort((a, b) {
+      final dateA = DateTime.tryParse(
+        (a['created_at'] ?? a['updated_at'] ?? '').toString(),
+      );
+      final dateB = DateTime.tryParse(
+        (b['created_at'] ?? b['updated_at'] ?? '').toString(),
+      );
+      if (dateA == null && dateB == null) return 0;
+      if (dateA == null) return -1;
+      if (dateB == null) return 1;
+      return dateA.compareTo(dateB);
+    });
+
+  final values = sorted.map(_attemptStutteringPercent).whereType<double>().toList();
+  if (values.length < 2) return null;
+  // Positive means the stuttering percentage increased; negative means it decreased.
+  return values.last - values[values.length - 2];
+}
+
 double? _lowestGameStutteringPercent(List<Map<String, dynamic>> attempts) {
   final values = attempts
       .map(_attemptStutteringPercent)
@@ -2157,8 +2370,14 @@ Widget _gamePerformanceCard({
   required IconData icon,
   required double? latest,
   required double? lowest,
+  required double? change,
 }) {
-  Widget metric(String label, double? value, IconData metricIcon) {
+  Widget metric(
+    String label,
+    double? value,
+    IconData metricIcon, {
+    bool showTrend = false,
+  }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 15),
@@ -2171,14 +2390,30 @@ Widget _gamePerformanceCard({
           children: [
             Icon(metricIcon, color: TaleeqTheme.primaryTeal, size: 22),
             const SizedBox(height: 8),
-            Text(
-              value == null ? '—' : '${value.toStringAsFixed(1)}%',
-              textDirection: TextDirection.ltr,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: TaleeqTheme.darkSlate,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value == null ? '—' : '${value.toStringAsFixed(1)}%',
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: TaleeqTheme.darkSlate,
+                  ),
+                ),
+                if (showTrend && change != null && change.abs() > 0.0001) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    change < 0
+                        ? Icons.arrow_downward_rounded
+                        : Icons.arrow_upward_rounded,
+                    size: 18,
+                    color: change < 0 ? Colors.green : Colors.red,
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 5),
             Text(
@@ -2223,7 +2458,12 @@ Widget _gamePerformanceCard({
         const SizedBox(height: 12),
         Row(
           children: [
-            metric('آخر نسبة تأتأة', latest, Icons.graphic_eq_rounded),
+            metric(
+              'آخر نسبة تأتأة',
+              latest,
+              Icons.graphic_eq_rounded,
+              showTrend: true,
+            ),
             const SizedBox(width: 10),
             metric('أقل نسبة تأتأة', lowest, Icons.emoji_events_outlined),
           ],

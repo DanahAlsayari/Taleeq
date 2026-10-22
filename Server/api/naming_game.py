@@ -267,37 +267,66 @@ async def analyze_naming_challenge(
         "duration_seconds": prompt["duration_seconds"],
         "speech_analysis": speech_analysis.model_dump(),
     }
-
 @router.get("/attempts")
 def get_naming_challenge_attempts(
     limit: int = 50,
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Return real individual attempts for the signed-in user, newest first."""
+    """Return recent attempts and all-time totals for the signed-in user."""
     ensure_attempt_table(db)
+
+    user_id = str(current_user.id)
     safe_limit = max(1, min(limit, 100))
-    rows = db.execute(text("""
-        SELECT
-            a.id,
-            a.prompt_id,
-            p.prompt_ar AS prompt,
-            p.difficulty,
-            p.category,
-            p.challenge_type,
-            a.valid_items,
-            a.valid_count,
-            a.speech_analysis,
-            a.created_at
-        FROM naming_challenge_attempts AS a
-        LEFT JOIN naming_challenge_prompts AS p ON p.id = a.prompt_id
-        WHERE a.user_id = :user_id
-        ORDER BY a.created_at DESC, a.id DESC
-        LIMIT :limit
-    """), {"user_id": str(current_user.id), "limit": safe_limit}).mappings().all()
+
+    # Calculate totals from all saved attempts, not just the history limit.
+    totals = db.execute(
+        text("""
+            SELECT
+                COUNT(*) AS total_attempts,
+                COALESCE(SUM(p.duration_seconds), 0)
+                    AS total_duration_seconds
+            FROM naming_challenge_attempts AS a
+            LEFT JOIN naming_challenge_prompts AS p
+                ON p.id = a.prompt_id
+            WHERE a.user_id = :user_id
+        """),
+        {"user_id": user_id},
+    ).mappings().first()
+
+    # The returned history is limited to the latest attempts.
+    rows = db.execute(
+        text("""
+            SELECT
+                a.id,
+                a.prompt_id,
+                p.prompt_ar AS prompt,
+                p.difficulty,
+                p.category,
+                p.challenge_type,
+                p.duration_seconds,
+                a.valid_items,
+                a.valid_count,
+                a.speech_analysis,
+                a.created_at
+            FROM naming_challenge_attempts AS a
+            LEFT JOIN naming_challenge_prompts AS p
+                ON p.id = a.prompt_id
+            WHERE a.user_id = :user_id
+            ORDER BY a.created_at DESC, a.id DESC
+            LIMIT :limit
+        """),
+        {
+            "user_id": user_id,
+            "limit": safe_limit,
+        },
+    ).mappings().all()
 
     return {
-        "total_attempts": len(rows),
+        "total_attempts": int(totals["total_attempts"] or 0),
+        "total_duration_seconds": int(
+            totals["total_duration_seconds"] or 0
+        ),
         "attempts": [
             {
                 "id": row["id"],
@@ -307,83 +336,18 @@ def get_naming_challenge_attempts(
                 "difficulty": row["difficulty"],
                 "category": row["category"],
                 "challenge_type": row["challenge_type"],
+                "duration_seconds": int(
+                    row["duration_seconds"] or 0
+                ),
                 "valid_items": row["valid_items"] or [],
                 "valid_count": row["valid_count"],
                 "speech_analysis": row["speech_analysis"],
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "created_at": (
+                    row["created_at"].isoformat()
+                    if row["created_at"]
+                    else None
+                ),
             }
             for row in rows
-        ],
-    }
-
-
-@router.get("/scores")
-def get_naming_challenge_scores(
-    current_user: User = Depends(auth.get_current_user),
-    db: Session = Depends(get_db),
-):
-    ensure_score_table(db)
-    ensure_attempt_table(db)
-
-    rows = db.execute(text("""
-        SELECT
-            s.prompt_id,
-            p.prompt_ar,
-            p.difficulty,
-            s.last_score,
-            s.best_score,
-            s.attempt_count,
-            s.updated_at
-        FROM naming_challenge_scores AS s
-        LEFT JOIN naming_challenge_prompts AS p ON p.id = s.prompt_id
-        WHERE s.user_id = :user_id
-        ORDER BY s.updated_at DESC
-    """), {"user_id": str(current_user.id)}).mappings().all()
-
-    attempts_rows = db.execute(text("""
-        SELECT
-            a.id,
-            a.prompt_id,
-            p.prompt_ar AS prompt,
-            p.difficulty,
-            a.valid_items,
-            a.valid_count,
-            a.speech_analysis,
-            a.created_at
-        FROM naming_challenge_attempts AS a
-        LEFT JOIN naming_challenge_prompts AS p ON p.id = a.prompt_id
-        WHERE a.user_id = :user_id
-        ORDER BY a.created_at DESC, a.id DESC
-        LIMIT 50
-    """), {"user_id": str(current_user.id)}).mappings().all()
-
-    return {
-        "total_questions_played": len(rows),
-        "total_attempts": sum(int(row["attempt_count"]) for row in rows),
-        "scores": [
-            {
-                "prompt_id": row["prompt_id"],
-                "prompt": row["prompt_ar"],
-                "difficulty": row["difficulty"],
-                "last_score": row["last_score"],
-                "best_score": row["best_score"],
-                "attempt_count": row["attempt_count"],
-                "updated_at": row["updated_at"].isoformat() if row["updated_at"] else None,
-            }
-            for row in rows
-        ],
-        "attempts": [
-            {
-                "id": row["id"],
-                "attempt_id": row["id"],
-                "prompt_id": row["prompt_id"],
-                "prompt": row["prompt"],
-                "difficulty": row["difficulty"],
-                "valid_items": row["valid_items"] or [],
-                "valid_count": row["valid_count"],
-                "speech_analysis": row["speech_analysis"],
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-            }
-            for row in attempts_rows
         ],
     }

@@ -1,6 +1,9 @@
 import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 import '../../services/exercise_api_service.dart';
+import '../../services/game_progress_api_service.dart';
+import '../trainingUI/Games/dont_say_it_screen.dart';
+import '../trainingUI/Games/naming_challenge_screen.dart';
 
 
 class ExerciseResultScreen extends StatefulWidget {
@@ -22,6 +25,9 @@ class ExerciseResultScreen extends StatefulWidget {
 
 class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
   List<Map<String, dynamic>> attempts = [];
+  List<Map<String, dynamic>> _speechAttempts = [];
+  List<Map<String, dynamic>> _dontSayItAttempts = [];
+  List<Map<String, dynamic>> _namingAttempts = [];
   int currentIndex = 0;
   bool _isLoading = true;
   String? _loadError;
@@ -46,71 +52,171 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
     });
 
     try {
-      final data = await ExerciseApiService().getAllAttempts();
+      // Load each source independently so a temporary game API failure
+      // does not hide speech-exercise history (or the other game's history).
+      List<Map<String, dynamic>> speechData = [];
+      List<Map<String, dynamic>> dontSayItData = [];
+      List<Map<String, dynamic>> namingData = [];
+      Object? speechError;
+
+      try {
+        speechData = await ExerciseApiService().getAllAttempts();
+      } catch (e) {
+        speechError = e;
+        debugPrint('تعذر تحميل محاولات التمارين: $e');
+      }
+
+      try {
+        final gameService = GameProgressApiService();
+        Map<String, dynamic>? dontResponse;
+        Map<String, dynamic>? namingResponse;
+        try {
+          dontResponse = await gameService.getDontSayItProgress();
+        } catch (e) {
+          debugPrint('تعذر تحميل سجل لعبة لا تقولها: $e');
+        }
+        try {
+          namingResponse = await gameService.getNamingChallengeAttempts();
+        } catch (e) {
+          debugPrint('تعذر تحميل سجل تحدي التسمية: $e');
+        }
+
+        if (dontResponse != null && dontResponse['attempts'] is List) {
+          dontSayItData = (dontResponse['attempts'] as List)
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .map((item) => {
+                    ...item,
+                    '_game_kind': 'dont_say_it',
+                    'exercise_type': 'Dont Say It',
+                    'exercise_title': 'لا تقولها: ${item['target_word'] ?? 'تحدي'}',
+                                      })
+              .toList();
+        }
+
+        if (namingResponse != null && namingResponse['attempts'] is List) {
+          namingData = (namingResponse['attempts'] as List)
+              .whereType<Map>()
+              .map((item) => Map<String, dynamic>.from(item))
+              .map((item) => {
+                    ...item,
+                    '_game_kind': 'naming_challenge',
+                    'exercise_type': 'Naming Challenge',
+                    'exercise_title': 'تحدي التسمية: ${item['prompt'] ?? 'تحدي'}',
+                                      })
+              .toList();
+        }
+      } catch (e) {
+        debugPrint('تعذر تحميل محاولات الألعاب: $e');
+      }
 
       if (!mounted) return;
 
+      final combined = <Map<String, dynamic>>[
+        ...speechData,
+        ...dontSayItData,
+        ...namingData,
+      ];
+      combined.sort((a, b) {
+        final dateA = DateTime.tryParse(a['created_at']?.toString() ?? '');
+        final dateB = DateTime.tryParse(b['created_at']?.toString() ?? '');
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA);
+      });
+
       setState(() {
-        attempts = data;
+        _speechAttempts = speechData;
+        _dontSayItAttempts = dontSayItData;
+        _namingAttempts = namingData;
+        attempts = combined;
+        _loadError = combined.isEmpty && speechError != null
+            ? 'تعذر تحميل سجل التدريب، حاولي مرة ثانية.'
+            : null;
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('خطأ في جلب المحاولات: $e');
-
       if (!mounted) return;
-
       setState(() {
-        _loadError = 'تعذر تحميل محاولات التدريب، حاولي مرة ثانية.';
+        _loadError = 'تعذر تحميل سجل التدريب، حاولي مرة ثانية.';
         _isLoading = false;
       });
     }
   }
 
-Widget _buildProgressSummary() {
-  if (attempts.isEmpty) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Text('ما عندك محاولات تدريب حتى الآن'),
-      ),
-    );
+double? _extractStutteringPercent(dynamic value, [int depth = 0]) {
+  if (depth > 6 || value == null) return null;
+  if (value is Map) {
+    // Prefer the canonical overall percentage when present.
+    final direct = value['stuttering_percent'] ?? value['stuttering_percentage'];
+    if (direct is num) return direct.toDouble();
+    for (final key in const ['metrics', 'speech_analysis', 'analysis', 'result', 'data', 'overall_analysis']) {
+      if (value[key] != null) {
+        final found = _extractStutteringPercent(value[key], depth + 1);
+        if (found != null) return found;
+      }
+    }
+    for (final entry in value.entries) {
+      if (entry.value is Map || entry.value is List) {
+        final found = _extractStutteringPercent(entry.value, depth + 1);
+        if (found != null) return found;
+      }
+    }
+  } else if (value is List) {
+    for (final item in value) {
+      final found = _extractStutteringPercent(item, depth + 1);
+      if (found != null) return found;
+    }
   }
+  return null;
+}
 
-
+Widget _buildProgressSummary() {
 final exerciseTypeMap = {
   'القراءة': 'Reading',
   'وصف الصورة': 'Picture Description',
   'سرد القصة': 'Storytelling',
   'سؤال وجواب': 'Question & Answer',
-  'التحدث الحر': 'Free Speech',
+  'الكلام الحر': 'Free Speech',
+  'لا تقولها': 'Dont Say It',
+  'تحدي التسمية': 'Naming Challenge',
 };
 
 final selectedType = exerciseTypeMap[_selectedExerciseFilter];
 
     final filteredAttempts = selectedType == null
-        ? (_selectedExerciseFilter == 'الكل'
-            ? attempts
-            : <Map<String, dynamic>>[])
-        : attempts.where((attempt) {
-            return attempt['exercise_type'] == selectedType;
-          }).toList();
+        ? (_selectedExerciseFilter == 'الكل' ? attempts : <Map<String, dynamic>>[])
+        : attempts.where((attempt) => attempt['exercise_type'] == selectedType).toList();
 
+    // The all view shows every kind of attempt, but score comparisons are
+    // meaningful only for speech exercises and Don't Say It (pass/fail).
+    final summaryAttempts = _selectedExerciseFilter == 'الكل'
+        ? _speechAttempts
+        : filteredAttempts;
 
-    final scores = filteredAttempts.map((attempt) {
+    final isGameFilter = _selectedExerciseFilter == 'لا تقولها' ||
+      _selectedExerciseFilter == 'تحدي التسمية';
+  final summaryValues = summaryAttempts.map((attempt) {
+    if (isGameFilter) {
+      return _extractStutteringPercent(attempt['speech_analysis']);
+    }
     final data = attempt['scores'];
-
     if (data is! Map) return null;
-
     final score = data['total_score'];
-
     return score is num ? score.toDouble() : null;
   }).whereType<double>().toList();
 
-  final latestScore = scores.isNotEmpty ? scores.first : null;
-
-  final bestScore = scores.isNotEmpty
-      ? scores.reduce((a, b) => a > b ? a : b)
-      : null;
+  final latestScore = summaryValues.isNotEmpty ? summaryValues.first : null;
+  // Lower stuttering percentage is better; ordinary exercise scores use higher-is-better.
+  final bestScore = summaryValues.isEmpty
+      ? null
+      : isGameFilter
+          ? summaryValues.reduce((a, b) => a < b ? a : b)
+          : summaryValues.reduce((a, b) => a > b ? a : b);
+  final totalFilteredAttempts = filteredAttempts.length;
+  final totalGameAttempts = filteredAttempts.where((item) => item['_game_kind'] != null).length;
 
   final visibleAttempts = _showAllAttempts
     ? filteredAttempts
@@ -129,7 +235,11 @@ final selectedType = exerciseTypeMap[_selectedExerciseFilter];
       ),
       SizedBox(height: 8),
       Text(
-        'تابع آخر درجة وأفضل درجة في تمارينك.',
+        _selectedExerciseFilter == 'لا تقولها' || _selectedExerciseFilter == 'تحدي التسمية'
+            ? 'تابعي نسبة التأتأة في آخر محاولة وأفضل نسبة حققتِها.'
+                : _selectedExerciseFilter == 'الكل'
+                    ? 'ملخص لجميع المحاولات، بما فيها تمارين الكلام والألعاب.'
+                    : 'تابعي آخر درجة وأفضل درجة في هذا التمرين.',
         style: TextStyle(
           fontSize: 13,
           color: Color(0xFF7A8E8B),
@@ -184,6 +294,8 @@ DropdownButtonHideUnderline(
       'سؤال وجواب',
       'سرد القصة',
       'الكلام الحر',
+      'لا تقولها',
+      'تحدي التسمية',
     ].map((filter) {
       return DropdownMenuItem<String>(
         value: filter,
@@ -208,6 +320,7 @@ DropdownButtonHideUnderline(
 
 const SizedBox(height: 16),
 
+if (_selectedExerciseFilter != 'الكل')
 Container(
   width: double.infinity,
   padding: const EdgeInsets.all(20),
@@ -225,15 +338,25 @@ Container(
       Expanded(
         child: Column(
           children: [
-            const Text(
-              'آخر درجة',
-              style: TextStyle(color: Color(0xFF7A8E8B)),
+            Text(
+              _selectedExerciseFilter == 'الكل'
+                  ? 'إجمالي المحاولات'
+                  : _selectedExerciseFilter == 'لا تقولها'
+                  ? 'نسبة التأتأة في آخر محاولة'
+                  : _selectedExerciseFilter == 'تحدي التسمية'
+                      ? 'نسبة التأتأة في آخر محاولة'
+                      : 'آخر درجة',
+              style: const TextStyle(color: Color(0xFF7A8E8B)),
             ),
             const SizedBox(height: 10),
             Text(
-              latestScore == null
-                  ? '—'
-                  : '${latestScore.toStringAsFixed(1)}%',
+              _selectedExerciseFilter == 'الكل'
+                  ? '$totalFilteredAttempts'
+                  : latestScore == null
+                      ? '—'
+                      : isGameFilter
+                          ? '${latestScore.toStringAsFixed(1)}%'
+                          : '${latestScore.toStringAsFixed(1)}%',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -251,15 +374,23 @@ Container(
       Expanded(
         child: Column(
           children: [
-            const Text(
-              'أفضل درجة',
-              style: TextStyle(color: Color(0xFF7A8E8B)),
+            Text(
+              _selectedExerciseFilter == 'الكل'
+                  ? 'محاولات الألعاب'
+                  : _selectedExerciseFilter == 'لا تقولها'
+                  ? 'أفضل نسبة تأتأة'
+                  : _selectedExerciseFilter == 'تحدي التسمية'
+                      ? 'أفضل نسبة تأتأة'
+                      : 'أفضل درجة',
+              style: const TextStyle(color: Color(0xFF7A8E8B)),
             ),
             const SizedBox(height: 10),
             Text(
-              bestScore == null
-                  ? '—'
-                  : '${bestScore.toStringAsFixed(1)}%',
+              _selectedExerciseFilter == 'الكل'
+                  ? '$totalGameAttempts'
+                  : bestScore == null
+                      ? '—'
+                      : '${bestScore.toStringAsFixed(1)}%',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -288,27 +419,31 @@ const Text(
 const SizedBox(height: 14),
 
 if (visibleAttempts.isEmpty)
-  const Padding(
-    padding: EdgeInsets.symmetric(vertical: 20),
+  Padding(
+    padding: const EdgeInsets.symmetric(vertical: 20),
     child: Center(
       child: Text(
-        'ما فيه محاولات لهذا النوع حتى الآن',
-        style: TextStyle(color: Color(0xFF7A8E8B)),
+        attempts.isEmpty
+            ? 'ما عندك محاولات تدريب أو ألعاب حتى الآن'
+            : 'ما فيه محاولات لهذا النوع حتى الآن',
+        style: const TextStyle(color: Color(0xFF7A8E8B)),
       ),
     ),
   ),
 
 ...visibleAttempts.map((attempt) {
   final scoreData = attempt['scores'];
-  final score = scoreData is Map
-      ? scoreData['total_score']
-      : null;
+  final gameKind = attempt['_game_kind']?.toString();
+  final score = gameKind != null
+      ? _extractStutteringPercent(attempt['speech_analysis'])
+      : (scoreData is Map ? scoreData['total_score'] : null);
 
   final attemptIndex = attempts.indexOf(attempt);
 
   final previousAttempts = attempts
       .skip(attemptIndex + 1)
       .where((item) =>
+          item['_game_kind'] == attempt['_game_kind'] &&
           item['exercise_type'] == attempt['exercise_type'] &&
           item['difficulty'] == attempt['difficulty'])
       .toList();
@@ -327,6 +462,8 @@ if (visibleAttempts.isEmpty)
     final type = attempt['exercise_type']?.toString() ?? '';
 
     final typeLabel = switch (type) {
+      'Dont Say It' => 'لا تقولها',
+      'Naming Challenge' => 'تحدي التسمية',
       'Reading' => 'القراءة',
       'Picture Description' => 'وصف الصورة',
       'Storytelling' => 'سرد القصة',
@@ -364,6 +501,30 @@ if (visibleAttempts.isEmpty)
   return  InkWell(
   borderRadius: BorderRadius.circular(16),
   onTap: () {
+    if (gameKind == 'dont_say_it') {
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => DontSayItScreen(
+            difficulty: attempt['difficulty']?.toString() ?? 'easy',
+            previousAttempt: attempt,
+          ),
+        ),
+      );
+      return;
+    }
+    if (gameKind == 'naming_challenge') {
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) => NamingChallengeScreen(
+            difficulty: attempt['difficulty']?.toString() ?? 'easy',
+            previousAttempt: attempt,
+          ),
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -388,9 +549,18 @@ if (visibleAttempts.isEmpty)
     ),
     child: Row(
       children: [
-        const Icon(
-          Icons.record_voice_over_rounded,
-          color: Color(0xFF578B80),
+        Icon(
+          switch (type) {
+            'Reading' => Icons.menu_book_rounded,
+            'Picture Description' => Icons.image_outlined,
+            'Question & Answer' => Icons.question_answer_outlined,
+            'Storytelling' => Icons.auto_stories_outlined,
+            'Free Speech' => Icons.record_voice_over_rounded,
+            'Dont Say It' => Icons.voice_over_off_rounded,
+            'Naming Challenge' => Icons.lightbulb_outline_rounded,
+            _ => Icons.mic_none_rounded,
+          },
+          color: const Color(0xFF578B80),
           size: 26,
         ),
         const SizedBox(width: 12),
@@ -439,9 +609,15 @@ Column(
   crossAxisAlignment: CrossAxisAlignment.end,
   children: [
     Text(
-      score is num
+      gameKind != null && score is num
           ? '${score.toStringAsFixed(1)}%'
-          : '—',
+          : gameKind == 'dont_say_it'
+              ? (attempt['passed'] == true ? 'نجاح' : 'لم ينجح')
+              : gameKind == 'naming_challenge'
+                  ? '${(attempt['valid_count'] as num?)?.toInt() ?? 0} إجابة'
+                  : score is num
+                      ? '${score.toStringAsFixed(1)}%'
+                      : '—',
       style: const TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.bold,
@@ -449,7 +625,7 @@ Column(
       ),
     ),
 
-    if (scoreChange != null) ...[
+    if (scoreChange != null && gameKind == null) ...[
       const SizedBox(height: 6),
       Row(
         mainAxisSize: MainAxisSize.min,

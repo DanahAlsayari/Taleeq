@@ -450,7 +450,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
             const SizedBox(height: 4),
 
             Text(
-              'تمارين مخصصة بناءً على ملف طلاقتك',
+              'تصفّح التمارين المتاحة، واختر التمرين والمستوى المناسب لك',
               style: TrainingText.screenSubtitle,
             ),
 
