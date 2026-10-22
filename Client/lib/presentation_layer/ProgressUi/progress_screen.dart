@@ -307,6 +307,7 @@ onTap: () {
 
     if (index == 2) {
       _loadTrainingAttempts();
+       _loadAttemptsStat();
     }
   });
 
