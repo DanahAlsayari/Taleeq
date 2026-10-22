@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     UniqueConstraint,
     func,
 )
@@ -90,4 +91,25 @@ class PlannedPracticeSession(Base):
             "duration_minutes > 0",
             name="ck_planned_practice_sessions_positive_duration",
         ),
+    )
+class WeeklyPracticeSchedule(Base):
+    __tablename__ = "weekly_practice_schedules"
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    sessions = Column(
+        JSON,
+        nullable=False,
+        default=list,
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )

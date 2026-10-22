@@ -16,6 +16,7 @@ from .weekly_plan_schemas import (
 from data_and_integration_layer.database.models.weekly_plan import (
     PlannedPracticeSession,
     WeeklyPlan,
+    WeeklyPracticeSchedule,
 )
 
 router = APIRouter(
@@ -43,13 +44,21 @@ def get_weekly_plan(
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    selected_week = week_start or get_week_start(local_today())
+    current_week = get_week_start(local_today())
+    selected_week = week_start or current_week
 
     if selected_week != get_week_start(selected_week):
         raise HTTPException(
             status_code=422,
             detail="يجب أن يبدأ الأسبوع يوم الأحد.",
         )
+
+    # Use the same user lock as saving and checking sessions.
+    # This prevents simultaneous requests creating duplicate plans.
+    if selected_week == current_week:
+        db.query(User).filter(
+            User.id == current_user.id,
+        ).with_for_update().one()
 
     plan = (
         db.query(WeeklyPlan)
@@ -60,6 +69,77 @@ def get_weekly_plan(
         )
         .first()
     )
+
+    # Only create the current week automatically.
+    # Requests for previous weeks remain read-only.
+    if selected_week == current_week:
+        changed = False
+
+        schedule = (
+            db.query(WeeklyPracticeSchedule)
+            .filter(
+                WeeklyPracticeSchedule.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        # Adopt an existing user's latest plan on their first load.
+        if schedule is None:
+            latest_plan = (
+                db.query(WeeklyPlan)
+                .options(selectinload(WeeklyPlan.sessions))
+                .filter(
+                    WeeklyPlan.user_id == current_user.id,
+                    WeeklyPlan.week_start <= current_week,
+                )
+                .order_by(WeeklyPlan.week_start.desc())
+                .first()
+            )
+
+            if latest_plan is not None:
+                schedule = WeeklyPracticeSchedule(
+                    user_id=current_user.id,
+                    sessions=[
+                        {
+                            "day_offset": (
+                                session.practice_date
+                                - latest_plan.week_start
+                            ).days,
+                            "duration_minutes": session.duration_minutes,
+                        }
+                        for session in sorted(
+                            latest_plan.sessions,
+                            key=lambda item: item.practice_date,
+                        )
+                    ],
+                )
+                db.add(schedule)
+                changed = True
+
+        if plan is None and schedule is not None:
+            plan = WeeklyPlan(
+                user_id=current_user.id,
+                week_start=current_week,
+            )
+
+            plan.sessions = [
+                PlannedPracticeSession(
+                    practice_date=current_week + timedelta(
+                        days=item["day_offset"],
+                    ),
+                    duration_minutes=item["duration_minutes"],
+                    is_completed=False,
+                    completed_at=None,
+                )
+                for item in schedule.sessions
+            ]
+
+            db.add(plan)
+            changed = True
+
+        if changed:
+            db.commit()
+            db.refresh(plan)
 
     if plan is not None:
         plan.sessions.sort(
@@ -152,6 +232,35 @@ def save_weekly_plan(
             )
         elif not session.is_completed:
             session.duration_minutes = duration
+
+    # Save weekdays and durations for future weeks.
+    repeating_sessions = [
+        {
+            "day_offset": (session.practice_date - current_week).days,
+            "duration_minutes": session.duration_minutes,
+        }
+        for session in sorted(
+            request.sessions,
+            key=lambda item: item.practice_date,
+        )
+    ]
+
+    schedule = (
+        db.query(WeeklyPracticeSchedule)
+        .filter(
+            WeeklyPracticeSchedule.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if schedule is None:
+        schedule = WeeklyPracticeSchedule(
+            user_id=current_user.id,
+            sessions=repeating_sessions,
+        )
+        db.add(schedule)
+    else:
+        schedule.sessions = repeating_sessions
 
     db.commit()
     db.refresh(plan)
