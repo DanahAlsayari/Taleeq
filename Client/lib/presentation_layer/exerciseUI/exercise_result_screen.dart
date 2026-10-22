@@ -179,7 +179,7 @@ final exerciseTypeMap = {
   'وصف الصورة': 'Picture Description',
   'سرد القصة': 'Storytelling',
   'سؤال وجواب': 'Question & Answer',
-  'الكلام الحر': 'Free Speech',
+  'التحدث الحر': 'Free Speech',
   'لا تقولها': 'Dont Say It',
   'تحدي التسمية': 'Naming Challenge',
 };
