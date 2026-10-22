@@ -1,7 +1,6 @@
 import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 
-import 'pre_assesment_success_screen.dart';
 import 'speech_assesment_questions_screen.dart';
 import '../../widgets/journey_stepper.dart';
 
@@ -22,29 +21,24 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: IconButton(
-                      onPressed: () {
-                        if (isRetake) {
-                          Navigator.of(context).pop();
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const PreAssessmentSuccessScreen(),
-                            ),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.arrow_back),
-                    ),
-                  ),
-if (!isRetake) ...[
-  const JourneyStepper(currentStep: 3),
-  const SizedBox(height: 28.0),
-],
+                  if (isRetake)
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(
+                          Icons.arrow_back,
+                          color: Color(0xFF526B68),
+                          size: 24,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 24),
+                  if (!isRetake) ...[
+                    const JourneyStepper(currentStep: 3),
+                    const SizedBox(height: 28.0),
+                  ],
                   Align(
                     alignment: AlignmentDirectional.centerStart,
 
@@ -202,33 +196,59 @@ if (!isRetake) ...[
           ),
         ),
       ),
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.fromLTRB(24.0, 12.0, 24.0, 24.0),
-
-        child: SizedBox(
-          height: 56.0,
-          child: ElevatedButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SpeechAssesmentQuestionsScreen(
-  isRetake: isRetake,
-),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SpeechAssesmentQuestionsScreen(isRetake: isRetake),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TaleeqTheme.primaryTeal,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: const Text(
+                    'المتابعة إلى تقييم الكلام',
+                    style: TextStyle(fontSize: 18, color: Colors.white),
+                  ),
                 ),
-              );
-            },
-
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TaleeqTheme.primaryTeal,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18.0),
               ),
-            ),
-            child: Text(
-              "المتابعة إلى تقييم الكلام",
-              style: TextStyle(fontSize: 18.0, color: Colors.white),
-            ),
+              if (!isRetake) ...[
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/home',
+                      (route) => false,
+                    );
+                  },
+                  child: const Text(
+                    'المتابعة لاحقًا',
+                    style: TextStyle(
+                      color: Color(0xFF8A9694),
+                      fontSize: 16,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
