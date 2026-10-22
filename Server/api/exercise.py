@@ -110,6 +110,7 @@ def get_recent_exercise_attempts(
             "id": str(attempt.id),
             "exercise_id": str(attempt.exercise_id),
             "exercise_type": attempt.exercise_type,
+            "exercise_title": repository.get_exercise_title(attempt.exercise_id),
             "difficulty": attempt.difficulty,
             "created_at": attempt.created_at.isoformat(),
             "scores": {
@@ -158,11 +159,13 @@ def get_all_exercise_attempts(
         user_id=current_user.id,
     )
 
+
     return [
         {
             "id": str(attempt.id),
             "exercise_id": str(attempt.exercise_id),
             "exercise_type": attempt.exercise_type,
+            "exercise_title": repository.get_exercise_title(attempt.exercise_id),
             "difficulty": attempt.difficulty,
             "created_at": attempt.created_at.isoformat(),
             "scores": {

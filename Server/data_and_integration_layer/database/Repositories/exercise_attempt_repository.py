@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from data_and_integration_layer.database.models.exercise_attempt import ExerciseAttempt
-
+from data_and_integration_layer.database.models.speech_exercise import SpeechExercise
 
 class ExerciseAttemptRepository:
     def __init__(self, db: Session):
@@ -67,6 +67,19 @@ class ExerciseAttemptRepository:
             )
             .all()
         )
+
+
+    def get_exercise_title(self, exercise_id: UUID) -> str | None:
+        exercise = (
+            self.db.query(SpeechExercise.title)
+            .filter(SpeechExercise.id == exercise_id)
+            .first()
+        )
+
+        return exercise.title if exercise else None
+
+
+
     def save_attempt(
         self,
         user_id: int,
