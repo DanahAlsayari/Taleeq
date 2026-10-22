@@ -38,8 +38,9 @@ class _SpeechAssesmentQuestionsScreen
 
   final AssessmentApiService _assessmentApiService = AssessmentApiService();
 
-  bool _isSubmitting = false;
-  int? _assessmentId;
+ bool _isSubmitting = false;
+bool _isProcessingNext = false;
+int? _assessmentId;
 
   @override
   void initState() {
@@ -880,92 +881,99 @@ class _SpeechAssesmentQuestionsScreen
         child: SizedBox(
           height: 56.0,
           child: ElevatedButton(
-            onPressed: hasRecording
-                ? () async {
-                    if (isRecording) {
-                      ErrorSnackBar.show(
-                        context,
-                        currentQuestionIndex == questions.length - 1
-                            ? "أوقف التسجيل أولًا قبل إرسال التقييم"
-                            : "أوقف التسجيل أولًا قبل الانتقال للسؤال التالي",
-                      );
-                      return;
-                    }
-                    final path = recordingPaths[currentQuestionIndex];
 
-                    if (path == null) {
-                      ErrorSnackBar.show(context, "سجل إجابتك أولًا");
-                      return;
-                    }
+onPressed: (hasRecording && !_isProcessingNext && !_isSubmitting)
+    ? () async {
+        if (_isProcessingNext || _isSubmitting) return;
 
-                    final duration =
-                        recordingDurations[currentQuestionIndex] ?? 0;
+        setState(() {
+          _isProcessingNext = true;
+        });
 
-                    if (!recordingService.isRecordingDurationValid(duration)) {
-                      ErrorSnackBar.show(
-                        context,
-                        "مدة التسجيل لازم تكون 15 ثانية على الأقل، أعيد التسجيل",
-                      );
-                      return;
-                    }
-                    try {
-                      if (currentQuestionIndex < questions.length - 1) {
-                        print(
-                          'started validating audio for question ${currentQuestionIndex + 1}',
-                        );
-                        await recordingService.stopAudio();
-                        await player.seek(Duration.zero);
+        try {
+          // Prevent invalid question index
+          if (currentQuestionIndex < 0 ||
+              currentQuestionIndex >= questions.length) {
+            return;
+          }
 
-                        print(
-                          'sending audio file for assessmentId: $_assessmentId',
-                        );
+          final questionIndex = currentQuestionIndex;
 
-                        await _assessmentApiService.validateAssessmentAudio(
-                          assessmentId: _assessmentId!,
-                          recordingPath: path,
-                        );
-                        print(
-                          'audio file validated successfully for question ${currentQuestionIndex + 1}',
-                        );
+          if (isRecording) {
+            ErrorSnackBar.show(
+              context,
+              questionIndex == questions.length - 1
+                  ? "أوقف التسجيل أولًا قبل إرسال التقييم"
+                  : "أوقف التسجيل أولًا قبل الانتقال للسؤال التالي",
+            );
+            return;
+          }
 
-                        if (!mounted) return;
+          final path = recordingPaths[questionIndex];
 
-                        setState(() {
-                          currentQuestionIndex++;
-                          isPlaying = false;
-                          playbackPosition = Duration.zero;
-                          loadedAudioPath = null;
-                          hasStartedPlaying = false;
-                        });
-                      } else {
-                        await recordingService.stopAudio();
-                        await player.seek(Duration.zero);
+          if (path == null) {
+            ErrorSnackBar.show(context, "سجل إجابتك أولًا");
+            return;
+          }
 
-                        print(
-                          'started validating audio for question ${currentQuestionIndex + 1}',
-                        );
+          final duration = recordingDurations[questionIndex] ?? 0;
 
-                        await _assessmentApiService.validateAssessmentAudio(
-                          assessmentId: _assessmentId!,
-                          recordingPath: path,
-                        );
+          if (!recordingService.isRecordingDurationValid(duration)) {
+            ErrorSnackBar.show(
+              context,
+              "مدة التسجيل لازم تكون 15 ثانية على الأقل، أعد التسجيل",
+            );
+            return;
+          }
 
-                        print(
-                          'audio file validated successfully for question ${currentQuestionIndex + 1}',
-                        );
+          await recordingService.stopAudio();
+          await player.seek(Duration.zero);
 
-                        await _submitAssessment();
-                      }
-                    } catch (e) {
-                      if (!mounted) return;
+          debugPrint(
+            'Started validating audio for question ${questionIndex + 1}',
+          );
 
-                      ErrorSnackBar.show(
-                        context,
-                        e.toString().replaceFirst('Exception: ', ''),
-                      );
-                    }
-                  }
-                : null,
+          await _assessmentApiService.validateAssessmentAudio(
+            assessmentId: _assessmentId!,
+            recordingPath: path,
+          );
+
+          debugPrint(
+            'Audio validated successfully for question ${questionIndex + 1}',
+          );
+
+          if (!mounted) return;
+
+          if (questionIndex < questions.length - 1) {
+            if (currentQuestionIndex != questionIndex) return;
+
+            setState(() {
+              currentQuestionIndex = questionIndex + 1;
+              isPlaying = false;
+              playbackPosition = Duration.zero;
+              loadedAudioPath = null;
+              hasStartedPlaying = false;
+            });
+          } else {
+            await _submitAssessment();
+          }
+        } catch (e) {
+          if (!mounted) return;
+
+          ErrorSnackBar.show(
+            context,
+            e.toString().replaceFirst('Exception: ', ''),
+          );
+        } finally {
+          if (mounted) {
+            setState(() {
+              _isProcessingNext = false;
+            });
+          }
+        }
+      }
+    : null,
+
             style: ElevatedButton.styleFrom(
               backgroundColor: TaleeqTheme.primaryTeal,
               shape: RoundedRectangleBorder(
