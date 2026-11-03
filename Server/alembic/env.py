@@ -29,6 +29,9 @@ from data_and_integration_layer.database.models.pre_assessment import (
 )
 from data_and_integration_layer.database.models.speech_exercise import SpeechExercise
 from data_and_integration_layer.database.models.pending_email_change import PendingEmailChange
+from data_and_integration_layer.database.models.scenario import Scenario
+from data_and_integration_layer.database.models.scenario_difficulty import ScenarioDifficulty
+
 
 target_metadata = Base.metadata
 
