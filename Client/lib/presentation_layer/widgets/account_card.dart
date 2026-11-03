@@ -5,10 +5,14 @@ class AccountCard extends StatelessWidget {
     super.key,
     required this.name,
     required this.email,
+    required this.onEditName,
+    required this.onEditEmail,
   });
 
   final String name;
   final String email;
+  final VoidCallback onEditName;
+  final VoidCallback onEditEmail;
 
   static const Color darkGreen = Color(0xFF1F5F5A);
   static const Color lightGreen = Color(0xFFEAF4F2);
@@ -37,12 +41,24 @@ class AccountCard extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'الاسم',
             value: name,
+            trailing: IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              color: darkGreen,
+              tooltip: 'تعديل الاسم',
+              onPressed: onEditName,
+            ),
           ),
           const Divider(color: border),
           _informationRow(
             icon: Icons.email_outlined,
             title: 'البريد الإلكتروني',
             value: email,
+            trailing: IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              color: darkGreen,
+              tooltip: 'تعديل البريد الإلكتروني',
+              onPressed: onEditEmail,
+            ),
           ),
         ],
       ),
@@ -53,6 +69,7 @@ class AccountCard extends StatelessWidget {
     required IconData icon,
     required String title,
     required String value,
+    Widget? trailing,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -65,10 +82,7 @@ class AccountCard extends StatelessWidget {
               color: lightGreen,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              color: darkGreen,
-            ),
+            child: Icon(icon, color: darkGreen),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -77,10 +91,7 @@ class AccountCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -94,6 +105,7 @@ class AccountCard extends StatelessWidget {
               ],
             ),
           ),
+          if (trailing != null) trailing,
         ],
       ),
     );

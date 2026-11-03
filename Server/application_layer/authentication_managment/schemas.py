@@ -3,13 +3,20 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-
 NAME_PATTERN = re.compile(
     r"^[A-Za-z\u0621-\u063A\u0641-\u064A]+"
     r"(?: [A-Za-z\u0621-\u063A\u0641-\u064A]+)*$"
 )
 PHONE_PATTERN = re.compile(r"^05[0-9]{8}$")
 PASSWORD_PATTERN = re.compile(r"^[A-Za-z0-9!@#$%^&*]+$")
+
+
+def normalize_and_validate_name(name: str) -> str:
+    normalized_name = " ".join(name.strip().split())
+    if not NAME_PATTERN.fullmatch(normalized_name):
+        raise ValueError("Name contains invalid characters.")
+
+    return normalized_name
 
 
 class UserCreate(BaseModel):
@@ -32,12 +39,7 @@ class UserCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, value: str) -> str:
-        normalized_name = " ".join(value.strip().split())
-
-        if not NAME_PATTERN.fullmatch(normalized_name):
-            raise ValueError("Name contains invalid characters.")
-
-        return normalized_name
+        return normalize_and_validate_name(value)
 
     @field_validator("phone_number")
     @classmethod
@@ -82,9 +84,11 @@ class UserLogin(BaseModel):
 
         return value
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class SignupOTPResponse(BaseModel):
     registration_id: str
@@ -100,3 +104,33 @@ class VerifySignupOTP(BaseModel):
 
 class ResendSignupOTP(BaseModel):
     registration_id: str = Field(min_length=36, max_length=36)
+
+
+class RequestEmailChange(BaseModel):
+    new_email: EmailStr
+
+    @field_validator("new_email")
+    @classmethod
+    def validate_new_email(cls, value: EmailStr) -> str:
+        email = str(value).strip().lower()
+
+        if not email.isascii():
+            raise ValueError("Email contains invalid characters.")
+
+        return email
+
+
+class EmailChangeOTPResponse(BaseModel):
+    request_id: str
+    message: str
+    expires_in_seconds: int
+    resend_after_seconds: int
+
+
+class VerifyEmailChangeOTP(BaseModel):
+    request_id: str = Field(min_length=36, max_length=36)
+    code: str = Field(pattern=r"^[0-9]{6}$")
+
+
+class ResendEmailChangeOTP(BaseModel):
+    request_id: str = Field(min_length=36, max_length=36)

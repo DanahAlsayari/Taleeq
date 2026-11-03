@@ -28,6 +28,8 @@ from data_and_integration_layer.database.models.pre_assessment import (
     PreAssessmentSubmission,
 )
 from data_and_integration_layer.database.models.speech_exercise import SpeechExercise
+from data_and_integration_layer.database.models.pending_email_change import PendingEmailChange
+
 target_metadata = Base.metadata
 
 config = context.config

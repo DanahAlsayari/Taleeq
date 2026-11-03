@@ -19,6 +19,7 @@ class User(Base):
     )
     age = Column(Integer, nullable=False)
     gender = Column(String(20), nullable=False)
+    profile_picture_path = Column(String(255), nullable=True)
 
     assessments = relationship(
         "Assessment", back_populates="user", cascade="all, delete-orphan"
