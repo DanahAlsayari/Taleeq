@@ -40,6 +40,8 @@ abstract final class TrainingText {
   static TextStyle get exerciseTitle => _t(17, FontWeight.w700, TrainingColors.text);
   static TextStyle get boxLabel => _t(11, FontWeight.w400, TrainingColors.muted);
   static TextStyle get boxValue => _t(15, FontWeight.w700, TrainingColors.text);
+  static TextStyle get boxValue1 => _t(15, FontWeight.w700, const Color.fromARGB(255, 103, 103, 103));
+  
   static TextStyle option({required bool selected}) =>
       _t(15, selected ? FontWeight.w700 : FontWeight.w500, TrainingColors.text);
   static TextStyle get startButton => _t(16, FontWeight.w700, Colors.white);

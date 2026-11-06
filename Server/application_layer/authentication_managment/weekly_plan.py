@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
@@ -45,17 +46,18 @@ def get_weekly_plan(
     db: Session = Depends(get_db),
 ):
     current_week = get_week_start(local_today())
+    next_week = current_week + timedelta(days=7)
     selected_week = week_start or current_week
 
+    # Validate that the selected week starts on Sunday.
     if selected_week != get_week_start(selected_week):
         raise HTTPException(
             status_code=422,
             detail="يجب أن يبدأ الأسبوع يوم الأحد.",
         )
 
-    # Use the same user lock as saving and checking sessions.
-    # This prevents simultaneous requests creating duplicate plans.
-    if selected_week == current_week:
+    # Prevent simultaneous requests from creating duplicate plans.
+    if selected_week in (current_week, next_week):
         db.query(User).filter(
             User.id == current_user.id,
         ).with_for_update().one()
@@ -140,6 +142,37 @@ def get_weekly_plan(
         if changed:
             db.commit()
             db.refresh(plan)
+     # Create next week's plan from the saved repeating schedule.
+    if selected_week == next_week and plan is None:
+        schedule = (
+            db.query(WeeklyPracticeSchedule)
+            .filter(
+                WeeklyPracticeSchedule.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        if schedule is not None:
+            plan = WeeklyPlan(
+                user_id=current_user.id,
+                week_start=next_week,
+            )
+
+            plan.sessions = [
+                PlannedPracticeSession(
+                    practice_date=next_week + timedelta(
+                        days=item["day_offset"],
+                    ),
+                    duration_minutes=item["duration_minutes"],
+                    is_completed=False,
+                    completed_at=None,
+                )
+                for item in schedule.sessions
+            ]
+
+            db.add(plan)
+            db.commit()
+            db.refresh(plan)
 
     if plan is not None:
         plan.sessions.sort(
@@ -154,13 +187,13 @@ def save_weekly_plan(
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
-    today = local_today()
-    current_week = get_week_start(today)
+    current_week = get_week_start(local_today())
+    next_week = current_week + timedelta(days=7)
 
-    if request.week_start != current_week:
+    if request.week_start != next_week:
         raise HTTPException(
-            status_code=422,
-            detail="يمكن تعديل خطة الأسبوع الحالي فقط.",
+        status_code=422,
+        detail="يمكن إنشاء أو تعديل خطة الأسبوع القادم فقط.",
         )
 
     # Serialize schedule changes for this user.
@@ -172,7 +205,7 @@ def save_weekly_plan(
         db.query(WeeklyPlan)
         .filter(
             WeeklyPlan.user_id == current_user.id,
-            WeeklyPlan.week_start == current_week,
+            WeeklyPlan.week_start == next_week, #make sure to use next_week here to ensure that the plan is for the upcoming week
         )
         .first()
     )
@@ -185,7 +218,7 @@ def save_weekly_plan(
     if plan is None:
         plan = WeeklyPlan(
             user_id=current_user.id,
-            week_start=current_week,
+            week_start=next_week,
         )
         db.add(plan)
         db.flush()
@@ -195,7 +228,7 @@ def save_weekly_plan(
         for session in plan.sessions
     }
 
-     # Keep completed sessions unchanged until unchecked.
+    # Keep completed sessions unchanged until unchecked.
     for practice_date, session in existing_sessions.items():
         protected = session.is_completed
 
@@ -236,7 +269,7 @@ def save_weekly_plan(
     # Save weekdays and durations for future weeks.
     repeating_sessions = [
         {
-            "day_offset": (session.practice_date - current_week).days,
+            "day_offset": (session.practice_date - next_week).days, #compute the day offset from the start of next week to the practice date
             "duration_minutes": session.duration_minutes,
         }
         for session in sorted(

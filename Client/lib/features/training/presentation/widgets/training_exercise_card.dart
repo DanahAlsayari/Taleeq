@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:client/models/scenario_model.dart';
 import '../../data/models/training_models.dart';
 import '../theme/training_theme.dart';
 import 'difficulty_dropdown.dart';
 import 'taleeq_svg_icon.dart';
-
 /// One exercise: title, description, fixed duration,
 /// difficulty dropdown, and start button.
 ///
@@ -19,6 +19,11 @@ class TrainingExerciseCard extends StatefulWidget {
     required this.onToggleDropdown,
     required this.onDifficultySelected,
     required this.onStart,
+    this.scenarios = const [],
+    this.selectedScenario,
+    this.onScenarioSelected,
+    this.onRefreshScenarios,
+    this.isLoadingScenarios = false,
   });
 
   final TrainingExercise exercise;
@@ -27,6 +32,11 @@ class TrainingExerciseCard extends StatefulWidget {
   final VoidCallback onToggleDropdown;
   final ValueChanged<Difficulty> onDifficultySelected;
   final VoidCallback onStart;
+  final List<ScenarioModel> scenarios;
+  final ScenarioModel? selectedScenario;
+  final ValueChanged<ScenarioModel>? onScenarioSelected;
+  final VoidCallback? onRefreshScenarios;
+  final bool isLoadingScenarios;
 
   @override
   State<TrainingExerciseCard> createState() =>
@@ -158,35 +168,48 @@ class _TrainingExerciseCardState extends State<TrainingExerciseCard> {
             style: TrainingText.body,
           ),
           const SizedBox(height: 12),
-
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _DurationBox(
-                    minutes: widget.exercise.durationMinutes,
-                    seconds: widget.exercise.durationSeconds,
-                  ),
-                ),
-                const SizedBox(width: 10),
-
-                Expanded(
-                  child: CompositedTransformTarget(
-                    link: _layerLink,
-                    child: Container(
-                      key: _triggerKey,
-                      child: DifficultyDropdownTrigger(
-                        difficulty: widget.difficulty,
-                        isOpen: widget.isDropdownOpen,
-                        onTap: _handleDropdownTap,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+Column(
+  children: [
+    Row(
+      children: [
+        Expanded(
+          child: _DurationBox(
+            minutes: widget.exercise.durationMinutes,
+            seconds: widget.exercise.durationSeconds,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: CompositedTransformTarget(
+            link: _layerLink,
+            child: Container(
+              key: _triggerKey,
+              child: DifficultyDropdownTrigger(
+                difficulty: widget.difficulty,
+                isOpen: widget.isDropdownOpen,
+                onTap: _handleDropdownTap,
+              ),
             ),
           ),
+        ),
+      ],
+    ),
+
+    if (widget.exercise.type ==
+        ExerciseType.realLifeScenarios) ...[
+      const SizedBox(height: 10),
+      _ScenarioDropdown(
+        scenarios: widget.scenarios,
+        selectedScenario: widget.selectedScenario,
+        isLoading: widget.isLoadingScenarios,
+        onRefresh: widget.onRefreshScenarios,
+        onSelected: (scenario) {
+          widget.onScenarioSelected?.call(scenario);
+        },
+      ),
+    ],
+  ],
+),
 
           const SizedBox(height: 10),
 
@@ -257,6 +280,228 @@ class _DurationBox extends StatelessWidget {
     );
   }
 }
+class _ScenarioDropdown extends StatefulWidget {
+  const _ScenarioDropdown({
+    required this.scenarios,
+    required this.selectedScenario,
+    required this.isLoading,
+    required this.onSelected,
+    this.onRefresh,
+  });
+
+  final List<ScenarioModel> scenarios;
+  final ScenarioModel? selectedScenario;
+  final bool isLoading;
+  final ValueChanged<ScenarioModel> onSelected;
+  final VoidCallback? onRefresh;
+
+  @override
+  State<_ScenarioDropdown> createState() => _ScenarioDropdownState();
+}
+
+class _ScenarioDropdownState extends State<_ScenarioDropdown> {
+  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _triggerKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+
+  double _triggerWidth = 0;
+
+  void _toggleDropdown() {
+    if (_overlayEntry != null) {
+      _removeDropdown();
+      return;
+    }
+
+    if (widget.isLoading) return;
+
+    // The training tab may remain mounted while the user visits other tabs.
+    // Retry the API request when the scenario list is empty instead of
+    // leaving a stale empty dropdown on screen.
+    if (widget.scenarios.isEmpty) {
+      widget.onRefresh?.call();
+      return;
+    }
+
+    _showDropdown();
+  }
+
+  void _showDropdown() {
+    if (widget.isLoading || widget.scenarios.isEmpty) return;
+
+    final renderBox =
+        _triggerKey.currentContext?.findRenderObject() as RenderBox?;
+
+    if (renderBox == null || !renderBox.hasSize) return;
+
+    _triggerWidth = renderBox.size.width;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _removeDropdown,
+                child: const SizedBox.expand(),
+              ),
+            ),
+            Positioned(
+              width: _triggerWidth,
+              child: CompositedTransformFollower(
+                link: _layerLink,
+                showWhenUnlinked: false,
+                targetAnchor: Alignment.bottomLeft,
+                followerAnchor: Alignment.topLeft,
+                offset: const Offset(0, 8),
+                child: Material(
+                  color: Colors.white,
+                  elevation: 4,
+                  borderRadius: BorderRadius.circular(14),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: TrainingColors.boxBorder,
+                      ),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: widget.scenarios.map((scenario) {
+                        final selected =
+                            scenario.id == widget.selectedScenario?.id;
+
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () {
+                            widget.onSelected(scenario);
+                            _removeDropdown();
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 13,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? TrainingColors.mintSelected
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    scenario.name,
+                                    style: TrainingText.body,
+                                  ),
+                                ),
+                                if (selected)
+                                  const TaleeqSvgIcon(
+                                    TaleeqIcons.check,
+                                    size: 18,
+                                    color: TrainingColors.primary,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+  }
+
+  void _removeDropdown() {
+    _overlayEntry?.remove();
+    _overlayEntry?.dispose();
+    _overlayEntry = null;
+  }
+
+  @override
+  void dispose() {
+    _removeDropdown();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) {
+    return CompositedTransformTarget(
+      link: _layerLink,
+      child: Material(
+        key: _triggerKey,
+        color: TrainingColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: _toggleDropdown,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 56),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: TrainingColors.boxBorder,
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.play_circle_outlined,
+                  size: 20,
+                  color: TrainingColors.muted,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'السيناريو',
+                        style: TrainingText.boxLabel,
+                      ),
+                      Text(
+                        widget.isLoading
+                            ? 'جاري التحميل...'
+                            : widget.selectedScenario?.name ??
+                                (widget.scenarios.isEmpty
+                                    ? 'لا توجد سيناريوهات'
+                                    : 'اختر السيناريو'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: widget.selectedScenario != null
+                            ? TrainingText.boxValue
+                            : TrainingText.boxValue1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const TaleeqSvgIcon(
+                  TaleeqIcons.chevronDown,
+                  size: 18,
+                  color: TrainingColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _StartButton extends StatelessWidget {
   const _StartButton({

@@ -15,6 +15,9 @@ import 'presentation_layer/exerciseUI/exercise_result_screen.dart';
 import 'presentation_layer/widgets/main_navigation_screen.dart';
 import 'presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
 
+import 'services/notification_service.dart';
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -22,6 +25,10 @@ void main() async {
     url: 'https://vlpuloanqnelmnlypuea.supabase.co',
     publishableKey: 'sb_publishable_oTcjgcxxEvZGjcolI8Ks3Q_jaYGufB2',
   );
+
+  // Initialize the local notification service.
+final notificationService = NotificationService();
+  await notificationService.initialize(); // Call the initialize method to set up the notification service.
 
   runApp(const TaleeqApp());
 }
@@ -108,9 +115,9 @@ class _TaleeqAppState extends State<TaleeqApp> {
       },
       home: const WelcomeScreen(),
       routes: {
-        '/signup': (context) => const SignupScreen(),
-        '/home': (context) => const MainNavigationScreen(),
-      },
+  '/signup': (context) => const SignupScreen(),
+  '/home': (context) => const MainNavigationScreen(),
+},
     );
   }
 }

@@ -6,6 +6,9 @@ import '../../services/profile_service.dart';
 import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
 import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../../services/weekly_plan_service.dart';
+import '../../services/notification_scheduler.dart';
+import '../../services/notification_service.dart';
+import '../trainingUI/practice_session_overview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.isActive = true});
@@ -22,6 +25,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _profileError;
   final AssessmentApiService _assessmentService = AssessmentApiService();
   final WeeklyPlanService _weeklyPlanService = WeeklyPlanService();
+  final NotificationScheduler _notificationScheduler = NotificationScheduler();
+  final NotificationService _notificationService = NotificationService();
+  bool _notificationPermissionRequested = false;
   DateTime? _selectedPracticeDate;
 
   Map<String, dynamic>? _weeklyPlan;
@@ -34,6 +40,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+
+    // Enable notification synchronization for the current session.
+    _notificationScheduler.resume();
+
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
     _loadAssessmentStatus();
@@ -164,7 +174,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.dispose();
   }
 
+  Future<void> _requestNotificationPermission() async {
+    if (_notificationPermissionRequested) return;
+
+    _notificationPermissionRequested = true;
+
+    try {
+      final granted = await _notificationService.requestPermission();
+
+      if (!granted) {
+        debugPrint('Notification permission was not granted.');
+      }
+    } catch (error) {
+      debugPrint('Notification permission request failed: $error');
+    }
+  }
+
+  Future<void> _syncTrainingReminders() async {
+    // Capture the notification generation before fetching plans.
+    final generation = _notificationScheduler.generation;
+
+    try {
+      final today = _riyadhToday();
+
+      // Calculate the start of the current week (Sunday).
+      final currentWeekStart = today.subtract(
+        Duration(days: today.weekday % 7),
+      );
+
+      // Calculate the start of next week.
+      final nextWeekStart = currentWeekStart.add(const Duration(days: 7));
+
+      final nextWeekKey = nextWeekStart.toIso8601String().substring(0, 10);
+
+      // Fetch the current and next weekly plans.
+      final currentPlan = await _weeklyPlanService.getWeeklyPlan();
+      final nextPlan = await _weeklyPlanService.getWeeklyPlan(
+        weekStart: nextWeekKey,
+      );
+
+      // Ignore API responses belonging to an outdated session.
+      if (!mounted || generation != _notificationScheduler.generation) {
+        return;
+      }
+
+      // Synchronize reminders only for the active session.
+      await _notificationScheduler.syncWeeklyPlans(
+        currentPlan: currentPlan,
+        nextPlan: nextPlan,
+      );
+    } catch (error) {
+      // Notification synchronization must not affect the weekly plan UI.
+      debugPrint('Training reminder sync failed: $error');
+    }
+  }
+
   Future<void> _loadWeeklyPlan() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingWeeklyPlan = true;
       _weeklyPlanError = null;
@@ -179,29 +246,62 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _weeklyPlan = plan;
         _isLoadingWeeklyPlan = false;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
         _weeklyPlanError = 'تعذر تحميل الخطة الأسبوعية';
         _isLoadingWeeklyPlan = false;
       });
+
+      return;
+    }
+
+    // Notification errors must not affect the weekly plan.
+    try {
+      await _requestNotificationPermission();
+      await _syncTrainingReminders();
+    } catch (error) {
+      debugPrint('Notification setup failed: $error');
     }
   }
 
-  Future<void> _editWeeklyPlan({
-    List<Map<String, dynamic>>? initialSessions,
-  }) async {
+  Future<void> _editWeeklyPlan() async {
     final today = _riyadhToday();
-    final weekStart = today.subtract(Duration(days: today.weekday % 7));
+
+    // Sunday of the current week.
+    final currentWeekStart = today.subtract(Duration(days: today.weekday % 7));
+
+    // Sunday of next week.
+    final weekStart = currentWeekStart.add(const Duration(days: 7));
 
     String dateKey(DateTime date) {
       return date.toIso8601String().substring(0, 10);
     }
 
+    // Load next week's plan, not the current week's plan.
+    Map<String, dynamic>? nextWeekPlan;
+
+    try {
+      nextWeekPlan = await _weeklyPlanService.getWeeklyPlan(
+        weekStart: dateKey(weekStart),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+
+      return;
+    }
+
+    if (!mounted) return;
+
     final existingSessions =
-        initialSessions ??
-        ((_weeklyPlan?['sessions'] as List<dynamic>?) ?? [])
+        ((nextWeekPlan?['sessions'] as List<dynamic>?) ?? [])
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
 
@@ -239,9 +339,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 backgroundColor: const Color(0xFFFCFAF6),
                 title: Text(
-                  _weeklyPlan == null
-                      ? 'خطّط لأسبوعك'
-                      : 'تعديل الخطة الأسبوعية',
+                  nextWeekPlan == null
+                      ? 'خطّط للأسبوع القادم'
+                      : 'تعديل خطة الأسبوع القادم',
                 ),
                 content: SizedBox(
                   width: double.maxFinite,
@@ -253,8 +353,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'اختر أيام الممارسة والمدة المناسبة لك.'
-                            '\nلتعديل جلسة مكتملة، ألغِ تحديد اكتمالها أولًا.',
+                            'اختر أيام التدريب ومدتها للأسبوع القادم.'
+                            '\nيمكنك تعديل الخطة حتى بداية الأسبوع يوم الأحد.',
                             style: TextStyle(height: 1.6),
                           ),
                           const SizedBox(height: 12),
@@ -497,10 +597,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!mounted || savedPlan == null) return;
 
-    setState(() {
-      _weeklyPlan = savedPlan;
-      _weeklyPlanError = null;
-    });
+    // Synchronize reminders after saving next week's plan.
+    //await _syncTrainingReminders(); extra?
+
+    // Keep the current week's plan unchanged.
+    await _loadWeeklyPlan();
   }
 
   Future<void> _showWeeklyCelebration() async {
@@ -609,6 +710,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               sessions.every((item) => item['is_completed'] == true);
         }
       });
+
+      // Update reminders after the session completion changes.
+      await _syncTrainingReminders();
     } catch (exception) {
       if (!mounted) return;
 
@@ -712,14 +816,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-              if (!_isLoadingWeeklyPlan &&
-                  _weeklyPlanError == null &&
-                  _weeklyPlan != null)
-                IconButton(
-                  tooltip: 'تعديل الخطة',
-                  onPressed: _editWeeklyPlan,
-                  icon: const Icon(Icons.edit_outlined, color: teal),
-                ),
+              IconButton(
+                tooltip: 'تخطيط الأسبوع القادم',
+                onPressed: () => _editWeeklyPlan(),
+                icon: const Icon(Icons.edit_calendar_outlined, color: teal),
+              ),
             ],
           ),
           const SizedBox(height: 4),
@@ -743,7 +844,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ] else ...[
             if (_weeklyPlan == null) ...[
               const Text(
-                'اختر أيام التدريب والمدة المناسبة لك',
+                'لا توجد خطة تدريب لهذا الأسبوع. يمكنك التخطيط للأسبوع القادم',
                 style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
@@ -751,7 +852,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 onPressed: () => _editWeeklyPlan(),
                 style: FilledButton.styleFrom(backgroundColor: teal),
                 icon: const Icon(Icons.add),
-                label: const Text('إنشاء جدول جديد'),
+                label: const Text('إنشاء خطة الأسبوع القادم'),
               ),
               const SizedBox(height: 12),
             ],
@@ -948,6 +1049,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _openPracticeSession() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PracticeSessionOverviewScreen(),
+      ),
+    );
+  }
+
   Widget _buildAssessmentCard() {
     final completed = _nextStep == 'completed';
 
@@ -971,7 +1080,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
+                  color: Colors.white.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -999,7 +1108,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           const SizedBox(height: 10),
           Text(
             completed
-                ? 'أكملت التقييمات بنجاح. جلسات التدريب المخصصة ستكون متاحة قريبًا.'
+                ? 'تمارين مختارة لك بناءً على تقييمك. اطّلع على جلستك وتمرّن بالوتيرة المناسبة لك.'
                 : 'أكمل التقييم القبلي وتقييم الكلام للحصول على جلسات تدريب تناسب احتياجاتك.',
             style: const TextStyle(
               color: Colors.white,
@@ -1009,7 +1118,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: completed ? null : _continueAssessment,
+            onPressed: completed ? _openPracticeSession : _continueAssessment,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF1F5F5A),
@@ -1022,7 +1131,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             child: Text(
               completed
-                  ? 'التدريب قريبًا'
+                  ? 'عرض الجلسة'
                   : _nextStep == 'pre_assessment'
                   ? 'ابدأ التقييم القبلي'
                   : 'متابعة تقييم الكلام',
