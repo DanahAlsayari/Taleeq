@@ -134,6 +134,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
   try {
     final scenarios = await _scenarioApiService.getScenarios();
+    debugPrint(
+      'Scenario list API returned ${scenarios.length} active scenarios: '
+      '${scenarios.map((scenario) => scenario.name).join(', ')}',
+    );
 
     if (!mounted) return;
 
@@ -474,6 +478,8 @@ await Navigator.push(
         isRealLifeScenario ? _selectedScenario : null,
     isLoadingScenarios:
         isRealLifeScenario && _isLoadingScenarios,
+    onRefreshScenarios:
+        isRealLifeScenario ? _loadScenarios : null,
     onScenarioSelected: isRealLifeScenario
         ? (scenario) {
             setState(() {
