@@ -221,6 +221,9 @@ if (_conversationStartSent ||
       'instructions': '''
 Start the scenario immediately using the existing scenario instructions.
 Speak first without waiting for the user to say anything. Use one short, natural opening line or question that fits the scenario, then let the user respond. Do not explain the app or mention analysis.
+
+LANGUAGE REQUIREMENT (MANDATORY):
+Speak in Arabic only throughout the scenario. Your very first spoken sentence must be in Arabic. Continue speaking Arabic in every reply; do not switch to English because these instructions or the scenario prompt contain English text. Follow the exact Arabic dialect, tone, role, vocabulary, and communication style specified in the scenario instructions from the database. Do not translate, replace, or ignore the database scenario instructions; this language requirement only controls the spoken language.
 ''',
     },
   });
