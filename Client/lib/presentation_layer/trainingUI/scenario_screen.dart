@@ -482,7 +482,7 @@ Widget build(BuildContext context) {
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(
-                            Icons.arrow_forward_ios_rounded,
+                            Icons.arrow_back_ios_rounded,
                             color: Colors.white,
                           ),
                         ),

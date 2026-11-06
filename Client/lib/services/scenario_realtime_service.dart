@@ -181,7 +181,7 @@ class ScenarioRealtimeService {
         response.body,
         'answer',
       );
-
+await Helper.setSpeakerphoneOn(true);
       await _peerConnection!.setRemoteDescription(answer);
 
       if (_isDisconnecting) return;
