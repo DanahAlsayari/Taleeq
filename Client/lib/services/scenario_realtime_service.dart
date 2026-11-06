@@ -11,7 +11,7 @@ class ScenarioRealtimeService {
   RTCDataChannel? _dataChannel;
   MediaStream? _localStream;
   Completer<void>? _dataChannelReady;
-
+  Future<void>? _disconnectFuture;
   final StreamController<String> _eventsController =
       StreamController<String>.broadcast();
 
@@ -37,12 +37,16 @@ class ScenarioRealtimeService {
     }
 
     try {
-      _peerConnection = await createPeerConnection({
-        'sdpSemantics': 'unified-plan',
-      });
+      final peer = await createPeerConnection({
+  'sdpSemantics': 'unified-plan',
+});
 
-      if (_isDisconnecting) return;
+if (_isDisconnecting || _isDisposed) {
+  await peer.close();
+  return;
+}
 
+_peerConnection = peer;
       _peerConnection!.onConnectionState = (state) {
         if (_isDisconnecting ||
             _isDisposed ||
@@ -53,30 +57,46 @@ class ScenarioRealtimeService {
         _connectionController.add(state);
       };
 
-      _localStream = await navigator.mediaDevices.getUserMedia({
-        'audio': {
-          'echoCancellation': true,
-          'noiseSuppression': true,
-          'autoGainControl': true,
-        },
-        'video': false,
-      });
+final stream = await navigator.mediaDevices.getUserMedia({
+  'audio': {
+    'echoCancellation': true,
+    'noiseSuppression': true,
+    'autoGainControl': true,
+  },
+  'video': false,
+});
 
-      if (_isDisconnecting) return;
+if (_isDisconnecting || _isDisposed) {
+  for (final track in stream.getTracks()) {
+    await track.stop();
+  }
+  await stream.dispose();
+  return;
+}
 
-      for (final track in _localStream!.getAudioTracks()) {
-        await _peerConnection!.addTrack(track, _localStream!);
-      }
+_localStream = stream;
+   final currentStream = _localStream!;
+final currentPeer = _peerConnection!;
 
-      if (_isDisconnecting) return;
+for (final track in currentStream.getAudioTracks()) {
+  if (_isDisconnecting || _isDisposed) return;
 
-      _dataChannel = await _peerConnection!.createDataChannel(
-        'oai-events',
-        RTCDataChannelInit(),
-      );
+  await currentPeer.addTrack(track, currentStream);
+}
 
-      _dataChannelReady = Completer<void>();
+if (_isDisconnecting || _isDisposed) return;
+     final channel = await currentPeer.createDataChannel(
+  'oai-events',
+  RTCDataChannelInit(),
+);
 
+if (_isDisconnecting || _isDisposed) {
+  await channel.close();
+  return;
+}
+
+_dataChannel = channel;
+_dataChannelReady = Completer<void>();
       _dataChannel!.onDataChannelState = (state) {
         if (_isDisconnecting || _isDisposed) return;
 
@@ -97,14 +117,13 @@ class ScenarioRealtimeService {
         _eventsController.add(message.text);
       };
 
-      final offer = await _peerConnection!.createOffer();
+final offer = await currentPeer.createOffer();
 
-      if (_isDisconnecting) return;
+if (_isDisconnecting || _isDisposed) return;
 
-      await _peerConnection!.setLocalDescription(offer);
+await currentPeer.setLocalDescription(offer);
 
-      if (_isDisconnecting) return;
-
+if (_isDisconnecting || _isDisposed) return;
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/realtime/calls'),
         headers: {
@@ -135,6 +154,11 @@ class ScenarioRealtimeService {
       await _dataChannelReady!.future.timeout(
         const Duration(seconds: 20),
       );
+      // Route audio to the phone's external speaker.
+await Helper.setSpeakerphoneOn(true);
+
+
+debugPrint('🔊 Speakerphone enabled');
     } catch (e) {
       await disconnect();
       rethrow;
@@ -211,41 +235,50 @@ Future<void> stopConversation() async {
     }
   }
 
-  Future<void> disconnect() async {
-    if (_isDisconnecting) return;
-
-    _isDisconnecting = true;
-
-    final channel = _dataChannel;
-    final peer = _peerConnection;
-    final stream = _localStream;
-
-    _dataChannel = null;
-    _peerConnection = null;
-    _localStream = null;
-    _dataChannelReady = null;
-
-    if (channel != null) {
-      channel.onMessage = null;
-      channel.onDataChannelState = null;
-      await channel.close();
-    }
-
-    if (peer != null) {
-      peer.onConnectionState = null;
-      await peer.close();
-    }
-
-    if (stream != null) {
-      for (final track in stream.getTracks()) {
-        await track.stop();
-      }
-
-      await stream.dispose();
-    }
-
-    _isMuted = false;
+  Future<void> disconnect() {
+  if (_disconnectFuture != null) {
+    return _disconnectFuture!;
   }
+
+  if (_isDisposed) return Future.value();
+
+  _isDisconnecting = true;
+  _disconnectFuture = _performDisconnect();
+
+  return _disconnectFuture!;
+}
+
+Future<void> _performDisconnect() async {
+  final channel = _dataChannel;
+  final peer = _peerConnection;
+  final stream = _localStream;
+
+  _dataChannel = null;
+  _peerConnection = null;
+  _localStream = null;
+  _dataChannelReady = null;
+
+  if (channel != null) {
+    channel.onMessage = null;
+    channel.onDataChannelState = null;
+    await channel.close();
+  }
+
+  if (peer != null) {
+    peer.onConnectionState = null;
+    await peer.close();
+  }
+
+  if (stream != null) {
+    for (final track in stream.getTracks()) {
+      await track.stop();
+    }
+
+    await stream.dispose();
+  }
+
+  _isMuted = false;
+}
 
   Future<void> dispose() async {
     if (_isDisposed) return;

@@ -1,6 +1,7 @@
 
 import 'dart:io';
 
+import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
@@ -8,21 +9,21 @@ class ScenarioRecordingService {
   final AudioRecorder _recorder = AudioRecorder();
 
   String? _recordingPath;
+  bool _nativeRecording = false;
 
-  Future<bool> get isRecording async => await _recorder.isRecording();
+  bool get _useNativeRecorder => Platform.isIOS;
+
+  Future<bool> get isRecording async {
+    if (_nativeRecording) return true;
+    return await _recorder.isRecording();
+  }
 
   String? get recordingPath => _recordingPath;
 
-  // Start recording the user's microphone
+  // Start recording
   Future<void> startRecording() async {
-    if (await _recorder.isRecording()) {
+    if (await isRecording) {
       throw Exception('Recording is already in progress.');
-    }
-
-    final hasPermission = await _recorder.hasPermission();
-
-    if (!hasPermission) {
-      throw Exception('Microphone permission was not granted.');
     }
 
     final directory = await getTemporaryDirectory();
@@ -31,6 +32,22 @@ class ScenarioRecordingService {
         'scenario_${DateTime.now().millisecondsSinceEpoch}.wav';
 
     _recordingPath = '${directory.path}/$fileName';
+
+    if (_useNativeRecorder) {
+      _recordingPath =
+          await NativeAudioManagement.startNativeRecording(
+        _recordingPath!,
+      );
+
+      _nativeRecording = true;
+      return;
+    }
+
+    final hasPermission = await _recorder.hasPermission();
+
+    if (!hasPermission) {
+      throw Exception('Microphone permission was not granted.');
+    }
 
     await _recorder.start(
       const RecordConfig(
@@ -44,6 +61,15 @@ class ScenarioRecordingService {
 
   // Stop recording and return the audio file path
   Future<String?> stopRecording() async {
+    if (_nativeRecording) {
+      final path = await NativeAudioManagement.stopNativeRecording();
+
+      _nativeRecording = false;
+      _recordingPath = path;
+
+      return path;
+    }
+
     if (!await _recorder.isRecording()) {
       return _recordingPath;
     }
@@ -72,7 +98,9 @@ class ScenarioRecordingService {
 
   // Release recorder resources
   Future<void> dispose() async {
-    if (await _recorder.isRecording()) {
+    if (_nativeRecording) {
+      await stopRecording();
+    } else if (await _recorder.isRecording()) {
       await _recorder.stop();
     }
 

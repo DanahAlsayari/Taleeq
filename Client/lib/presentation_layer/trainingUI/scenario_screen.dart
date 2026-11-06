@@ -8,7 +8,8 @@ import 'package:client/services/scenario_api_service.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'dart:async';
 import 'dart:convert';
-
+import 'package:client/services/scenario_recording_service.dart';
+import 'dart:io';
 
 class ScenarioScreen extends StatefulWidget {
   const ScenarioScreen({
@@ -27,7 +28,10 @@ class ScenarioScreen extends StatefulWidget {
 class _ScenarioScreenState extends State<ScenarioScreen> {
   late final VideoPlayerController _videoController;
 late final ScenarioRealtimeService _realtimeService;
+late final ScenarioRecordingService _recordingService;
 
+bool _isRecording = false;
+bool _isEndingScenario = false;
 bool _isConnecting = false;
 bool _isConnected = false;
 bool _conversationStarted = false;
@@ -58,9 +62,18 @@ Future<void> _connectRealtime() async {
     if (clientSecret is! String || clientSecret.isEmpty) {
       throw Exception('Client secret is missing.');
     }
-
     await _realtimeService.connect(clientSecret);
 
+// Start local recording after Realtime connects.
+await _recordingService.startRecording();
+
+if (!mounted) return;
+
+setState(() {
+  _isRecording = true;
+  _isConnected = true;
+  _isConnecting = false;
+});
     if (!mounted) return;
 
     setState(() {
@@ -83,12 +96,41 @@ Future<void> _connectRealtime() async {
   }
 }
 Future<void> _endScenario() async {
-  await _videoController.pause();
-  await _realtimeService.disconnect();
+  if (_isEndingScenario) return;
 
-  if (!mounted) return;
+  _isEndingScenario = true;
 
-  Navigator.pop(context);
+  try {
+    await _videoController.pause();
+
+    String? recordingPath;
+
+    if (_isRecording) {
+      recordingPath = await _recordingService.stopRecording();
+      _isRecording = false;
+    }
+
+    await _realtimeService.disconnect();
+
+    if (recordingPath != null) {
+      final file = File(recordingPath);
+
+      if (await file.exists()) {
+        debugPrint('SCENARIO RECORDING SAVED');
+        debugPrint('PATH: $recordingPath');
+        debugPrint('SIZE: ${await file.length()} bytes');
+      } else {
+        debugPrint('Recording file does not exist.');
+      }
+    }
+
+    if (!mounted) return;
+
+    Navigator.pop(context);
+  } catch (e) {
+    debugPrint('Error ending scenario: $e');
+    _isEndingScenario = false;
+  }
 }
 void _handleRealtimeEvent(String event) {
   try {
@@ -134,7 +176,7 @@ void initState() {
   super.initState();
 
   _realtimeService = ScenarioRealtimeService();
-
+_recordingService = ScenarioRecordingService();
   // Listen to WebRTC connection states
   _connectionSubscription =
       _realtimeService.connectionStates.listen((state) {
@@ -209,7 +251,9 @@ void dispose() {
 
   _connectionSubscription?.cancel();
   _realtimeService.dispose();
+  _recordingService.dispose();
   _eventsSubscription?.cancel();
+
   super.dispose();
 }
 
@@ -244,7 +288,7 @@ Widget _buildMicrophoneButton() {
           ),
           const SizedBox(width: 10),
           Text(
-            _isMuted ? 'تشغيل المايك' : 'كتم المايك',
+            _isMuted ? 'تشغيل المايكروفون' : 'كتم المايكروفون',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -363,7 +407,7 @@ Widget build(BuildContext context) {
                 child: Row(
                   children: [
                     IconButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: _endScenario,
                       icon: const Icon(
                         Icons.arrow_back_ios_rounded,
                         color: Colors.white,
@@ -389,23 +433,13 @@ Widget build(BuildContext context) {
               ),
 
 const Spacer(),
-const SizedBox(height: 460),
+
 _buildAudioVisualizer(),
+
 const Spacer(),
 
-              const Spacer(),
 Padding(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 24,
-  ),
-  child:Padding(
-  padding: const EdgeInsets.only(
-    left: 20,
-    right: 20,
-    bottom: 24,
-    top: 16,
-  ),
+  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
   child: Row(
     mainAxisAlignment: MainAxisAlignment.center,
     textDirection: TextDirection.ltr,
@@ -415,7 +449,8 @@ Padding(
         icon: const Icon(Icons.stop_rounded),
         label: const Text('إنهاء السيناريو'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(197, 244, 67, 54).withOpacity(0.85),
+          backgroundColor: const Color.fromARGB(197, 244, 67, 54)
+              .withOpacity(0.85),
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(
             horizontal: 18,
@@ -430,7 +465,6 @@ Padding(
       _buildMicrophoneButton(),
     ],
   ),
-),
 ),
             ],
           ),

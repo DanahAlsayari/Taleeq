@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'dart:async';
+import 'dart:io';
 
 import '../models/scenario_model.dart';
 import '../models/scenario_difficulty_model.dart';
@@ -129,4 +131,73 @@ class ScenarioApiService {
 
     return _asMap(_decodeResponse(response));
   }
+  // Add these imports to scenario_api_service.dart:
+
+// Add this method INSIDE ScenarioApiService.
+// Keep all existing methods in that file unchanged.
+
+Future<Map<String, dynamic>> analyzeScenarioAudio({
+  required String attemptId,
+  required String recordingPath,
+  String endReason = 'user_ended',
+}) async {
+  final token = await AuthStorage.getToken();
+
+  if (token == null || token.isEmpty) {
+    throw Exception('انتهت جلسة تسجيل الدخول.');
+  }
+
+  final file = File(recordingPath);
+
+  if (!await file.exists() || await file.length() == 0) {
+    throw Exception('التسجيل فارغ أو غير موجود. أعيدي التسجيل.');
+  }
+
+  final uri = Uri.parse(
+    '${ApiConfig.baseUrl.replaceFirst(RegExp(r"/auth/?$"), "")}'
+    '/scenarios/attempts/$attemptId/analyze-audio',
+  );
+
+  final request = http.MultipartRequest('POST', uri);
+  request.headers['Authorization'] = 'Bearer $token';
+  request.fields['end_reason'] = endReason;
+  request.files.add(
+    await http.MultipartFile.fromPath('file', recordingPath),
+  );
+
+  late final http.Response response;
+
+  try {
+    final streamedResponse = await request.send().timeout(
+      const Duration(seconds: 180),
+    );
+    response = await http.Response.fromStream(streamedResponse);
+  } on SocketException {
+    throw Exception('تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+  } on http.ClientException {
+    throw Exception('تعذر الاتصال بالخادم. يرجى المحاولة مرة أخرى.');
+  } on TimeoutException {
+    throw Exception('استغرق تحليل التسجيل وقتًا طويلًا. حاولي مرة أخرى.');
+  }
+
+  final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+
+  if (response.statusCode >= 200 && response.statusCode < 300) {
+    if (decoded is! Map) {
+      throw Exception('استجابة التحليل غير صالحة.');
+    }
+    return Map<String, dynamic>.from(decoded);
+  }
+
+  if (response.statusCode == 401) {
+    throw Exception('انتهت جلسة تسجيل الدخول.');
+  }
+
+  final message = decoded is Map && decoded['detail'] is String
+      ? decoded['detail'] as String
+      : 'حدث خطأ أثناء تحليل التسجيل (${response.statusCode}).';
+
+  throw Exception(message);
+}
+
 }
