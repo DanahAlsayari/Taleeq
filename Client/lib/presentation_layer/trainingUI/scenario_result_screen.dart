@@ -572,7 +572,7 @@ class ScenarioResultScreen extends StatelessWidget {
               Text(
                 value == null
                     ? 'غير متاح'
-                    : '${value.toStringAsFixed(1)}${title.contains('دقيقة') ? '' : '%'}',
+                    : '${value.toStringAsFixed(1)}%',
                 style: const TextStyle(
                   color: Color(0xFF203E3A),
                   fontWeight: FontWeight.w800,
