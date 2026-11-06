@@ -120,6 +120,7 @@ Future<void> _endScenario() async {
     // Stop sending microphone audio, but keep the same Realtime session alive
     // so it can evaluate the conversation that has just ended.
     await _realtimeService.muteMicrophoneForAnalysis();
+    if (mounted) setState(() => _isMuted = true);
 
     final analysis = await _realtimeService.requestScenarioAnalysis();
     final result = await ScenarioApiService().completeRealtimeScenario(
@@ -155,6 +156,9 @@ Future<void> _endScenario() async {
     // Allow the user to continue if analysis or saving failed.
     try {
       await _realtimeService.restoreMicrophoneAfterAnalysis();
+      if (mounted) {
+        setState(() => _isMuted = _realtimeService.isMuted);
+      }
     } catch (restoreError) {
       debugPrint('Could not restore microphone after failed analysis: $restoreError');
     }
@@ -303,7 +307,7 @@ void dispose() {
 
 Widget _buildMicrophoneButton() {
   return GestureDetector(
-    onTap: _toggleMicrophone,
+    onTap: _isEndingScenario ? null : _toggleMicrophone,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       padding: const EdgeInsets.symmetric(
