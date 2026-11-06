@@ -8,6 +8,7 @@ import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../../services/weekly_plan_service.dart';
 import '../../services/notification_scheduler.dart';
 import '../../services/notification_service.dart';
+import '../trainingUI/practice_session_overview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.isActive = true});
@@ -25,8 +26,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AssessmentApiService _assessmentService = AssessmentApiService();
   final WeeklyPlanService _weeklyPlanService = WeeklyPlanService();
   final NotificationScheduler _notificationScheduler = NotificationScheduler();
-  final NotificationService _notificationService =NotificationService();
-bool _notificationPermissionRequested = false;
+  final NotificationService _notificationService = NotificationService();
+  bool _notificationPermissionRequested = false;
   DateTime? _selectedPracticeDate;
 
   Map<String, dynamic>? _weeklyPlan;
@@ -40,8 +41,8 @@ bool _notificationPermissionRequested = false;
   void initState() {
     super.initState();
 
-// Enable notification synchronization for the current session.
-  _notificationScheduler.resume();
+    // Enable notification synchronization for the current session.
+    _notificationScheduler.resume();
 
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
@@ -173,98 +174,97 @@ bool _notificationPermissionRequested = false;
     super.dispose();
   }
 
-Future<void> _requestNotificationPermission() async {
-  if (_notificationPermissionRequested) return;
+  Future<void> _requestNotificationPermission() async {
+    if (_notificationPermissionRequested) return;
 
-  _notificationPermissionRequested = true;
+    _notificationPermissionRequested = true;
 
-  try {
-    final granted = await _notificationService.requestPermission();
+    try {
+      final granted = await _notificationService.requestPermission();
 
-    if (!granted) {
-      debugPrint('Notification permission was not granted.');
+      if (!granted) {
+        debugPrint('Notification permission was not granted.');
+      }
+    } catch (error) {
+      debugPrint('Notification permission request failed: $error');
     }
-  } catch (error) {
-    debugPrint('Notification permission request failed: $error');
   }
-}
 
-Future<void> _syncTrainingReminders() async {
-  // Capture the notification generation before fetching plans.
-  final generation = _notificationScheduler.generation;
+  Future<void> _syncTrainingReminders() async {
+    // Capture the notification generation before fetching plans.
+    final generation = _notificationScheduler.generation;
 
-  try {
-    final today = _riyadhToday();
+    try {
+      final today = _riyadhToday();
 
-    // Calculate the start of the current week (Sunday).
-    final currentWeekStart =
-        today.subtract(Duration(days: today.weekday % 7));
+      // Calculate the start of the current week (Sunday).
+      final currentWeekStart = today.subtract(
+        Duration(days: today.weekday % 7),
+      );
 
-    // Calculate the start of next week.
-    final nextWeekStart =
-        currentWeekStart.add(const Duration(days: 7));
+      // Calculate the start of next week.
+      final nextWeekStart = currentWeekStart.add(const Duration(days: 7));
 
-    final nextWeekKey =
-        nextWeekStart.toIso8601String().substring(0, 10);
+      final nextWeekKey = nextWeekStart.toIso8601String().substring(0, 10);
 
-    // Fetch the current and next weekly plans.
-    final currentPlan = await _weeklyPlanService.getWeeklyPlan();
-    final nextPlan = await _weeklyPlanService.getWeeklyPlan(
-      weekStart: nextWeekKey,
-    );
+      // Fetch the current and next weekly plans.
+      final currentPlan = await _weeklyPlanService.getWeeklyPlan();
+      final nextPlan = await _weeklyPlanService.getWeeklyPlan(
+        weekStart: nextWeekKey,
+      );
 
-    // Ignore API responses belonging to an outdated session.
-    if (!mounted || generation != _notificationScheduler.generation) {
+      // Ignore API responses belonging to an outdated session.
+      if (!mounted || generation != _notificationScheduler.generation) {
+        return;
+      }
+
+      // Synchronize reminders only for the active session.
+      await _notificationScheduler.syncWeeklyPlans(
+        currentPlan: currentPlan,
+        nextPlan: nextPlan,
+      );
+    } catch (error) {
+      // Notification synchronization must not affect the weekly plan UI.
+      debugPrint('Training reminder sync failed: $error');
+    }
+  }
+
+  Future<void> _loadWeeklyPlan() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingWeeklyPlan = true;
+      _weeklyPlanError = null;
+    });
+
+    try {
+      final plan = await _weeklyPlanService.getWeeklyPlan();
+
+      if (!mounted) return;
+
+      setState(() {
+        _weeklyPlan = plan;
+        _isLoadingWeeklyPlan = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _weeklyPlanError = 'تعذر تحميل الخطة الأسبوعية';
+        _isLoadingWeeklyPlan = false;
+      });
+
       return;
     }
 
-    // Synchronize reminders only for the active session.
-    await _notificationScheduler.syncWeeklyPlans(
-      currentPlan: currentPlan,
-      nextPlan: nextPlan,
-    );
-  } catch (error) {
-    // Notification synchronization must not affect the weekly plan UI.
-    debugPrint('Training reminder sync failed: $error');
+    // Notification errors must not affect the weekly plan.
+    try {
+      await _requestNotificationPermission();
+      await _syncTrainingReminders();
+    } catch (error) {
+      debugPrint('Notification setup failed: $error');
+    }
   }
-}
-
-Future<void> _loadWeeklyPlan() async {
-  if (!mounted) return;
-
-  setState(() {
-    _isLoadingWeeklyPlan = true;
-    _weeklyPlanError = null;
-  });
-
-  try {
-    final plan = await _weeklyPlanService.getWeeklyPlan();
-
-    if (!mounted) return;
-
-    setState(() {
-      _weeklyPlan = plan;
-      _isLoadingWeeklyPlan = false;
-    });
-  } catch (error) {
-    if (!mounted) return;
-
-    setState(() {
-      _weeklyPlanError = 'تعذر تحميل الخطة الأسبوعية';
-      _isLoadingWeeklyPlan = false;
-    });
-
-    return;
-  }
-
-  // Notification errors must not affect the weekly plan.
-  try {
-    await _requestNotificationPermission();
-    await _syncTrainingReminders();
-  } catch (error) {
-    debugPrint('Notification setup failed: $error');
-  }
-}
 
   Future<void> _editWeeklyPlan() async {
     final today = _riyadhToday();
@@ -282,25 +282,23 @@ Future<void> _loadWeeklyPlan() async {
     // Load next week's plan, not the current week's plan.
     Map<String, dynamic>? nextWeekPlan;
 
-try {
-  nextWeekPlan = await _weeklyPlanService.getWeeklyPlan(
-    weekStart: dateKey(weekStart),
-  );
-} catch (error) {
-  if (!mounted) return;
+    try {
+      nextWeekPlan = await _weeklyPlanService.getWeeklyPlan(
+        weekStart: dateKey(weekStart),
+      );
+    } catch (error) {
+      if (!mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(
-        error.toString().replaceFirst('Exception: ', ''),
-      ),
-    ),
-  );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
 
-  return;
-}
+      return;
+    }
 
-if (!mounted) return;
+    if (!mounted) return;
 
     final existingSessions =
         ((nextWeekPlan?['sessions'] as List<dynamic>?) ?? [])
@@ -597,14 +595,13 @@ if (!mounted) return;
       },
     );
 
-if (!mounted || savedPlan == null) return;
+    if (!mounted || savedPlan == null) return;
 
-// Synchronize reminders after saving next week's plan.
-//await _syncTrainingReminders(); extra?
+    // Synchronize reminders after saving next week's plan.
+    //await _syncTrainingReminders(); extra?
 
-// Keep the current week's plan unchanged.
-await _loadWeeklyPlan();
-
+    // Keep the current week's plan unchanged.
+    await _loadWeeklyPlan();
   }
 
   Future<void> _showWeeklyCelebration() async {
@@ -696,7 +693,7 @@ await _loadWeeklyPlan();
 
       if (!mounted || _weeklyPlan?['id'] != planId) return;
 
-       setState(() {
+      setState(() {
         final sessions = _weeklyPlan!['sessions'] as List<dynamic>;
         final index = sessions.indexWhere(
           (item) => item['id'] == updated['id'],
@@ -716,7 +713,6 @@ await _loadWeeklyPlan();
 
       // Update reminders after the session completion changes.
       await _syncTrainingReminders();
-
     } catch (exception) {
       if (!mounted) return;
 
@@ -1053,6 +1049,14 @@ await _loadWeeklyPlan();
     );
   }
 
+  Future<void> _openPracticeSession() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PracticeSessionOverviewScreen(),
+      ),
+    );
+  }
+
   Widget _buildAssessmentCard() {
     final completed = _nextStep == 'completed';
 
@@ -1104,7 +1108,7 @@ await _loadWeeklyPlan();
           const SizedBox(height: 10),
           Text(
             completed
-                ? 'أكملت التقييمات بنجاح. جلسات التدريب المخصصة ستكون متاحة قريبًا.'
+                ? 'تمارين مختارة لك بناءً على تقييمك. اطّلع على جلستك وتمرّن بالوتيرة المناسبة لك.'
                 : 'أكمل التقييم القبلي وتقييم الكلام للحصول على جلسات تدريب تناسب احتياجاتك.',
             style: const TextStyle(
               color: Colors.white,
@@ -1114,7 +1118,7 @@ await _loadWeeklyPlan();
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: completed ? null : _continueAssessment,
+            onPressed: completed ? _openPracticeSession : _continueAssessment,
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.white,
               foregroundColor: const Color(0xFF1F5F5A),
@@ -1127,7 +1131,7 @@ await _loadWeeklyPlan();
             ),
             child: Text(
               completed
-                  ? 'التدريب قريبًا'
+                  ? 'عرض الجلسة'
                   : _nextStep == 'pre_assessment'
                   ? 'ابدأ التقييم القبلي'
                   : 'متابعة تقييم الكلام',
@@ -1200,5 +1204,4 @@ await _loadWeeklyPlan();
       ),
     );
   }
-
 }

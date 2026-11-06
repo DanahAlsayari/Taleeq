@@ -13,5 +13,5 @@ class ApiConfig {
     return 'http://192.168.100.134:8000';
   }
 
- static String get authBaseUrl => baseUrl;
+  static String get authBaseUrl => '$baseUrl/auth';
 }

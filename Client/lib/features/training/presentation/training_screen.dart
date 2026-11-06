@@ -134,6 +134,10 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
   try {
     final scenarios = await _scenarioApiService.getScenarios();
+    debugPrint(
+      'Scenario list API returned ${scenarios.length} active scenarios: '
+      '${scenarios.map((scenario) => scenario.name).join(', ')}',
+    );
 
     if (!mounted) return;
 
@@ -146,11 +150,27 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تعذر تحميل السيناريوهات'),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text(
+            'تعذر تحميل السيناريوهات',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFD9534F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
   } finally {
     if (mounted) {
       setState(() {
@@ -203,11 +223,27 @@ class _TrainingScreenState extends State<TrainingScreen> {
     final selection = _controller.selectionFor(exercise);
 if (selection.type == ExerciseType.realLifeScenarios) {
   if (_selectedScenario == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('اختر السيناريو أولًا'),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text(
+            'اختر السيناريو أولًا',
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFD9534F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
     return;
   }
 
@@ -474,6 +510,8 @@ await Navigator.push(
         isRealLifeScenario ? _selectedScenario : null,
     isLoadingScenarios:
         isRealLifeScenario && _isLoadingScenarios,
+    onRefreshScenarios:
+        isRealLifeScenario ? _loadScenarios : null,
     onScenarioSelected: isRealLifeScenario
         ? (scenario) {
             setState(() {

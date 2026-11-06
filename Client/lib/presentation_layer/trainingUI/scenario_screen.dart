@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:client/models/scenario_model.dart';
 import 'package:client/services/scenario_realtime_service.dart';
 import 'package:client/services/scenario_api_service.dart';
+import 'package:client/presentation_layer/trainingUI/scenario_result_screen.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -38,7 +39,33 @@ bool _isMuted = false;
 StreamSubscription<RTCPeerConnectionState>?
     _connectionSubscription;
 StreamSubscription<String>? _eventsSubscription;
-  bool _conversationShouldStart = false;
+  bool _isEndingScenario = false;
+  DateTime? _conversationStartedAt;
+
+  void _showScenarioError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFD9534F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+  }
 Future<void> _connectRealtime() async {
   if (_isConnecting || _isConnected) return;
 
@@ -68,8 +95,11 @@ Future<void> _connectRealtime() async {
       _isConnecting = false;
     });
 
-    if (_conversationShouldStart && !_conversationStarted) {
+    // Start the assistant as soon as the Realtime connection is ready.
+    // The scenario video no longer controls the conversation start time.
+    if (!_conversationStarted) {
       _conversationStarted = true;
+      _conversationStartedAt = DateTime.now();
       _realtimeService.startConversation();
     }
   } catch (e) {
@@ -80,15 +110,122 @@ Future<void> _connectRealtime() async {
     });
 
     debugPrint('Realtime connection error: $e');
+    _showScenarioError('تعذر الاتصال بالمحادثة. تحققي من اتصال الإنترنت وحاولي مرة أخرى.');
   }
 }
-Future<void> _endScenario() async {
-  await _videoController.pause();
-  await _realtimeService.disconnect();
+Future<void> _endScenario({bool automatic = false}) async {
+  if (_isEndingScenario) return;
 
-  if (!mounted) return;
+  if (!_conversationStarted || _conversationStartedAt == null) {
+    _showScenarioError('لم تبدأ المحادثة بعد.');
+    return;
+  }
 
-  Navigator.pop(context);
+  final elapsedSeconds =
+      DateTime.now().difference(_conversationStartedAt!).inSeconds;
+
+  if (elapsedSeconds < 15 && !automatic) {
+    _showScenarioError(
+      'يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.',
+    );
+    return;
+  }
+
+  // Keep the saved duration within the backend's supported range.
+  final durationSeconds = elapsedSeconds.clamp(15, 300).toInt();
+  final endReason = elapsedSeconds > 300
+      ? 'duration_limit'
+      : (automatic ? 'scenario_completed' : 'user_ended');
+
+  setState(() => _isEndingScenario = true);
+
+  try {
+    await _videoController.pause();
+
+    // Stop sending microphone audio, but keep the same Realtime session alive
+    // so it can evaluate the conversation that has just ended.
+    await _realtimeService.muteMicrophoneForAnalysis();
+    if (mounted) setState(() => _isMuted = true);
+
+    final analysis = await _realtimeService.requestScenarioAnalysis();
+    debugPrint(
+      'Scenario speech check: sufficient=${analysis['speech_sample_sufficient']}, '
+      'events=${(analysis['speech_events'] is List) ? (analysis['speech_events'] as List).length : 'missing'}',
+    );
+
+    if (analysis['speech_sample_sufficient'] != true) {
+      await _realtimeService.restoreMicrophoneAfterAnalysis();
+      if (!mounted) return;
+      setState(() {
+        _isMuted = _realtimeService.isMuted;
+        _isEndingScenario = false;
+      });
+      try {
+        if (_videoController.value.isInitialized &&
+            !_videoController.value.isPlaying) {
+          await _videoController.play();
+        }
+      } catch (videoError) {
+        debugPrint('Could not resume scenario video: $videoError');
+      }
+      _showScenarioError(
+        'لم نتمكن من اكتشاف كلام واضح. أعيدي السيناريو وحاولي التحدث بوضوح.',
+      );
+      return;
+    }
+
+    final result = await ScenarioApiService().completeRealtimeScenario(
+      attemptId: widget.attemptId,
+      durationSeconds: durationSeconds,
+      endReason: endReason,
+      analysisResult: analysis,
+    );
+
+    // Saving is the success boundary. A cleanup issue must not block results.
+    try {
+      await _realtimeService.disconnect();
+    } catch (cleanupError) {
+      debugPrint('Realtime cleanup error after saving results: $cleanupError');
+    }
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ScenarioResultScreen(
+          result: result,
+          scenarioName: widget.scenario.name,
+        ),
+      ),
+    );
+  } catch (error, stackTrace) {
+    debugPrint('Failed to finish scenario: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
+    if (!mounted) return;
+
+    // Allow the user to continue if analysis or saving failed.
+    try {
+      await _realtimeService.restoreMicrophoneAfterAnalysis();
+      if (mounted) {
+        setState(() => _isMuted = _realtimeService.isMuted);
+      }
+    } catch (restoreError) {
+      debugPrint('Could not restore microphone after failed analysis: $restoreError');
+    }
+    try {
+      if (_videoController.value.isInitialized &&
+          !_videoController.value.isPlaying) {
+        await _videoController.play();
+      }
+    } catch (videoError) {
+      debugPrint('Could not resume scenario video: $videoError');
+    }
+
+    final message = error.toString().replaceFirst('Exception: ', '');
+    _showScenarioError('تعذر إنهاء السيناريو: $message');
+    setState(() => _isEndingScenario = false);
+  }
 }
 void _handleRealtimeEvent(String event) {
   try {
@@ -115,6 +252,15 @@ void _handleRealtimeEvent(String event) {
 
         case 'input_audio_buffer.speech_stopped':
           _isUserSpeaking = false;
+          break;
+        case 'scenario.completed':
+          if (!_isEndingScenario) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_isEndingScenario) {
+                _endScenario(automatic: true);
+              }
+            });
+          }
           break;
       }
     });
@@ -168,9 +314,6 @@ void initState() {
       _videoController.play();
     });
 
-  // Monitor conversation start time
-  _videoController.addListener(_checkConversationStart);
-
   // Connect to Realtime after the first frame
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (mounted) {
@@ -178,33 +321,8 @@ void initState() {
     }
   });
 }
-void _checkConversationStart() {
-  if (_conversationShouldStart ||
-      !_videoController.value.isInitialized) {
-    return;
-  }
-
-  final currentPosition = _videoController.value.position;
-  final startTime = Duration(
-    seconds: widget.scenario.conversationStartTime,
-  );
-
-if (currentPosition >= startTime) {
-  _conversationShouldStart = true;
-
-  if (!mounted) return;
-
-  setState(() {});
-
-  if (_isConnected && !_conversationStarted) {
-    _conversationStarted = true;
-    _realtimeService.startConversation();
-  }
-}
-}
 @override
 void dispose() {
-  _videoController.removeListener(_checkConversationStart);
   _videoController.dispose();
 
   _connectionSubscription?.cancel();
@@ -215,12 +333,12 @@ void dispose() {
 
 Widget _buildMicrophoneButton() {
   return GestureDetector(
-    onTap: _toggleMicrophone,
+    onTap: _isEndingScenario ? null : _toggleMicrophone,
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 16,
+        horizontal: 14,
+        vertical: 17,
       ),
       decoration: BoxDecoration(
         color: _isMuted
@@ -234,22 +352,27 @@ Widget _buildMicrophoneButton() {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Flexible(
+            child: Text(
+              _isMuted ? 'تشغيل الميكروفون' : 'كتم الميكروفون',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
           Icon(
             _isMuted
                 ? Icons.mic_off_rounded
                 : Icons.mic_rounded,
             color: Colors.white,
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Text(
-            _isMuted ? 'تشغيل المايك' : 'كتم المايك',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
+            size: 18,
           ),
         ],
       ),
@@ -360,81 +483,122 @@ Widget build(BuildContext context) {
                   horizontal: 20,
                   vertical: 12,
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_rounded,
-                        color: Colors.white,
+                child: SizedBox(
+                  height: 48,
+                  width: double.infinity,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(
+                        widget.scenario.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Column(
-                      children: [
-                        Text(
-                          widget.scenario.name,
-                          style: const TextStyle(
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_rounded,
                             color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        
-                      ],
-                    ),
-                   
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
-const Spacer(),
-const SizedBox(height: 460),
-_buildAudioVisualizer(),
-const Spacer(),
-
-              const Spacer(),
-Padding(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 24,
-  ),
-  child:Padding(
-  padding: const EdgeInsets.only(
-    left: 20,
-    right: 20,
-    bottom: 24,
-    top: 16,
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    textDirection: TextDirection.ltr,
-    children: [
-      ElevatedButton.icon(
-        onPressed: _endScenario,
-        icon: const Icon(Icons.stop_rounded),
-        label: const Text('إنهاء السيناريو'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(197, 244, 67, 54).withOpacity(0.85),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 16,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
-        ),
-      ),
-      const SizedBox(width: 12),
-      _buildMicrophoneButton(),
-    ],
+Expanded(
+  child: Transform.translate(
+    offset: const Offset(0, 92),
+    child: Center(
+      child: _buildAudioVisualizer(),
+    ),
   ),
 ),
+Padding(
+  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+  child: Directionality(
+    textDirection: TextDirection.rtl,
+    child: Row(
+      children: [
+        Expanded(child: _buildMicrophoneButton()),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _isEndingScenario ? null : _endScenario,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(197, 244, 67, 54)
+                  .withOpacity(0.85),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 17,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    'إنهاء السيناريو',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.stop_rounded, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
 ),
             ],
           ),
         ),
+        if (_isEndingScenario)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.48),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'جاري تحليل السيناريو...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     ),
   );

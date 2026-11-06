@@ -149,35 +149,29 @@ class ScenarioService:
             logger.warning("Analysis result is missing")
             return None
 
-        completed_attempt = self.repository.complete_attempt(
-            attempt_id=attempt_id,
-            duration_seconds=duration_seconds,
-            end_reason=end_reason,
-            analysis_result=analysis_result,
-            status="completed",
-        )
-
-        if completed_attempt is None:
-            return None
-
         progress = self.repository.get_user_progress(
             user_id=user_id,
             scenario_id=attempt.scenario_id,
         )
 
-        if progress is None:
-            best_attempt_id = attempt_id
-        elif is_best_attempt:
+        if progress is None or is_best_attempt:
             best_attempt_id = attempt_id
         else:
             best_attempt_id = progress.best_attempt_id
 
-        self.repository.create_or_update_progress(
+        completed_attempt = self.repository.complete_attempt_and_update_progress(
             user_id=user_id,
             scenario_id=attempt.scenario_id,
-            latest_attempt_id=attempt_id,
+            attempt_id=attempt_id,
+            duration_seconds=duration_seconds,
+            end_reason=end_reason,
+            analysis_result=analysis_result,
             best_attempt_id=best_attempt_id,
+            status="completed",
         )
+
+        if completed_attempt is None:
+            return None
 
         logger.info("Scenario completed: attempt_id=%s", attempt_id)
 

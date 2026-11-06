@@ -110,6 +110,55 @@ class ScenarioRepository:
 
         return query.first()
 
+    def complete_attempt_and_update_progress(
+        self,
+        user_id: int,
+        scenario_id: UUID,
+        attempt_id: UUID,
+        duration_seconds: int,
+        end_reason: str,
+        analysis_result: dict,
+        best_attempt_id: UUID,
+        status: str,
+    ):
+        attempt = self.get_attempt_by_id(
+            attempt_id=attempt_id,
+            user_id=user_id,
+        )
+        if attempt is None:
+            return None
+
+        try:
+            attempt.status = status
+            attempt.ended_at = datetime.utcnow()
+            attempt.duration_seconds = duration_seconds
+            attempt.end_reason = end_reason
+            attempt.analysis_result = analysis_result
+
+            progress = self.get_user_progress(user_id, scenario_id)
+            if progress is None:
+                progress = ScenarioUserProgress(
+                    user_id=user_id,
+                    scenario_id=scenario_id,
+                    latest_attempt_id=attempt_id,
+                    best_attempt_id=best_attempt_id,
+                )
+                self.db.add(progress)
+            else:
+                progress.latest_attempt_id = attempt_id
+                progress.best_attempt_id = best_attempt_id
+                progress.updated_at = datetime.utcnow()
+
+            # Both records are committed atomically.
+            self.db.commit()
+            self.db.refresh(attempt)
+            self.db.refresh(progress)
+            return attempt
+
+        except Exception:
+            self.db.rollback()
+            raise
+
     def complete_attempt(
         self,
         attempt_id: UUID,

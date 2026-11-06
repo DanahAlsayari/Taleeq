@@ -20,6 +20,10 @@ from data_and_integration_layer.database.models.user import User
 from data_and_integration_layer.database.Repositories.exercise_attempt_repository import (
     ExerciseAttemptRepository,
 )
+from application_layer.training_management.practice_session_service import (
+    PracticeSessionNotFoundError,
+    PracticeSessionConflictError,
+)
 
 router = APIRouter(
     prefix="/speech-exercises",
@@ -32,6 +36,7 @@ async def analyze_exercise_audio(
     exercise_id: UUID,
     file: UploadFile = File(...),
     technique_id: int | None = Form(None),
+    session_exercise_id: int | None = Form(None),
     current_user: User = Depends(auth.get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -74,11 +79,22 @@ async def analyze_exercise_audio(
         result = service.analyze_exercise(
             user_id=current_user.id,
             exercise_id=exercise_id,
+            session_exercise_id=session_exercise_id,
             audio_bytes=audio_bytes,
             audio_format=audio_format,
             technique_id=technique_id,
         )
+    except PracticeSessionNotFoundError as error:
+        raise HTTPException(
+            status_code=404,
+            detail=str(error),
+        ) from error
 
+    except PracticeSessionConflictError as error:
+        raise HTTPException(
+            status_code=409,
+            detail=str(error),
+        ) from error
     except ValueError as error:
         if str(error) == "Exercise not found.":
             raise HTTPException(
