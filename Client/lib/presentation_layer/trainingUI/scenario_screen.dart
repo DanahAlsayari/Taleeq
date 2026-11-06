@@ -5,6 +5,7 @@ import 'package:video_player/video_player.dart';
 import 'package:client/models/scenario_model.dart';
 import 'package:client/services/scenario_realtime_service.dart';
 import 'package:client/services/scenario_api_service.dart';
+import 'package:client/presentation_layer/trainingUI/scenario_result_screen.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -39,6 +40,8 @@ StreamSubscription<RTCPeerConnectionState>?
     _connectionSubscription;
 StreamSubscription<String>? _eventsSubscription;
   bool _conversationShouldStart = false;
+  bool _isEndingScenario = false;
+  DateTime? _conversationStartedAt;
 Future<void> _connectRealtime() async {
   if (_isConnecting || _isConnected) return;
 
@@ -70,6 +73,7 @@ Future<void> _connectRealtime() async {
 
     if (_conversationShouldStart && !_conversationStarted) {
       _conversationStarted = true;
+      _conversationStartedAt = DateTime.now();
       _realtimeService.startConversation();
     }
   } catch (e) {
@@ -83,12 +87,62 @@ Future<void> _connectRealtime() async {
   }
 }
 Future<void> _endScenario() async {
-  await _videoController.pause();
-  await _realtimeService.disconnect();
+  if (_isEndingScenario) return;
 
-  if (!mounted) return;
+  if (!_conversationStarted || _conversationStartedAt == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('لم تبدأ المحادثة بعد.')),
+    );
+    return;
+  }
 
-  Navigator.pop(context);
+  setState(() => _isEndingScenario = true);
+
+  try {
+    await _videoController.pause();
+
+    final durationSeconds =
+        DateTime.now().difference(_conversationStartedAt!).inSeconds;
+
+    if (durationSeconds < 15 || durationSeconds > 300) {
+      throw Exception(
+        durationSeconds < 15
+            ? 'يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.'
+            : 'تجاوزت المحادثة الحد الأقصى المسموح به وهو 5 دقائق.',
+      );
+    }
+
+    final analysis = await _realtimeService.requestScenarioAnalysis();
+    final result = await ScenarioApiService().completeRealtimeScenario(
+      attemptId: widget.attemptId,
+      durationSeconds: durationSeconds,
+      analysisResult: analysis,
+    );
+
+    await _realtimeService.disconnect();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => ScenarioResultScreen(
+          result: result,
+          scenarioName: widget.scenario.name,
+        ),
+      ),
+    );
+  } catch (error) {
+    if (!mounted) return;
+
+    final message = error.toString().replaceFirst('Exception: ', '');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 5),
+      ),
+    );
+    setState(() => _isEndingScenario = false);
+  }
 }
 void _handleRealtimeEvent(String event) {
   try {
@@ -198,6 +252,7 @@ if (currentPosition >= startTime) {
 
   if (_isConnected && !_conversationStarted) {
     _conversationStarted = true;
+    _conversationStartedAt = DateTime.now();
     _realtimeService.startConversation();
   }
 }
@@ -413,9 +468,18 @@ Padding(
     textDirection: TextDirection.ltr,
     children: [
       ElevatedButton.icon(
-        onPressed: _endScenario,
-        icon: const Icon(Icons.stop_rounded),
-        label: const Text('إنهاء السيناريو'),
+        onPressed: _isEndingScenario ? null : _endScenario,
+        icon: _isEndingScenario
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : const Icon(Icons.stop_rounded),
+        label: Text(_isEndingScenario ? 'جاري تحليل المحادثة...' : 'إنهاء السيناريو'),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromARGB(197, 244, 67, 54).withOpacity(0.85),
           foregroundColor: Colors.white,
