@@ -109,7 +109,7 @@ Future<void> _endScenario() async {
   }
 
   // Keep the saved duration within the backend's supported range.
-  final durationSeconds = elapsedSeconds.clamp(15, 300);
+  final durationSeconds = elapsedSeconds.clamp(15, 300).toInt();
   final endReason = elapsedSeconds > 300 ? 'duration_limit' : 'user_ended';
 
   setState(() => _isEndingScenario = true);
@@ -153,10 +153,18 @@ Future<void> _endScenario() async {
     if (!mounted) return;
 
     // Allow the user to continue if analysis or saving failed.
-    await _realtimeService.restoreMicrophoneAfterAnalysis();
-    if (_videoController.value.isInitialized &&
-        !_videoController.value.isPlaying) {
-      await _videoController.play();
+    try {
+      await _realtimeService.restoreMicrophoneAfterAnalysis();
+    } catch (restoreError) {
+      debugPrint('Could not restore microphone after failed analysis: $restoreError');
+    }
+    try {
+      if (_videoController.value.isInitialized &&
+          !_videoController.value.isPlaying) {
+        await _videoController.play();
+      }
+    } catch (videoError) {
+      debugPrint('Could not resume scenario video: $videoError');
     }
 
     final message = error.toString().replaceFirst('Exception: ', '');
