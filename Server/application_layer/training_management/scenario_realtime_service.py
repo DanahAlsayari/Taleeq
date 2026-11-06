@@ -51,6 +51,48 @@ class ScenarioRealtimeService:
         if not isinstance(scores, dict):
             raise ValueError("Scenario analysis scores are missing.")
 
+        for score_name in ("fluency_score", "rhythm_score"):
+            score = scores.get(score_name)
+            if score is not None and (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not 0 <= score <= 100
+            ):
+                raise ValueError(
+                    f"{score_name} must be between 0 and 100 or null."
+                )
+
+        metrics = analysis_result.get("metrics")
+        if metrics is not None:
+            if not isinstance(metrics, dict):
+                raise ValueError("Scenario analysis metrics must be an object.")
+
+            for metric_name in (
+                "stuttering_percent",
+                "repetition_percent",
+                "prolongation_percent",
+                "block_percent",
+            ):
+                metric = metrics.get(metric_name)
+                if metric is not None and (
+                    isinstance(metric, bool)
+                    or not isinstance(metric, (int, float))
+                    or not 0 <= metric <= 100
+                ):
+                    raise ValueError(
+                        f"{metric_name} must be between 0 and 100 or null."
+                    )
+
+            speaking_rate = metrics.get("speaking_rate_wpm")
+            if speaking_rate is not None and (
+                isinstance(speaking_rate, bool)
+                or not isinstance(speaking_rate, (int, float))
+                or speaking_rate < 0
+            ):
+                raise ValueError(
+                    "speaking_rate_wpm must be zero or greater, or null."
+                )
+
         progress = self.repository.get_user_progress(
             user_id=user_id,
             scenario_id=attempt.scenario_id,
@@ -152,6 +194,36 @@ class ScenarioRealtimeService:
         # 6. Create an ephemeral client secret.
         client = OpenAI(api_key=api_key)
 
+        database_prompt = difficulty.prompt.strip()
+
+        language_and_role_rules = """
+MANDATORY LANGUAGE AND ROLE RULES:
+- Speak in natural Saudi colloquial Arabic (لهجة سعودية عامية) throughout the entire spoken conversation.
+- Do not use English or formal Modern Standard Arabic unless the user explicitly requests it.
+- The database scenario prompt is the source of truth for the assigned role, setting, objective, and difficulty.
+- Stay in the exact assigned role and setting for the whole conversation. Never become a general assistant and never change the scenario.
+- Start with a short, natural line that belongs to the assigned role and moves the scenario forward. Do not use unrelated generic greetings such as asking "How are you today?".
+- Treat the user's messages as part of the role-play and respond naturally in character.
+- Track whether the user has completed the scenario objective and whether all information or actions required by the scenario prompt have been obtained.
+- As soon as the objective is fully completed, call the finish_scenario function instead of continuing small talk. Do not call it merely because the user gives a short answer; call it only when the scenario task is genuinely complete. Do not wait for another user turn: if a natural closing line is appropriate, say it and call finish_scenario in that same assistant turn.
+"""
+
+        scenario_name = (scenario.name or "").strip().lower()
+        if "قهوة" in scenario_name or "coffee" in scenario_name:
+            language_and_role_rules += """
+COFFEE SHOP ROLE LOCK:
+- You are a BARISTA working at a coffee shop. You are not a customer, a receptionist, or a general assistant.
+- Remain the barista for the entire conversation. The user is the customer.
+- Open in Saudi colloquial Arabic with a barista greeting such as: "هلا والله، حياك! وش تحب تطلب؟"
+- Continue by taking the customer's coffee order naturally. Ask only relevant questions when needed, such as drink choice, size, hot or iced, and milk preferences.
+- Never start with an unrelated personal question such as "كيف حالك اليوم؟".
+- ORDER COMPLETION: Once the customer has chosen the drink and all required order details have been confirmed, the order is complete. You may say a natural closing line such as "أبشر، بيجيك الطلب الحين، يعطيك العافية" and MUST call finish_scenario immediately in that same turn. Do not continue with extra small talk or wait for the customer to say goodbye.
+"""
+
+        session_instructions = (
+            f"{database_prompt}\n\n{language_and_role_rules.strip()}"
+        )
+
         try:
             response = client.realtime.client_secrets.create(
                 expires_after={
@@ -161,8 +233,27 @@ class ScenarioRealtimeService:
                 session={
                     "type": "realtime",
                     "model": REALTIME_MODEL,
-                    "instructions": difficulty.prompt,
+                    "instructions": session_instructions,
                     "output_modalities": ["audio"],
+                    "tools": [
+                        {
+                            "type": "function",
+                            "name": "finish_scenario",
+                            "description": (
+                                "Call when the user has completed the scenario objective "
+                                "and all required information or actions have been obtained."
+                            ),
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "completion_reason": {"type": "string"},
+                                },
+                                "required": ["completion_reason"],
+                                "additionalProperties": False,
+                            },
+                        },
+                    ],
+                    "tool_choice": "auto",
                     "audio": {
                         "input": {
                             "noise_reduction": {
@@ -170,7 +261,7 @@ class ScenarioRealtimeService:
                             },
                         "turn_detection": {
                             "type": "semantic_vad",
-                            "eagerness": "low",
+                            "eagerness": "high",
                         },
                         },
                         "output": {

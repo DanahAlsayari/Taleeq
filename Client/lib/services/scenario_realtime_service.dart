@@ -30,9 +30,16 @@ class ScenarioRealtimeService {
   bool _isDisconnecting = false;
   bool _isDisposed = false;
   bool _conversationStartSent = false;
+  bool _scenarioCompletionNotified = false;
   bool _responseInProgress = false;
   Completer<void>? _cancelResponseDone;
   Completer<Map<String, dynamic>>? _analysisCompleter;
+  bool _awaitingAnalysisResponse = false;
+  String? _analysisResponseId;
+  String? _activeResponseId;
+  bool? _wasMutedBeforeAnalysis;
+  String? _lastRealtimeError;
+  String? _lastRealtimeEventType;
 
   bool get isMuted => _isMuted;
 
@@ -175,7 +182,7 @@ class ScenarioRealtimeService {
         response.body,
         'answer',
       );
-
+await Helper.setSpeakerphoneOn(true);
       await _peerConnection!.setRemoteDescription(answer);
 
       if (_isDisconnecting) return;
@@ -206,10 +213,16 @@ if (_conversationStartSent ||
 
   _conversationStartSent = true;
 
-  debugPrint('Sending ONE initial response.create');
+  debugPrint('Sending initial scenario greeting response.create');
 
+  // Do not send response-level instructions here. In Realtime, response-level
+  // instructions can override the session instructions that contain the
+  // selected scenario prompt from the database.
   sendEvent({
     'type': 'response.create',
+    'response': {
+      'output_modalities': ['audio'],
+    },
   });
 }
 
@@ -231,29 +244,144 @@ Future<void> stopConversation() async {
   );
 }
 
+  void _notifyScenarioCompleted() {
+    if (_scenarioCompletionNotified ||
+        _isDisconnecting ||
+        _isDisposed ||
+        _eventsController.isClosed) {
+      return;
+    }
+    _scenarioCompletionNotified = true;
+    debugPrint('Realtime model marked the scenario as completed.');
+    _eventsController.add(jsonEncode({'type': 'scenario.completed'}));
+  }
+
   void _handleServerEvent(String rawEvent) {
     try {
       final event = jsonDecode(rawEvent);
       if (event is! Map<String, dynamic>) return;
 
-      if (event['type'] == 'response.created') {
-        _responseInProgress = true;
+      final type = event['type']?.toString();
+      _lastRealtimeEventType = type;
+      debugPrint('Realtime server event: $type');
+
+      // Realtime reports invalid response.create payloads and other server
+      // errors as top-level "error" events, not response.failed events.
+      if (type == 'error') {
+        final error = event['error'];
+        final message = error is Map
+            ? '${error['message'] ?? error['code'] ?? error}'
+            : '${error ?? 'Unknown Realtime API error'}';
+        _lastRealtimeError = message;
+        debugPrint('Realtime API error: $message');
+        final completer = _analysisCompleter;
+        if (completer != null && !completer.isCompleted) {
+          completer.completeError(
+            StateError('Realtime API rejected the analysis request: $message'),
+          );
+        }
         return;
       }
 
-      if (event['type'] == 'response.done') {
-        _responseInProgress = false;
+      if (type == 'response.created') {
+        _responseInProgress = true;
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+        _activeResponseId = responseId;
+        if (_awaitingAnalysisResponse && responseId != null) {
+          _analysisResponseId = responseId;
+        }
+        return;
+      }
+
+      // Realtime can report function calls through either event shape.
+      if (type == 'response.function_call_arguments.done') {
+        final item = event['item'];
+        final functionName = event['name']?.toString() ??
+            (item is Map ? item['name']?.toString() : null);
+        if (functionName == 'finish_scenario') {
+          _notifyScenarioCompleted();
+          return;
+        }
+      }
+
+      if (type == 'response.output_item.done') {
+        final item = event['item'];
+        if (item is Map &&
+            item['type'] == 'function_call' &&
+            item['name'] == 'finish_scenario') {
+          _notifyScenarioCompleted();
+          return;
+        }
+      }
+
+      if (type == 'response.function_call_arguments.done' &&
+          event['name'] == 'submit_scenario_analysis') {
+        final responseId = event['response_id']?.toString();
+        if (_awaitingAnalysisResponse &&
+            responseId != null &&
+            _analysisResponseId == null) {
+          _analysisResponseId = responseId;
+        }
+
+        if (responseId != null && responseId == _analysisResponseId) {
+          final completer = _analysisCompleter;
+          if (completer != null && !completer.isCompleted) {
+            final arguments = event['arguments'];
+            if (arguments is! String) {
+              completer.completeError(
+                const FormatException('Realtime function arguments are missing.'),
+              );
+            } else {
+              final decoded = jsonDecode(arguments);
+              if (decoded is! Map) {
+                completer.completeError(
+                  const FormatException('Analysis arguments must be a JSON object.'),
+                );
+              } else {
+                debugPrint('Realtime scenario function arguments received.');
+                completer.complete(Map<String, dynamic>.from(decoded));
+              }
+            }
+          }
+        }
+        return;
+      }
+
+      if (type == 'response.done') {
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+
+        // A response.done received while cancelling belongs to the old turn.
         final cancelCompleter = _cancelResponseDone;
         if (cancelCompleter != null && !cancelCompleter.isCompleted) {
           cancelCompleter.complete();
-        }
-
-        final analysisCompleter = _analysisCompleter;
-        if (analysisCompleter == null || analysisCompleter.isCompleted) {
+          if (_activeResponseId == responseId) {
+            _responseInProgress = false;
+            _activeResponseId = null;
+          }
           return;
         }
 
-        final response = event['response'];
+        // Ignore late events from an earlier response. Only the response
+        // created for this analysis request may complete the analysis future.
+        if (responseId == null ||
+            _analysisResponseId == null ||
+            responseId != _analysisResponseId) {
+          if (_activeResponseId == responseId) {
+            _responseInProgress = false;
+            _activeResponseId = null;
+          }
+          return;
+        }
+
+        _responseInProgress = false;
+        _activeResponseId = null;
+        final analysisCompleter = _analysisCompleter;
+        if (analysisCompleter == null || analysisCompleter.isCompleted) return;
+
         if (response is! Map<String, dynamic> ||
             response['status'] != 'completed') {
           analysisCompleter.completeError(
@@ -277,7 +405,9 @@ Future<void> stopConversation() async {
               item['arguments'] is String) {
             final decoded = jsonDecode(item['arguments'] as String);
             if (decoded is! Map) {
-              throw const FormatException('Analysis arguments must be a JSON object.');
+              throw const FormatException(
+                'Analysis arguments must be a JSON object.',
+              );
             }
             analysisCompleter.complete(Map<String, dynamic>.from(decoded));
             return;
@@ -287,6 +417,32 @@ Future<void> stopConversation() async {
         analysisCompleter.completeError(
           StateError('Realtime did not return the scenario analysis function.'),
         );
+        return;
+      }
+
+      if (type == 'response.failed') {
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+        if (responseId != null && responseId == _analysisResponseId) {
+          final details = response is Map
+              ? response['status_details']
+              : null;
+          final failure = details is Map
+              ? details['error']
+              : event['error'];
+          final message = failure is Map
+              ? '${failure['message'] ?? failure['code'] ?? failure}'
+              : '${failure ?? 'unknown error'}';
+          _lastRealtimeError = message;
+          debugPrint('Realtime analysis response failed: $message');
+          final completer = _analysisCompleter;
+          if (completer != null && !completer.isCompleted) {
+            completer.completeError(
+              StateError('Realtime analysis failed: $message'),
+            );
+          }
+        }
       }
     } catch (error, stackTrace) {
       final completer = _analysisCompleter;
@@ -317,6 +473,10 @@ Future<void> stopConversation() async {
 
     final completer = Completer<Map<String, dynamic>>();
     _analysisCompleter = completer;
+    _analysisResponseId = null;
+    _awaitingAnalysisResponse = true;
+    _lastRealtimeError = null;
+    _lastRealtimeEventType = null;
 
     try {
       sendEvent({
@@ -324,24 +484,40 @@ Future<void> stopConversation() async {
         'response': {
           'output_modalities': ['text'],
           'instructions': '''
-Evaluate the user's speech across the complete conversation in this Realtime session.
-Return the result only by calling submit_scenario_analysis.
-Do not claim precise acoustic measurements from conversational context alone. Set percentage metrics and speaking_rate_wpm to null unless reliably measurable from available evidence. Use null for scores that cannot be responsibly assessed. Keep feedback concise, specific, and supportive.
+Evaluate the user's speech across the complete conversation in this Realtime session, focusing on the user's speech (not the assistant's speech).
+Return the result only by calling submit_scenario_analysis. Do not answer with normal text.
+
+Identify audible stuttering events in the user's speech: sound/syllable repetitions, sound prolongations, and blocks (audible or strongly supported by the audio). Do not label ordinary pauses, hesitation, or normal phrase repetition as stuttering unless the audio supports it.
+For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array. Set speech_sample_sufficient to true when the user contributed a meaningful amount of understandable speech (for example, around five or more intelligible words), even if the speech contains stuttering, repetitions, prolongations, pauses, an accent, or minor background noise. Do not treat stuttering itself as unclear speech. Set it to false only when the user was essentially silent, produced only non-speech sounds, or the speech was too unintelligible to evaluate.
+
+Estimate stuttering_percent, repetition_percent, prolongation_percent, and block_percent separately when there is enough audible user speech. Each percentage means the estimated percentage of the user's spoken syllables affected by that category, using the same denominator (all audible user syllables); the total stuttering_percent is the estimated percentage affected by any stuttering event. These are approximate speech-sample estimates, not clinical measurements. Use 0 when sufficient speech was assessed and no event of that type was detected; use null only when the audio/sample is insufficient to estimate. Keep all percentages between 0 and 100. Do not make the type percentages add to 100; they share the same denominator.
+
+Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 to 100, not clinical measurements. Set speaking_rate_wpm to null unless it can be reliably estimated. Write feedback.strength and feedback.improvement in clear, natural Arabic using a Saudi-friendly tone. Never write these two feedback fields in English. Keep the feedback concise, specific, and supportive.
 ''',
           'tools': [
             {
               'type': 'function',
               'name': 'submit_scenario_analysis',
               'description': 'Submit the final structured evaluation of the scenario conversation.',
-              'strict': true,
               'parameters': {
                 'type': 'object',
                 'properties': {
+                  'speech_sample_sufficient': {
+                    'type': 'boolean',
+                    'description': 'True when the user contributed a meaningful amount of understandable speech, even if stuttering is present. False only when there is essentially no intelligible user speech.',
+                  },
                   'scores': {
                     'type': 'object',
+                    'description': 'Approximate qualitative ratings from 0 to 100, not clinical measurements.',
                     'properties': {
-                      'fluency_score': {'type': ['number', 'null']},
-                      'rhythm_score': {'type': ['number', 'null']},
+                      'fluency_score': {
+                        'type': ['number', 'null'],
+                        'description': 'Fluency rating from 0 to 100, or null if it cannot be assessed.',
+                      },
+                      'rhythm_score': {
+                        'type': ['number', 'null'],
+                        'description': 'Speech rhythm rating from 0 to 100, or null if it cannot be assessed.',
+                      },
                     },
                     'required': ['fluency_score', 'rhythm_score'],
                     'additionalProperties': false,
@@ -349,10 +525,22 @@ Do not claim precise acoustic measurements from conversational context alone. Se
                   'metrics': {
                     'type': 'object',
                     'properties': {
-                      'stuttering_percent': {'type': ['number', 'null']},
-                      'repetition_percent': {'type': ['number', 'null']},
-                      'prolongation_percent': {'type': ['number', 'null']},
-                      'block_percent': {'type': ['number', 'null']},
+                      'stuttering_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by any stuttering event; null only if the sample is insufficient.',
+                      },
+                      'repetition_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by repetitions.',
+                      },
+                      'prolongation_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by prolongations.',
+                      },
+                      'block_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by blocks.',
+                      },
                       'speaking_rate_wpm': {'type': ['number', 'null']},
                     },
                     'required': [
@@ -382,29 +570,52 @@ Do not claim precise acoustic measurements from conversational context alone. Se
                           'type': 'string',
                           'enum': ['repetition', 'prolongation', 'block'],
                         },
-                        'word_or_sound': {'type': 'string'},
+                        'word_or_sound': {
+                          'type': 'string',
+                          'description': 'Exact affected sound, syllable, or word fragment heard in the user audio.',
+                        },
+                        'context': {
+                          'type': 'string',
+                          'description': 'Short surrounding phrase from the user speech to help locate the event.',
+                        },
+                        'position_in_word': {
+                          'type': 'string',
+                          'enum': ['beginning', 'middle', 'end', 'whole_word', 'unclear'],
+                        },
                         'confidence': {'type': ['number', 'null']},
                       },
-                      'required': ['event_type', 'word_or_sound', 'confidence'],
+                      'required': ['event_type', 'word_or_sound', 'context', 'position_in_word', 'confidence'],
                       'additionalProperties': false,
                     },
                   },
                 },
-                'required': ['scores', 'metrics', 'feedback', 'speech_events'],
+                'required': ['speech_sample_sufficient', 'scores', 'metrics', 'feedback', 'speech_events'],
                 'additionalProperties': false,
               },
             },
           ],
-          'tool_choice': {
-            'type': 'function',
-            'name': 'submit_scenario_analysis',
-          },
+          'tool_choice': 'required',
         },
       });
 
-      return await completer.future.timeout(const Duration(seconds: 60));
+      try {
+        return await completer.future.timeout(const Duration(seconds: 60));
+      } on TimeoutException {
+        final responseState = _analysisResponseId == null
+            ? 'No response.created event was received.'
+            : 'Analysis response id: $_analysisResponseId; last event: $_lastRealtimeEventType.';
+        final apiError = _lastRealtimeError == null
+            ? ''
+            : ' Last Realtime error: $_lastRealtimeError';
+        throw TimeoutException(
+          'Realtime analysis timed out. $responseState$apiError',
+          const Duration(seconds: 60),
+        );
+      }
     } finally {
       _analysisCompleter = null;
+      _awaitingAnalysisResponse = false;
+      _analysisResponseId = null;
     }
   }
 
@@ -434,6 +645,25 @@ Do not claim precise acoustic measurements from conversational context alone. Se
     for (final track in _localStream!.getAudioTracks()) {
       track.enabled = !_isMuted;
     }
+  }
+
+  Future<void> muteMicrophoneForAnalysis() async {
+    if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    _wasMutedBeforeAnalysis = _isMuted;
+    for (final track in _localStream!.getAudioTracks()) {
+      track.enabled = false;
+    }
+    _isMuted = true;
+  }
+
+  Future<void> restoreMicrophoneAfterAnalysis() async {
+    if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    final shouldRemainMuted = _wasMutedBeforeAnalysis ?? false;
+    for (final track in _localStream!.getAudioTracks()) {
+      track.enabled = !shouldRemainMuted;
+    }
+    _isMuted = shouldRemainMuted;
+    _wasMutedBeforeAnalysis = null;
   }
 
   Future<void> disconnect() async {
