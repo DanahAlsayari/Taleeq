@@ -112,7 +112,7 @@ Future<void> _connectRealtime() async {
     _showScenarioError('تعذر الاتصال بالمحادثة. تحققي من اتصال الإنترنت وحاولي مرة أخرى.');
   }
 }
-Future<void> _endScenario() async {
+Future<void> _endScenario({bool automatic = false}) async {
   if (_isEndingScenario) return;
 
   if (!_conversationStarted || _conversationStartedAt == null) {
@@ -132,7 +132,9 @@ Future<void> _endScenario() async {
 
   // Keep the saved duration within the backend's supported range.
   final durationSeconds = elapsedSeconds.clamp(15, 300).toInt();
-  final endReason = elapsedSeconds > 300 ? 'duration_limit' : 'user_ended';
+  final endReason = elapsedSeconds > 300
+      ? 'duration_limit'
+      : (automatic ? 'scenario_completed' : 'user_ended');
 
   setState(() => _isEndingScenario = true);
 
@@ -145,6 +147,28 @@ Future<void> _endScenario() async {
     if (mounted) setState(() => _isMuted = true);
 
     final analysis = await _realtimeService.requestScenarioAnalysis();
+
+    if (analysis['speech_sample_sufficient'] != true) {
+      await _realtimeService.restoreMicrophoneAfterAnalysis();
+      if (!mounted) return;
+      setState(() {
+        _isMuted = _realtimeService.isMuted;
+        _isEndingScenario = false;
+      });
+      try {
+        if (_videoController.value.isInitialized &&
+            !_videoController.value.isPlaying) {
+          await _videoController.play();
+        }
+      } catch (videoError) {
+        debugPrint('Could not resume scenario video: $videoError');
+      }
+      _showScenarioError(
+        'لم نتمكن من اكتشاف كلام واضح. أعيدي السيناريو وحاولي التحدث بوضوح.',
+      );
+      return;
+    }
+
     final result = await ScenarioApiService().completeRealtimeScenario(
       attemptId: widget.attemptId,
       durationSeconds: durationSeconds,
@@ -223,6 +247,15 @@ void _handleRealtimeEvent(String event) {
 
         case 'input_audio_buffer.speech_stopped':
           _isUserSpeaking = false;
+          break;
+        case 'scenario.completed':
+          if (!_isEndingScenario) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_isEndingScenario) {
+                _endScenario(automatic: true);
+              }
+            });
+          }
           break;
       }
     });
@@ -511,7 +544,7 @@ Widget build(BuildContext context) {
 
 Expanded(
   child: Transform.translate(
-    offset: const Offset(0, 58),
+    offset: const Offset(0, 92),
     child: Center(
       child: _buildAudioVisualizer(),
     ),
@@ -528,19 +561,10 @@ Padding(
         Expanded(
           child: ElevatedButton.icon(
             onPressed: _isEndingScenario ? null : _endScenario,
-            icon: _isEndingScenario
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : const Icon(Icons.stop_rounded, size: 18),
+            icon: const Icon(Icons.stop_rounded, size: 18),
             label: Flexible(
               child: Text(
-                _isEndingScenario ? 'جاري التحليل...' : 'إنهاء السيناريو',
+                'إنهاء السيناريو',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -555,8 +579,8 @@ Padding(
                   .withOpacity(0.85),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 13,
+                horizontal: 14,
+                vertical: 17,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
@@ -571,6 +595,32 @@ Padding(
             ],
           ),
         ),
+        if (_isEndingScenario)
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.48),
+              child: const Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'جاري تحليل السيناريو...',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
       ],
     ),
   );
