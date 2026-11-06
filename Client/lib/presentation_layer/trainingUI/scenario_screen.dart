@@ -42,6 +42,31 @@ StreamSubscription<String>? _eventsSubscription;
   bool _conversationShouldStart = false;
   bool _isEndingScenario = false;
   DateTime? _conversationStartedAt;
+
+  void _showScenarioError(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          backgroundColor: const Color(0xFFD9534F),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 5),
+        ),
+      );
+  }
 Future<void> _connectRealtime() async {
   if (_isConnecting || _isConnected) return;
 
@@ -84,15 +109,14 @@ Future<void> _connectRealtime() async {
     });
 
     debugPrint('Realtime connection error: $e');
+    _showScenarioError('تعذر الاتصال بالمحادثة. تحققي من اتصال الإنترنت وحاولي مرة أخرى.');
   }
 }
 Future<void> _endScenario() async {
   if (_isEndingScenario) return;
 
   if (!_conversationStarted || _conversationStartedAt == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('لم تبدأ المحادثة بعد.')),
-    );
+    _showScenarioError('لم تبدأ المحادثة بعد.');
     return;
   }
 
@@ -100,10 +124,8 @@ Future<void> _endScenario() async {
       DateTime.now().difference(_conversationStartedAt!).inSeconds;
 
   if (elapsedSeconds < 15) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.'),
-      ),
+    _showScenarioError(
+      'يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.',
     );
     return;
   }
@@ -172,12 +194,7 @@ Future<void> _endScenario() async {
     }
 
     final message = error.toString().replaceFirst('Exception: ', '');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تعذر إنهاء السيناريو: $message'),
-        duration: const Duration(seconds: 6),
-      ),
-    );
+    _showScenarioError('تعذر إنهاء السيناريو: $message');
     setState(() => _isEndingScenario = false);
   }
 }
@@ -316,8 +333,8 @@ Widget _buildMicrophoneButton() {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 16,
+        horizontal: 10,
+        vertical: 13,
       ),
       decoration: BoxDecoration(
         color: _isMuted
@@ -338,9 +355,9 @@ Widget _buildMicrophoneButton() {
                 ? Icons.mic_off_rounded
                 : Icons.mic_rounded,
             color: Colors.white,
-            size: 22,
+            size: 18,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 6),
           Flexible(
             child: Text(
               _isMuted ? 'تشغيل الميكروفون' : 'كتم الميكروفون',
@@ -348,7 +365,7 @@ Widget _buildMicrophoneButton() {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
               color: Colors.white,
-              fontSize: 14,
+              fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -493,8 +510,11 @@ Widget build(BuildContext context) {
               ),
 
 Expanded(
-  child: Center(
-    child: _buildAudioVisualizer(),
+  child: Transform.translate(
+    offset: const Offset(0, 58),
+    child: Center(
+      child: _buildAudioVisualizer(),
+    ),
   ),
 ),
 Padding(
@@ -517,12 +537,17 @@ Padding(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : const Icon(Icons.stop_rounded),
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
+                : const Icon(Icons.stop_rounded, size: 18),
+            label: Flexible(
               child: Text(
                 _isEndingScenario ? 'جاري التحليل...' : 'إنهاء السيناريو',
                 maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             style: ElevatedButton.styleFrom(
@@ -530,8 +555,8 @@ Padding(
                   .withOpacity(0.85),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 16,
+                horizontal: 8,
+                vertical: 13,
               ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
