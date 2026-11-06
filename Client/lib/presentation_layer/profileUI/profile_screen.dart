@@ -11,6 +11,7 @@ import '../widgets/profile_header.dart';
 import '../widgets/reminder_card.dart';
 import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
+import '../../services/notification_scheduler.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:client/presentation_layer/error_snackbar.dart';
@@ -1442,9 +1443,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    if (shouldLogout != true) return;
+if (shouldLogout != true) return;
 
-    await AuthStorage.deleteToken();
+// Stop outdated synchronization and cancel scheduled training reminders.
+try {
+  await NotificationScheduler().suspendAndCancelTrainingReminders();
+} catch (error) {
+  // Notification errors must not prevent the user from logging out.
+  debugPrint('Failed to cancel training reminders: $error');
+}
+
+// Continue logging out even if notification cancellation fails.
+await AuthStorage.deleteToken();
 
     if (!mounted) return;
 
