@@ -39,7 +39,6 @@ bool _isMuted = false;
 StreamSubscription<RTCPeerConnectionState>?
     _connectionSubscription;
 StreamSubscription<String>? _eventsSubscription;
-  bool _conversationShouldStart = false;
   bool _isEndingScenario = false;
   DateTime? _conversationStartedAt;
 
@@ -96,7 +95,9 @@ Future<void> _connectRealtime() async {
       _isConnecting = false;
     });
 
-    if (_conversationShouldStart && !_conversationStarted) {
+    // Start the assistant as soon as the Realtime connection is ready.
+    // The scenario video no longer controls the conversation start time.
+    if (!_conversationStarted) {
       _conversationStarted = true;
       _conversationStartedAt = DateTime.now();
       _realtimeService.startConversation();
@@ -147,6 +148,10 @@ Future<void> _endScenario({bool automatic = false}) async {
     if (mounted) setState(() => _isMuted = true);
 
     final analysis = await _realtimeService.requestScenarioAnalysis();
+    debugPrint(
+      'Scenario speech check: sufficient=${analysis['speech_sample_sufficient']}, '
+      'events=${(analysis['speech_events'] is List) ? (analysis['speech_events'] as List).length : 'missing'}',
+    );
 
     if (analysis['speech_sample_sufficient'] != true) {
       await _realtimeService.restoreMicrophoneAfterAnalysis();
@@ -309,9 +314,6 @@ void initState() {
       _videoController.play();
     });
 
-  // Monitor conversation start time
-  _videoController.addListener(_checkConversationStart);
-
   // Connect to Realtime after the first frame
   WidgetsBinding.instance.addPostFrameCallback((_) {
     if (mounted) {
@@ -319,39 +321,8 @@ void initState() {
     }
   });
 }
-void _checkConversationStart() {
-  if (_conversationShouldStart ||
-      !_videoController.value.isInitialized) {
-    return;
-  }
-
-  final currentPosition = _videoController.value.position;
-  // Start the assistant a few seconds before the configured dialogue cue
-  // so its greeting does not feel late to the user.
-  final adjustedStartSeconds =
-      (widget.scenario.conversationStartTime - 5).clamp(
-    0,
-    widget.scenario.conversationStartTime,
-  ).toInt();
-  final startTime = Duration(seconds: adjustedStartSeconds);
-
-if (currentPosition >= startTime) {
-  _conversationShouldStart = true;
-
-  if (!mounted) return;
-
-  setState(() {});
-
-  if (_isConnected && !_conversationStarted) {
-    _conversationStarted = true;
-    _conversationStartedAt = DateTime.now();
-    _realtimeService.startConversation();
-  }
-}
-}
 @override
 void dispose() {
-  _videoController.removeListener(_checkConversationStart);
   _videoController.dispose();
 
   _connectionSubscription?.cancel();
