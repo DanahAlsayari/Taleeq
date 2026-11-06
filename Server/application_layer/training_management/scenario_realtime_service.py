@@ -205,7 +205,7 @@ MANDATORY LANGUAGE AND ROLE RULES:
 - Start with a short, natural line that belongs to the assigned role and moves the scenario forward. Do not use unrelated generic greetings such as asking "How are you today?".
 - Treat the user's messages as part of the role-play and respond naturally in character.
 - Track whether the user has completed the scenario objective and whether all information or actions required by the scenario prompt have been obtained.
-- As soon as the objective is fully completed, call the finish_scenario function instead of continuing small talk. Do not call it merely because the user gives a short answer; call it only when the scenario task is genuinely complete.
+- As soon as the objective is fully completed, call the finish_scenario function instead of continuing small talk. Do not call it merely because the user gives a short answer; call it only when the scenario task is genuinely complete. Do not wait for another user turn: if a natural closing line is appropriate, say it and call finish_scenario in that same assistant turn.
 """
 
         scenario_name = (scenario.name or "").strip().lower()
@@ -217,6 +217,7 @@ COFFEE SHOP ROLE LOCK:
 - Open in Saudi colloquial Arabic with a barista greeting such as: "هلا والله، حياك! وش تحب تطلب؟"
 - Continue by taking the customer's coffee order naturally. Ask only relevant questions when needed, such as drink choice, size, hot or iced, and milk preferences.
 - Never start with an unrelated personal question such as "كيف حالك اليوم؟".
+- ORDER COMPLETION: Once the customer has chosen the drink and all required order details have been confirmed, the order is complete. You may say a natural closing line such as "أبشر، بيجيك الطلب الحين، يعطيك العافية" and MUST call finish_scenario immediately in that same turn. Do not continue with extra small talk or wait for the customer to say goodbye.
 """
 
         session_instructions = (
@@ -234,6 +235,25 @@ COFFEE SHOP ROLE LOCK:
                     "model": REALTIME_MODEL,
                     "instructions": session_instructions,
                     "output_modalities": ["audio"],
+                    "tools": [
+                        {
+                            "type": "function",
+                            "name": "finish_scenario",
+                            "description": (
+                                "Call when the user has completed the scenario objective "
+                                "and all required information or actions have been obtained."
+                            ),
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "completion_reason": {"type": "string"},
+                                },
+                                "required": ["completion_reason"],
+                                "additionalProperties": False,
+                            },
+                        },
+                    ],
+                    "tool_choice": "auto",
                     "audio": {
                         "input": {
                             "noise_reduction": {
