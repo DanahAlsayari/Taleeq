@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from data_and_integration_layer.database.models.speech_exercise import (
     SpeechExercise,
 )
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from data_and_integration_layer.database.models.weekly_plan import (
     PlannedPracticeSession,
@@ -289,6 +289,78 @@ def build_exercise_preview(
         "exercise_count": len(selected),
         "exercises": selected,
     }
+def get_schedule_for_date(
+    db: Session,
+    user_id: int,
+    practice_date: date,
+) -> dict:
+    """Read a user's dated schedule without creating records."""
+
+    day_offset = (practice_date.weekday() + 1) % 7
+    week_start = practice_date - timedelta(days=day_offset)
+
+    plan = (
+        db.query(WeeklyPlan)
+        .filter(
+            WeeklyPlan.user_id == user_id,
+            WeeklyPlan.week_start == week_start,
+        )
+        .one_or_none()
+    )
+
+    if plan is not None:
+        scheduled = (
+            db.query(PlannedPracticeSession)
+            .filter(
+                PlannedPracticeSession.plan_id == plan.id,
+                PlannedPracticeSession.practice_date == practice_date,
+            )
+            .one_or_none()
+        )
+
+        return {
+            "duration_minutes": (
+                scheduled.duration_minutes
+                if scheduled is not None
+                else None
+            ),
+            "planned_practice_session_id": (
+                scheduled.id if scheduled is not None else None
+            ),
+        }
+
+    # Only use the repeating template for today's week.
+    # It must not reconstruct historical schedules.
+    today = datetime.now(
+        timezone(timedelta(hours=3))
+    ).date()
+    current_week = today - timedelta(
+        days=(today.weekday() + 1) % 7
+    )
+
+    if week_start == current_week:
+        schedule = (
+            db.query(WeeklyPracticeSchedule)
+            .filter(
+                WeeklyPracticeSchedule.user_id == user_id,
+            )
+            .one_or_none()
+        )
+
+        if schedule is not None:
+            for item in schedule.sessions:
+                if item["day_offset"] == day_offset:
+                    return {
+                        "duration_minutes": item["duration_minutes"],
+                        "planned_practice_session_id": None,
+                    }
+
+    return {
+        "duration_minutes": None,
+        "planned_practice_session_id": None,
+    }
+
+
 def preview_today_exercises(
     db: Session,
     user_id: int,
@@ -296,68 +368,37 @@ def preview_today_exercises(
     session_number: int = 1,
     additional_session: bool = False,
 ) -> dict:
-    """Read today's schedule and build an exercise preview."""
+    """Build a preview using today's schedule when applicable."""
 
-    riyadh_timezone = timezone(timedelta(hours=3))
-    today = datetime.now(riyadh_timezone).date()
-    day_offset = (today.weekday() + 1) % 7
-    week_start = today - timedelta(days=day_offset)
+    today = datetime.now(
+        timezone(timedelta(hours=3))
+    ).date()
 
-    duration_minutes = None
-    planned_session_id = None
+    schedule = {
+        "duration_minutes": None,
+        "planned_practice_session_id": None,
+    }
 
     if not additional_session:
-        plan = (
-            db.query(WeeklyPlan)
-            .filter(
-                WeeklyPlan.user_id == user_id,
-                WeeklyPlan.week_start == week_start,
-            )
-            .one_or_none()
+        schedule = get_schedule_for_date(
+            db=db,
+            user_id=user_id,
+            practice_date=today,
         )
-
-        if plan is not None:
-            scheduled = (
-                db.query(PlannedPracticeSession)
-                .filter(
-                    PlannedPracticeSession.plan_id == plan.id,
-                    PlannedPracticeSession.practice_date == today,
-                )
-                .one_or_none()
-            )
-
-            if scheduled is not None:
-                duration_minutes = scheduled.duration_minutes
-                planned_session_id = scheduled.id
-
-        else:
-            # The current week's dated plan may not be created yet.
-            # Read the repeating schedule without changing the database.
-            schedule = (
-                db.query(WeeklyPracticeSchedule)
-                .filter(
-                    WeeklyPracticeSchedule.user_id == user_id,
-                )
-                .one_or_none()
-            )
-
-            if schedule is not None:
-                for item in schedule.sessions:
-                    if item["day_offset"] == day_offset:
-                        duration_minutes = item["duration_minutes"]
-                        break
 
     preview = build_exercise_preview(
         db=db,
         task_results=task_results,
-        duration_minutes=duration_minutes,
+        duration_minutes=schedule["duration_minutes"],
         session_number=session_number,
     )
 
     return {
         **preview,
         "practice_date": today.isoformat(),
-        "planned_practice_session_id": planned_session_id,
+        "planned_practice_session_id": schedule[
+            "planned_practice_session_id"
+        ],
         "additional_session": additional_session,
     }
 def preview_personalized_session(

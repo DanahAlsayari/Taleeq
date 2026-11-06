@@ -15,6 +15,14 @@ from data_and_integration_layer.database.Repositories.exercise_attempt_repositor
 from data_and_integration_layer.ai_integration.openai_exercise import (
     OpenAIExerciseAnalyzer,
 )
+from types import SimpleNamespace
+
+from data_and_integration_layer.database.models.user import User
+from application_layer.training_management.practice_session_service import (
+    validate_session_submission,
+    mark_session_exercise_completed,
+    PracticeSessionConflictError,
+)
 
 
 class ExerciseAnalysisService:
@@ -35,6 +43,7 @@ class ExerciseAnalysisService:
         audio_bytes: bytes,
         audio_format: str,
         technique_id: int | None = None,
+        session_exercise_id: int | None = None,
     ):
 
         #find exercise
@@ -49,6 +58,28 @@ class ExerciseAnalysisService:
 
         if not exercise:
             raise ValueError("Exercise not found.")
+            assigned_technique_id = None
+
+        if session_exercise_id is not None:
+            _, session_item = validate_session_submission(
+                db=self.db,
+                user_id=user_id,
+                session_exercise_id=session_exercise_id,
+                exercise_id=exercise_id,
+                technique_id=technique_id,
+            )
+
+            assigned_technique_id = session_item.technique_id
+            technique_id = assigned_technique_id
+
+            # Analyze the saved session content, even if the catalog changed.
+            snapshot = session_item.exercise_snapshot
+            exercise = SimpleNamespace(
+                type=snapshot["exercise_type"],
+                difficulty=snapshot["difficulty"],
+                content=snapshot["content"],
+                instructions=snapshot["instructions"],
+            )
 
         # Find technique
         technique = None
@@ -111,18 +142,62 @@ class ExerciseAnalysisService:
         
 
         #Save 
-        saved_attempt = self.repository.save_attempt(
-            user_id=user_id,
-            exercise_id=exercise_id,
-            exercise_type=exercise.type,
-            difficulty=exercise.difficulty,
-            scores=scores,
-            metrics=metrics,
-            feedback=analysis.feedback,
-            raw_openai_response=analysis.raw_openai_response,
-            audio_duration_seconds= audio_duration_seconds,
+        session_progress = None
 
-        )
+        try:
+            session = None
+            session_item = None
+
+            if session_exercise_id is not None:
+                # Lock only after audio analysis, then recheck progress.
+                # Concurrent submissions cannot both save completion.
+                (
+                    self.db.query(User)
+                    .filter(User.id == user_id)
+                    .with_for_update()
+                    .one()
+                )
+
+                session, session_item = validate_session_submission(
+                    db=self.db,
+                    user_id=user_id,
+                    session_exercise_id=session_exercise_id,
+                    exercise_id=exercise_id,
+                    technique_id=technique_id,
+                )
+
+                if session_item.technique_id != assigned_technique_id:
+                    raise PracticeSessionConflictError(
+                        "The assigned technique changed. Reopen the exercise."
+                    )
+
+            saved_attempt = self.repository.save_attempt(
+                user_id=user_id,
+                exercise_id=exercise_id,
+                exercise_type=exercise.type,
+                difficulty=exercise.difficulty,
+                scores=scores,
+                metrics=metrics,
+                feedback=analysis.feedback,
+                raw_openai_response=analysis.raw_openai_response,
+                audio_duration_seconds=audio_duration_seconds,
+                session_exercise_id=session_exercise_id,
+                commit=session_exercise_id is None,
+            )
+
+            if session_exercise_id is not None:
+                session_progress = mark_session_exercise_completed(
+                    db=self.db,
+                    session=session,
+                    item=session_item,
+                )
+
+                # Commit the recording attempt and progress together.
+                self.db.commit()
+
+        except Exception:
+            self.db.rollback()
+            raise
 
         #Compare
         previous_score = (
@@ -141,6 +216,7 @@ class ExerciseAnalysisService:
         return {
             "attempt_id": str(saved_attempt.id),
             "exercise_id": str(exercise_id),
+            "session_progress": session_progress,
             "exercise_type": exercise.type,
             "difficulty": exercise.difficulty,
             "scores": scores,

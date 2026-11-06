@@ -91,11 +91,14 @@ class ExerciseAttemptRepository:
         feedback: dict[str, Any],
         audio_duration_seconds: int,
         raw_openai_response: dict[str, Any],
+        session_exercise_id: int | None = None,
+        commit: bool = True,
     ) -> ExerciseAttempt:
 
         attempt = ExerciseAttempt(
             user_id=user_id,
             exercise_id=exercise_id,
+            session_exercise_id=session_exercise_id,
             exercise_type=exercise_type,
             difficulty=difficulty,
 
@@ -119,7 +122,12 @@ class ExerciseAttemptRepository:
         )
 
         self.db.add(attempt)
-        self.db.commit()
-        self.db.refresh(attempt)
+
+        if commit:
+            self.db.commit()
+            self.db.refresh(attempt)
+        else:
+            # Obtain the attempt ID without committing the transaction.
+            self.db.flush()
 
         return attempt
