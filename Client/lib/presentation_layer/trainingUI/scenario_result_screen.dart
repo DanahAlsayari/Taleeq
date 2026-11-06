@@ -67,7 +67,7 @@ class ScenarioResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'أحسنتِ، أكملتِ السيناريو',
+                  'أحسنت، أكمل السيناريو',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 27,
@@ -344,13 +344,15 @@ class ScenarioResultScreen extends StatelessWidget {
                         Icons.pause_circle_outline_rounded,
                         const Color(0xFFC47A50),
                       ),
-                      const Divider(color: Color(0xFFE9E0D2)),
-                      _metricRow(
-                        'سرعة الكلام (كلمة/دقيقة)',
-                        _number(metrics, 'speaking_rate_wpm'),
-                        Icons.speed_rounded,
-                        const Color(0xFF527FA8),
+                      const Text(
+                        'النسب تقديرية، وتحسب لكل نوع من إجمالي المقاطع الصوتية المنطوقة.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.5,
+                          color: Color(0xFF8A9694),
+                        ),
                       ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
@@ -388,21 +390,58 @@ class ScenarioResultScreen extends StatelessWidget {
                               type;
                           final confidence =
                               (item['confidence'] as num?)?.toDouble();
+                          final contextText = item['context']?.toString() ?? '';
+                          final position = {
+                                'beginning': 'بداية الكلمة',
+                                'middle': 'وسط الكلمة',
+                                'end': 'نهاية الكلمة',
+                                'whole_word': 'الكلمة كاملة',
+                                'unclear': 'موضع غير محدد',
+                              }[item['position_in_word']] ??
+                              'موضع غير محدد';
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(bottom: 14),
                             child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Icon(
-                                  Icons.graphic_eq_rounded,
-                                  color: Color(0xFF287D78),
+                                const Padding(
+                                  padding: EdgeInsets.only(top: 2),
+                                  child: Icon(
+                                    Icons.graphic_eq_rounded,
+                                    color: Color(0xFF287D78),
+                                  ),
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: Text(
-                                    '$label · ${item['word_or_sound'] ?? ''}',
-                                    style: const TextStyle(
-                                      color: Color(0xFF203E3A),
-                                    ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '$label · ${item['word_or_sound'] ?? ''}',
+                                        style: const TextStyle(
+                                          color: Color(0xFF203E3A),
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      if (contextText.isNotEmpty) ...[
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'السياق: $contextText',
+                                          style: const TextStyle(
+                                            color: Color(0xFF526F6A),
+                                            height: 1.5,
+                                          ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        'الموضع: $position',
+                                        style: const TextStyle(
+                                          color: Color(0xFF7A8E8B),
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                                 if (confidence != null)
@@ -533,7 +572,7 @@ class ScenarioResultScreen extends StatelessWidget {
               Text(
                 value == null
                     ? 'غير متاح'
-                    : '${value.toStringAsFixed(1)}${title.contains('دقيقة') ? '' : '%'}',
+                    : '${value.toStringAsFixed(1)}%',
                 style: const TextStyle(
                   color: Color(0xFF203E3A),
                   fontWeight: FontWeight.w800,
