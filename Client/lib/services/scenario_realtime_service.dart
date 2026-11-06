@@ -11,6 +11,7 @@ class ScenarioRealtimeService {
   RTCDataChannel? _dataChannel;
   MediaStream? _localStream;
   final RTCVideoRenderer _remoteAudioRenderer = RTCVideoRenderer();
+  bool _isRemoteAudioRendererInitialized = false;
   Completer<void>? _dataChannelReady;
 
   final StreamController<String> _eventsController =
@@ -41,6 +42,7 @@ class ScenarioRealtimeService {
 
     try {
       await _remoteAudioRenderer.initialize();
+      _isRemoteAudioRendererInitialized = true;
 
       _peerConnection = await createPeerConnection({
         'sdpSemantics': 'unified-plan',
@@ -461,8 +463,11 @@ Do not claim precise acoustic measurements from conversational context alone. Se
       await stream.dispose();
     }
 
-    _remoteAudioRenderer.srcObject = null;
-    await _remoteAudioRenderer.dispose();
+    if (_isRemoteAudioRendererInitialized) {
+      _remoteAudioRenderer.srcObject = null;
+      await _remoteAudioRenderer.dispose();
+      _isRemoteAudioRendererInitialized = false;
+    }
 
     _isMuted = false;
   }
