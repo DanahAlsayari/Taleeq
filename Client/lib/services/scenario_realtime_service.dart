@@ -30,6 +30,7 @@ class ScenarioRealtimeService {
   bool _isDisconnecting = false;
   bool _isDisposed = false;
   bool _conversationStartSent = false;
+  bool _scenarioCompletionNotified = false;
   bool _responseInProgress = false;
   Completer<void>? _cancelResponseDone;
   Completer<Map<String, dynamic>>? _analysisCompleter;
@@ -212,28 +213,6 @@ if (_conversationStartSent ||
 
   _conversationStartSent = true;
 
-  sendEvent({
-    'type': 'session.update',
-    'session': {
-      'tools': [
-        {
-          'type': 'function',
-          'name': 'finish_scenario',
-          'description': 'Call this only when the user has completed the scenario objective and all required information or actions have been obtained.',
-          'parameters': {
-            'type': 'object',
-            'properties': {
-              'completion_reason': {'type': 'string'},
-            },
-            'required': ['completion_reason'],
-            'additionalProperties': false,
-          },
-        },
-      ],
-      'tool_choice': 'auto',
-    },
-  });
-
   debugPrint('Sending initial scenario greeting response.create');
 
   // Do not send response-level instructions here. In Realtime, response-level
@@ -264,6 +243,18 @@ Future<void> stopConversation() async {
     ),
   );
 }
+
+  void _notifyScenarioCompleted() {
+    if (_scenarioCompletionNotified ||
+        _isDisconnecting ||
+        _isDisposed ||
+        _eventsController.isClosed) {
+      return;
+    }
+    _scenarioCompletionNotified = true;
+    debugPrint('Realtime model marked the scenario as completed.');
+    _eventsController.add(jsonEncode({'type': 'scenario.completed'}));
+  }
 
   void _handleServerEvent(String rawEvent) {
     try {
@@ -304,15 +295,25 @@ Future<void> stopConversation() async {
         return;
       }
 
-      // Function arguments have their own completion event. Consume it
-      // directly so we do not depend solely on parsing response.done output.
-      if (type == 'response.function_call_arguments.done' &&
-          event['name'] == 'finish_scenario') {
-        debugPrint('Realtime model marked the scenario as completed.');
-        if (!_eventsController.isClosed) {
-          _eventsController.add(jsonEncode({'type': 'scenario.completed'}));
+      // Realtime can report function calls through either event shape.
+      if (type == 'response.function_call_arguments.done') {
+        final item = event['item'];
+        final functionName = event['name']?.toString() ??
+            (item is Map ? item['name']?.toString() : null);
+        if (functionName == 'finish_scenario') {
+          _notifyScenarioCompleted();
+          return;
         }
-        return;
+      }
+
+      if (type == 'response.output_item.done') {
+        final item = event['item'];
+        if (item is Map &&
+            item['type'] == 'function_call' &&
+            item['name'] == 'finish_scenario') {
+          _notifyScenarioCompleted();
+          return;
+        }
       }
 
       if (type == 'response.function_call_arguments.done' &&
