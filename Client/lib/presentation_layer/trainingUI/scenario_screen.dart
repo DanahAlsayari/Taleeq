@@ -96,30 +96,45 @@ Future<void> _endScenario() async {
     return;
   }
 
+  final elapsedSeconds =
+      DateTime.now().difference(_conversationStartedAt!).inSeconds;
+
+  if (elapsedSeconds < 15) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.'),
+      ),
+    );
+    return;
+  }
+
+  // Keep the saved duration within the backend's supported range.
+  final durationSeconds = elapsedSeconds.clamp(15, 300);
+  final endReason = elapsedSeconds > 300 ? 'duration_limit' : 'user_ended';
+
   setState(() => _isEndingScenario = true);
 
   try {
     await _videoController.pause();
 
-    final durationSeconds =
-        DateTime.now().difference(_conversationStartedAt!).inSeconds;
-
-    if (durationSeconds < 15 || durationSeconds > 300) {
-      throw Exception(
-        durationSeconds < 15
-            ? 'يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.'
-            : 'تجاوزت المحادثة الحد الأقصى المسموح به وهو 5 دقائق.',
-      );
-    }
+    // Stop sending microphone audio, but keep the same Realtime session alive
+    // so it can evaluate the conversation that has just ended.
+    await _realtimeService.muteMicrophoneForAnalysis();
 
     final analysis = await _realtimeService.requestScenarioAnalysis();
     final result = await ScenarioApiService().completeRealtimeScenario(
       attemptId: widget.attemptId,
       durationSeconds: durationSeconds,
+      endReason: endReason,
       analysisResult: analysis,
     );
 
-    await _realtimeService.disconnect();
+    // Saving is the success boundary. A cleanup issue must not block results.
+    try {
+      await _realtimeService.disconnect();
+    } catch (cleanupError) {
+      debugPrint('Realtime cleanup error after saving results: $cleanupError');
+    }
 
     if (!mounted) return;
 
@@ -131,14 +146,24 @@ Future<void> _endScenario() async {
         ),
       ),
     );
-  } catch (error) {
+  } catch (error, stackTrace) {
+    debugPrint('Failed to finish scenario: $error');
+    debugPrintStack(stackTrace: stackTrace);
+
     if (!mounted) return;
+
+    // Allow the user to continue if analysis or saving failed.
+    await _realtimeService.restoreMicrophoneAfterAnalysis();
+    if (_videoController.value.isInitialized &&
+        !_videoController.value.isPlaying) {
+      await _videoController.play();
+    }
 
     final message = error.toString().replaceFirst('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 5),
+        content: Text('تعذر إنهاء السيناريو: $message'),
+        duration: const Duration(seconds: 6),
       ),
     );
     setState(() => _isEndingScenario = false);
@@ -445,27 +470,18 @@ Widget build(BuildContext context) {
                 ),
               ),
 
-const Spacer(),
-const SizedBox(height: 460),
-_buildAudioVisualizer(),
-const Spacer(),
-
-              const Spacer(),
+Expanded(
+  child: Center(
+    child: _buildAudioVisualizer(),
+  ),
+),
 Padding(
-  padding: const EdgeInsets.symmetric(
-    horizontal: 24,
-    vertical: 24,
-  ),
-  child:Padding(
-  padding: const EdgeInsets.only(
-    left: 20,
-    right: 20,
-    bottom: 24,
-    top: 16,
-  ),
-  child: Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    textDirection: TextDirection.ltr,
+  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+  child: Wrap(
+    alignment: WrapAlignment.center,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: 12,
+    runSpacing: 12,
     children: [
       ElevatedButton.icon(
         onPressed: _isEndingScenario ? null : _endScenario,
@@ -479,7 +495,11 @@ Padding(
                 ),
               )
             : const Icon(Icons.stop_rounded),
-        label: Text(_isEndingScenario ? 'جاري تحليل المحادثة...' : 'إنهاء السيناريو'),
+        label: Text(
+          _isEndingScenario ? 'جاري تحليل المحادثة...' : 'إنهاء السيناريو',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromARGB(197, 244, 67, 54).withOpacity(0.85),
           foregroundColor: Colors.white,
@@ -492,11 +512,9 @@ Padding(
           ),
         ),
       ),
-      const SizedBox(width: 12),
       _buildMicrophoneButton(),
     ],
   ),
-),
 ),
             ],
           ),
