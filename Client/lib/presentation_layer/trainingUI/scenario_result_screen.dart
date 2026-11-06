@@ -353,13 +353,6 @@ class ScenarioResultScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Divider(color: Color(0xFFE9E0D2)),
-                      _metricRow(
-                        'سرعة الكلام (كلمة/دقيقة)',
-                        _number(metrics, 'speaking_rate_wpm'),
-                        Icons.speed_rounded,
-                        const Color(0xFF527FA8),
-                      ),
                     ],
                   ),
                 ),
@@ -550,9 +543,7 @@ class ScenarioResultScreen extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
-    final isSpeakingRate = title.contains('دقيقة');
-    final safeValue =
-        isSpeakingRate ? null : value?.clamp(0.0, 100.0);
+    final safeValue = value?.clamp(0.0, 100.0);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
