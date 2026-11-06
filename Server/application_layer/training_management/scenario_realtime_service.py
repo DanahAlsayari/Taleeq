@@ -194,6 +194,33 @@ class ScenarioRealtimeService:
         # 6. Create an ephemeral client secret.
         client = OpenAI(api_key=api_key)
 
+        database_prompt = difficulty.prompt.strip()
+
+        language_and_role_rules = """
+MANDATORY LANGUAGE AND ROLE RULES:
+- Speak in natural Saudi colloquial Arabic (لهجة سعودية عامية) throughout the entire spoken conversation.
+- Do not use English or formal Modern Standard Arabic unless the user explicitly requests it.
+- The database scenario prompt is the source of truth for the assigned role, setting, objective, and difficulty.
+- Stay in the exact assigned role and setting for the whole conversation. Never become a general assistant and never change the scenario.
+- Start with a short, natural line that belongs to the assigned role and moves the scenario forward. Do not use unrelated generic greetings such as asking "How are you today?".
+- Treat the user's messages as part of the role-play and respond naturally in character.
+"""
+
+        scenario_name = (scenario.name or "").strip().lower()
+        if "قهوة" in scenario_name or "coffee" in scenario_name:
+            language_and_role_rules += """
+COFFEE SHOP ROLE LOCK:
+- You are a BARISTA working at a coffee shop. You are not a customer, a receptionist, or a general assistant.
+- Remain the barista for the entire conversation. The user is the customer.
+- Open in Saudi colloquial Arabic with a barista greeting such as: "هلا والله، حياك! وش تحب تطلب؟"
+- Continue by taking the customer's coffee order naturally. Ask only relevant questions when needed, such as drink choice, size, hot or iced, and milk preferences.
+- Never start with an unrelated personal question such as "كيف حالك اليوم؟".
+"""
+
+        session_instructions = (
+            f"{database_prompt}\\n\\n{language_and_role_rules.strip()}"
+        )
+
         try:
             response = client.realtime.client_secrets.create(
                 expires_after={
@@ -203,16 +230,7 @@ class ScenarioRealtimeService:
                 session={
                     "type": "realtime",
                     "model": REALTIME_MODEL,
-                    "instructions": (
-                        f"{difficulty.prompt.strip()}\\n\\n"
-                        "MANDATORY LANGUAGE RULE: Conduct the entire spoken scenario in Arabic only. "
-                        "The first greeting and every subsequent spoken response must be in Arabic. "
-                        "Never switch to English merely because the prompt contains English text. "
-                        "Preserve and follow the exact dialect, tone, role, scenario details, "
-                        "difficulty level, and behavior defined by this database prompt. "
-                        "This language rule supplements the database prompt; it must not replace "
-                        "or weaken any of its scenario-specific instructions."
-                    ),
+                    "instructions": session_instructions,
                     "output_modalities": ["audio"],
                     "audio": {
                         "input": {
