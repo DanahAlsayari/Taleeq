@@ -51,6 +51,48 @@ class ScenarioRealtimeService:
         if not isinstance(scores, dict):
             raise ValueError("Scenario analysis scores are missing.")
 
+        for score_name in ("fluency_score", "rhythm_score"):
+            score = scores.get(score_name)
+            if score is not None and (
+                isinstance(score, bool)
+                or not isinstance(score, (int, float))
+                or not 0 <= score <= 100
+            ):
+                raise ValueError(
+                    f"{score_name} must be between 0 and 100 or null."
+                )
+
+        metrics = analysis_result.get("metrics")
+        if metrics is not None:
+            if not isinstance(metrics, dict):
+                raise ValueError("Scenario analysis metrics must be an object.")
+
+            for metric_name in (
+                "stuttering_percent",
+                "repetition_percent",
+                "prolongation_percent",
+                "block_percent",
+            ):
+                metric = metrics.get(metric_name)
+                if metric is not None and (
+                    isinstance(metric, bool)
+                    or not isinstance(metric, (int, float))
+                    or not 0 <= metric <= 100
+                ):
+                    raise ValueError(
+                        f"{metric_name} must be between 0 and 100 or null."
+                    )
+
+            speaking_rate = metrics.get("speaking_rate_wpm")
+            if speaking_rate is not None and (
+                isinstance(speaking_rate, bool)
+                or not isinstance(speaking_rate, (int, float))
+                or speaking_rate < 0
+            ):
+                raise ValueError(
+                    "speaking_rate_wpm must be zero or greater, or null."
+                )
+
         progress = self.repository.get_user_progress(
             user_id=user_id,
             scenario_id=attempt.scenario_id,
