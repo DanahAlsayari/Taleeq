@@ -22,6 +22,7 @@ class TrainingExerciseCard extends StatefulWidget {
     this.scenarios = const [],
     this.selectedScenario,
     this.onScenarioSelected,
+    this.onRefreshScenarios,
     this.isLoadingScenarios = false,
   });
 
@@ -34,6 +35,7 @@ class TrainingExerciseCard extends StatefulWidget {
   final List<ScenarioModel> scenarios;
   final ScenarioModel? selectedScenario;
   final ValueChanged<ScenarioModel>? onScenarioSelected;
+  final VoidCallback? onRefreshScenarios;
   final bool isLoadingScenarios;
 
   @override
@@ -200,6 +202,7 @@ Column(
         scenarios: widget.scenarios,
         selectedScenario: widget.selectedScenario,
         isLoading: widget.isLoadingScenarios,
+        onRefresh: widget.onRefreshScenarios,
         onSelected: (scenario) {
           widget.onScenarioSelected?.call(scenario);
         },
@@ -283,12 +286,14 @@ class _ScenarioDropdown extends StatefulWidget {
     required this.selectedScenario,
     required this.isLoading,
     required this.onSelected,
+    this.onRefresh,
   });
 
   final List<ScenarioModel> scenarios;
   final ScenarioModel? selectedScenario;
   final bool isLoading;
   final ValueChanged<ScenarioModel> onSelected;
+  final VoidCallback? onRefresh;
 
   @override
   State<_ScenarioDropdown> createState() => _ScenarioDropdownState();
@@ -304,9 +309,20 @@ class _ScenarioDropdownState extends State<_ScenarioDropdown> {
   void _toggleDropdown() {
     if (_overlayEntry != null) {
       _removeDropdown();
-    } else {
-      _showDropdown();
+      return;
     }
+
+    if (widget.isLoading) return;
+
+    // The training tab may remain mounted while the user visits other tabs.
+    // Retry the API request when the scenario list is empty instead of
+    // leaving a stale empty dropdown on screen.
+    if (widget.scenarios.isEmpty) {
+      widget.onRefresh?.call();
+      return;
+    }
+
+    _showDropdown();
   }
 
   void _showDropdown() {
