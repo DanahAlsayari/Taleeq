@@ -391,9 +391,16 @@ Do not claim precise acoustic measurements from conversational context alone. Se
                 'properties': {
                   'scores': {
                     'type': 'object',
+                    'description': 'Approximate qualitative ratings from 0 to 100, not clinical measurements.',
                     'properties': {
-                      'fluency_score': {'type': ['number', 'null']},
-                      'rhythm_score': {'type': ['number', 'null']},
+                      'fluency_score': {
+                        'type': ['number', 'null'],
+                        'description': 'Fluency rating from 0 to 100, or null if it cannot be assessed.',
+                      },
+                      'rhythm_score': {
+                        'type': ['number', 'null'],
+                        'description': 'Speech rhythm rating from 0 to 100, or null if it cannot be assessed.',
+                      },
                     },
                     'required': ['fluency_score', 'rhythm_score'],
                     'additionalProperties': false,
