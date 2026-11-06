@@ -276,9 +276,14 @@ void _checkConversationStart() {
   }
 
   final currentPosition = _videoController.value.position;
-  final startTime = Duration(
-    seconds: widget.scenario.conversationStartTime,
+  // Start the assistant a few seconds before the configured dialogue cue
+  // so its greeting does not feel late to the user.
+  final adjustedStartSeconds =
+      (widget.scenario.conversationStartTime - 5).clamp(
+    0,
+    widget.scenario.conversationStartTime,
   );
+  final startTime = Duration(seconds: adjustedStartSeconds);
 
 if (currentPosition >= startTime) {
   _conversationShouldStart = true;
@@ -477,7 +482,7 @@ Widget build(BuildContext context) {
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(
-                            Icons.arrow_back_ios_rounded,
+                            Icons.arrow_forward_ios_rounded,
                             color: Colors.white,
                           ),
                         ),
