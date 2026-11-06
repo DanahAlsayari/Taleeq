@@ -44,6 +44,9 @@ class ScenarioRealtimeService {
 
       _peerConnection = await createPeerConnection({
         'sdpSemantics': 'unified-plan',
+        'iceServers': [
+          {'urls': 'stun:stun.l.google.com:19302'},
+        ],
       });
 
       if (_isDisconnecting) return;
@@ -120,6 +123,14 @@ class ScenarioRealtimeService {
         _handleServerEvent(message.text);
       };
 
+      final iceGatheringComplete = Completer<void>();
+      _peerConnection!.onIceGatheringState = (state) {
+        if (state == RTCIceGatheringState.RTCIceGatheringStateComplete &&
+            !iceGatheringComplete.isCompleted) {
+          iceGatheringComplete.complete();
+        }
+      };
+
       final offer = await _peerConnection!.createOffer();
 
       if (_isDisconnecting) return;
@@ -128,13 +139,24 @@ class ScenarioRealtimeService {
 
       if (_isDisconnecting) return;
 
+      try {
+        await iceGatheringComplete.future.timeout(
+          const Duration(seconds: 8),
+        );
+      } on TimeoutException {
+        debugPrint('ICE gathering timed out; using the available local SDP.');
+      }
+
+      final localDescription = await _peerConnection!.getLocalDescription();
+      final localSdp = localDescription?.sdp ?? offer.sdp;
+
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/realtime/calls'),
         headers: {
           'Authorization': 'Bearer $clientSecret',
           'Content-Type': 'application/sdp',
         },
-        body: offer.sdp,
+        body: localSdp,
       );
 
       if (_isDisconnecting) return;
@@ -427,6 +449,7 @@ Do not claim precise acoustic measurements from conversational context alone. Se
 
     if (peer != null) {
       peer.onConnectionState = null;
+      peer.onIceGatheringState = null;
       await peer.close();
     }
 
