@@ -460,7 +460,7 @@ For every detected event, include the exact affected sound or word fragment in w
 
 Estimate stuttering_percent, repetition_percent, prolongation_percent, and block_percent separately when there is enough audible user speech. Each percentage means the estimated percentage of the user's spoken syllables affected by that category, using the same denominator (all audible user syllables); the total stuttering_percent is the estimated percentage affected by any stuttering event. These are approximate speech-sample estimates, not clinical measurements. Use 0 when sufficient speech was assessed and no event of that type was detected; use null only when the audio/sample is insufficient to estimate. Keep all percentages between 0 and 100. Do not make the type percentages add to 100; they share the same denominator.
 
-Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 to 100, not clinical measurements. Set speaking_rate_wpm to null unless it can be reliably estimated. Keep feedback concise, specific, and supportive.
+Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 to 100, not clinical measurements. Set speaking_rate_wpm to null unless it can be reliably estimated. Write feedback.strength and feedback.improvement in clear, natural Arabic using a Saudi-friendly tone. Never write these two feedback fields in English. Keep the feedback concise, specific, and supportive.
 ''',
           'tools': [
             {
