@@ -133,6 +133,27 @@ class ScenarioApiService {
   }
  
 
+  Future<Map<String, dynamic>> completeRealtimeScenario({
+    required String attemptId,
+    required int durationSeconds,
+    required Map<String, dynamic> analysisResult,
+    String endReason = 'user_ended',
+  }) async {
+    final response = await http.post(
+      Uri.parse(
+        '${ApiConfig.baseUrl}/scenarios/attempts/$attemptId/complete-realtime',
+      ),
+      headers: await _getHeaders(),
+      body: jsonEncode({
+        'duration_seconds': durationSeconds,
+        'end_reason': endReason,
+        'analysis_result': analysisResult,
+      }),
+    );
+
+    return _asMap(_decodeResponse(response));
+  }
+
 // Add this method INSIDE ScenarioApiService.
 // Keep all existing methods in that file unchanged.
 
