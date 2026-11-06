@@ -118,7 +118,19 @@ def get_weekly_plan(
                 db.add(schedule)
                 changed = True
 
-        if plan is None and schedule is not None:
+        # Only generate the current week if the user
+        # has already started a weekly plan in a previous week.
+        has_previous_plan = (
+            db.query(WeeklyPlan.id)
+            .filter(
+                WeeklyPlan.user_id == current_user.id,
+                WeeklyPlan.week_start < current_week,
+            )
+            .first()
+            is not None
+        )
+
+        if plan is None and schedule is not None and has_previous_plan:
             plan = WeeklyPlan(
                 user_id=current_user.id,
                 week_start=current_week,

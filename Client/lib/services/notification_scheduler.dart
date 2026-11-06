@@ -138,7 +138,7 @@ class NotificationScheduler {
     final now = DateTime.now();
 
     final futureDates = desiredDates.where((date) {
-      final reminderTime = DateTime(date.year, date.month, date.day, 21, 30);
+      final reminderTime = DateTime(date.year, date.month, date.day, 22, 10);
 
       return reminderTime.isAfter(now);
     }).toList()..sort();
