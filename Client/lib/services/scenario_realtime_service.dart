@@ -212,10 +212,17 @@ if (_conversationStartSent ||
 
   _conversationStartSent = true;
 
-  debugPrint('Sending ONE initial response.create');
+  debugPrint('Sending initial scenario greeting response.create');
 
   sendEvent({
     'type': 'response.create',
+    'response': {
+      'output_modalities': ['audio'],
+      'instructions': '''
+Start the scenario immediately using the existing scenario instructions.
+Speak first without waiting for the user to say anything. Use one short, natural opening line or question that fits the scenario, then let the user respond. Do not explain the app or mention analysis.
+''',
+    },
   });
 }
 
@@ -446,10 +453,15 @@ Future<void> stopConversation() async {
         'response': {
           'output_modalities': ['text'],
           'instructions': '''
-Evaluate the user's speech across the complete conversation in this Realtime session.
-Return the result only by calling submit_scenario_analysis.
-Treat fluency_score and rhythm_score as approximate qualitative ratings on a 0-100 scale, not clinical measurements. Use null if there is insufficient evidence.
-Do not claim precise acoustic measurements from conversational context alone. Set percentage metrics and speaking_rate_wpm to null unless reliably measurable from available evidence. Percentage metrics, when available, must be from 0 to 100. Keep feedback concise, specific, and supportive.
+Evaluate the user's speech across the complete conversation in this Realtime session, focusing on the user's speech (not the assistant's speech).
+Return the result only by calling submit_scenario_analysis. Do not answer with normal text.
+
+Identify audible stuttering events in the user's speech: sound/syllable repetitions, sound prolongations, and blocks (audible or strongly supported by the audio). Do not label ordinary pauses, hesitation, or normal phrase repetition as stuttering unless the audio supports it.
+For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array.
+
+Estimate stuttering_percent, repetition_percent, prolongation_percent, and block_percent separately when there is enough audible user speech. Each percentage means the estimated percentage of the user's spoken syllables affected by that category, using the same denominator (all audible user syllables); the total stuttering_percent is the estimated percentage affected by any stuttering event. These are approximate speech-sample estimates, not clinical measurements. Use 0 when sufficient speech was assessed and no event of that type was detected; use null only when the audio/sample is insufficient to estimate. Keep all percentages between 0 and 100. Do not make the type percentages add to 100; they share the same denominator.
+
+Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 to 100, not clinical measurements. Set speaking_rate_wpm to null unless it can be reliably estimated. Keep feedback concise, specific, and supportive.
 ''',
           'tools': [
             {
@@ -478,10 +490,22 @@ Do not claim precise acoustic measurements from conversational context alone. Se
                   'metrics': {
                     'type': 'object',
                     'properties': {
-                      'stuttering_percent': {'type': ['number', 'null']},
-                      'repetition_percent': {'type': ['number', 'null']},
-                      'prolongation_percent': {'type': ['number', 'null']},
-                      'block_percent': {'type': ['number', 'null']},
+                      'stuttering_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by any stuttering event; null only if the sample is insufficient.',
+                      },
+                      'repetition_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by repetitions.',
+                      },
+                      'prolongation_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by prolongations.',
+                      },
+                      'block_percent': {
+                        'type': ['number', 'null'],
+                        'description': 'Estimated percentage of all audible user syllables affected by blocks.',
+                      },
                       'speaking_rate_wpm': {'type': ['number', 'null']},
                     },
                     'required': [
@@ -511,10 +535,21 @@ Do not claim precise acoustic measurements from conversational context alone. Se
                           'type': 'string',
                           'enum': ['repetition', 'prolongation', 'block'],
                         },
-                        'word_or_sound': {'type': 'string'},
+                        'word_or_sound': {
+                          'type': 'string',
+                          'description': 'Exact affected sound, syllable, or word fragment heard in the user audio.',
+                        },
+                        'context': {
+                          'type': 'string',
+                          'description': 'Short surrounding phrase from the user speech to help locate the event.',
+                        },
+                        'position_in_word': {
+                          'type': 'string',
+                          'enum': ['beginning', 'middle', 'end', 'whole_word', 'unclear'],
+                        },
                         'confidence': {'type': ['number', 'null']},
                       },
-                      'required': ['event_type', 'word_or_sound', 'confidence'],
+                      'required': ['event_type', 'word_or_sound', 'context', 'position_in_word', 'confidence'],
                       'additionalProperties': false,
                     },
                   },
