@@ -276,6 +276,41 @@ Future<void> stopConversation() async {
         return;
       }
 
+      // Function arguments have their own completion event. Consume it
+      // directly so we do not depend solely on parsing response.done output.
+      if (type == 'response.function_call_arguments.done' &&
+          event['name'] == 'submit_scenario_analysis') {
+        final responseId = event['response_id']?.toString();
+        if (_awaitingAnalysisResponse &&
+            responseId != null &&
+            _analysisResponseId == null) {
+          _analysisResponseId = responseId;
+        }
+
+        if (responseId != null && responseId == _analysisResponseId) {
+          final completer = _analysisCompleter;
+          if (completer != null && !completer.isCompleted) {
+            final arguments = event['arguments'];
+            if (arguments is! String) {
+              completer.completeError(
+                const FormatException('Realtime function arguments are missing.'),
+              );
+            } else {
+              final decoded = jsonDecode(arguments);
+              if (decoded is! Map) {
+                completer.completeError(
+                  const FormatException('Analysis arguments must be a JSON object.'),
+                );
+              } else {
+                debugPrint('Realtime scenario function arguments received.');
+                completer.complete(Map<String, dynamic>.from(decoded));
+              }
+            }
+          }
+        }
+        return;
+      }
+
       if (type == 'response.done') {
         final response = event['response'];
         final responseId =
