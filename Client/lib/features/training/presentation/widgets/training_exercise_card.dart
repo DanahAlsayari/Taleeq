@@ -4,7 +4,7 @@ import '../../data/models/training_models.dart';
 import '../theme/training_theme.dart';
 import 'difficulty_dropdown.dart';
 import 'taleeq_svg_icon.dart';
-
+import 'package:client/models/scenario_model.dart';
 /// One exercise: title, description, fixed duration,
 /// difficulty dropdown, and start button.
 ///
@@ -19,6 +19,10 @@ class TrainingExerciseCard extends StatefulWidget {
     required this.onToggleDropdown,
     required this.onDifficultySelected,
     required this.onStart,
+    this.scenarios = const [],
+    this.selectedScenario,
+    this.onScenarioSelected,
+    this.isLoadingScenarios = false,
   });
 
   final TrainingExercise exercise;
@@ -27,6 +31,10 @@ class TrainingExerciseCard extends StatefulWidget {
   final VoidCallback onToggleDropdown;
   final ValueChanged<Difficulty> onDifficultySelected;
   final VoidCallback onStart;
+  final List<ScenarioModel> scenarios;
+  final ScenarioModel? selectedScenario;
+  final ValueChanged<ScenarioModel>? onScenarioSelected;
+  final bool isLoadingScenarios;
 
   @override
   State<TrainingExerciseCard> createState() =>
@@ -159,34 +167,49 @@ class _TrainingExerciseCardState extends State<TrainingExerciseCard> {
           ),
           const SizedBox(height: 12),
 
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _DurationBox(
+                  minutes: widget.exercise.durationMinutes,
+                  seconds: widget.exercise.durationSeconds,
+                ),
+              ),
+              const SizedBox(width: 10),
+
+              if (widget.exercise.type ==
+                  ExerciseType.realLifeScenarios) ...[
                 Expanded(
-                  child: _DurationBox(
-                    minutes: widget.exercise.durationMinutes,
-                    seconds: widget.exercise.durationSeconds,
+                  child: _ScenarioDropdown(
+                    scenarios: widget.scenarios,
+                    selectedScenario: widget.selectedScenario,
+                    isLoading: widget.isLoadingScenarios,
+                    onSelected: (scenario) {
+                      widget.onScenarioSelected?.call(scenario);
+                    },
                   ),
                 ),
                 const SizedBox(width: 10),
+              ],
 
-                Expanded(
-                  child: CompositedTransformTarget(
-                    link: _layerLink,
-                    child: Container(
-                      key: _triggerKey,
-                      child: DifficultyDropdownTrigger(
-                        difficulty: widget.difficulty,
-                        isOpen: widget.isDropdownOpen,
-                        onTap: _handleDropdownTap,
-                      ),
+              Expanded(
+                child: CompositedTransformTarget(
+                  link: _layerLink,
+                  child: Container(
+                    key: _triggerKey,
+                    child: DifficultyDropdownTrigger(
+                      difficulty: widget.difficulty,
+                      isOpen: widget.isDropdownOpen,
+                      onTap: _handleDropdownTap,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
+        ),
 
           const SizedBox(height: 10),
 
@@ -257,7 +280,73 @@ class _DurationBox extends StatelessWidget {
     );
   }
 }
+class _ScenarioDropdown extends StatelessWidget {
+  const _ScenarioDropdown({
+    required this.scenarios,
+    required this.selectedScenario,
+    required this.isLoading,
+    required this.onSelected,
+  });
 
+  final List<ScenarioModel> scenarios;
+  final ScenarioModel? selectedScenario;
+  final bool isLoading;
+  final ValueChanged<ScenarioModel> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<ScenarioModel>(
+      onSelected: onSelected,
+      enabled: !isLoading && scenarios.isNotEmpty,
+      offset: const Offset(0, 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      itemBuilder: (context) {
+        return scenarios.map((scenario) {
+          return PopupMenuItem<ScenarioModel>(
+            value: scenario,
+            child: Text(
+              scenario.name,
+              style: TrainingText.body,
+            ),
+          );
+        }).toList();
+      },
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 56),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: TrainingColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: TrainingColors.boxBorder),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                isLoading
+                    ? 'جاري التحميل...'
+                    : selectedScenario?.name ??
+                        (scenarios.isEmpty
+                            ? 'لا توجد سيناريوهات'
+                            : 'اختر السيناريو'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TrainingText.boxValue,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              color: TrainingColors.muted,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class _StartButton extends StatelessWidget {
   const _StartButton({
     required this.onTap,

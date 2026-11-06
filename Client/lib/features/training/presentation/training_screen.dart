@@ -15,7 +15,10 @@ import 'package:client/services/technique_service.dart';
 
 import '../../../presentation_layer/trainingUI/Games/dont_say_it_screen.dart';
 import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
-
+import 'package:client/models/scenario_model.dart';
+import 'package:client/models/scenario_difficulty_model.dart';
+import 'package:client/services/scenario_api_service.dart';
+import 'package:client/presentation_layer/trainingUI/scenario_instructions_screen.dart';
 // TODO (Integration):
 // Connect this callback to the Instructions screen.
 // Pass the selected exercise data (id, type, title,
@@ -53,7 +56,12 @@ class _TrainingScreenState extends State<TrainingScreen> {
   final TrainingApiService _apiService = const TrainingApiService();
 
   bool _isStartingExercise = false;
+  final ScenarioApiService _scenarioApiService = ScenarioApiService();
 
+  List<ScenarioModel> _scenarios = [];
+  ScenarioModel? _selectedScenario;
+
+  bool _isLoadingScenarios = false;
   // =========================================================
   // Coming Soon Dialog
   // =========================================================
@@ -119,6 +127,38 @@ class _TrainingScreenState extends State<TrainingScreen> {
       },
     );
   }
+  Future<void> _loadScenarios() async {
+  setState(() {
+    _isLoadingScenarios = true;
+  });
+
+  try {
+    final scenarios = await _scenarioApiService.getScenarios();
+
+    if (!mounted) return;
+
+    setState(() {
+      _scenarios = scenarios;
+      _selectedScenario = scenarios.isNotEmpty ? scenarios.first : null;
+    });
+  } catch (error) {
+    debugPrint('Failed to load scenarios: $error');
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تعذر تحميل السيناريوهات'),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoadingScenarios = false;
+      });
+    }
+  }
+}
 
   @override
   void initState() {
@@ -127,7 +167,9 @@ class _TrainingScreenState extends State<TrainingScreen> {
     _controller = TrainingController(
       repository: widget.repository ?? const LocalTrainingRepository(),
     )..load();
+     _loadScenarios();
   }
+
 
   @override
   void dispose() {
@@ -159,12 +201,74 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (_isStartingExercise) return;
 
     final selection = _controller.selectionFor(exercise);
+if (selection.type == ExerciseType.realLifeScenarios) {
+  if (_selectedScenario == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('اختاري السيناريو أولًا'),
+      ),
+    );
+    return;
+  }
 
-    // Real-life scenarios are coming soon.
-    if (selection.type == ExerciseType.realLifeScenarios) {
-      _showComingSoonDialog();
-      return;
+  setState(() {
+    _isStartingExercise = true;
+  });
+
+  try {
+    final difficulties =
+        await _scenarioApiService.getScenarioDifficulties(
+      _selectedScenario!.id,
+    );
+
+    final selectedDifficulty = difficulties.firstWhere(
+      (item) => item.difficulty.toLowerCase() == selection.difficulty.id,
+      orElse: () => throw Exception(
+        'Selected difficulty is not available for this scenario.',
+      ),
+    );
+
+    final attempt = await _scenarioApiService.startScenario(
+      scenarioId: _selectedScenario!.id,
+      difficultyId: selectedDifficulty.id,
+    );
+
+    if (!mounted) return;
+
+    debugPrint('Scenario ID: ${_selectedScenario!.id}');
+    debugPrint('Difficulty ID: ${selectedDifficulty.id}');
+    debugPrint('Attempt ID: ${attempt.id}');
+await Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (_) => ScenarioInstructionsScreen(
+  attemptId: attempt.id,
+  scenario: _selectedScenario!,
+),
+  ),
+);
+
+    // سنضيف الانتقال إلى Instructions Screen في الخطوة القادمة.
+  } catch (error) {
+    if (!mounted) return;
+
+    debugPrint('Failed to start scenario: $error');
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تعذر بدء السيناريو، حاولي مرة أخرى'),
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isStartingExercise = false;
+      });
     }
+  }
+
+  return;
+}
 
     // Navigate directly to the selected game.
     switch (selection.type) {
@@ -351,83 +455,34 @@ class _TrainingScreenState extends State<TrainingScreen> {
   // =========================================================
 
   Widget _buildExerciseCard(TrainingExercise exercise) {
-    final comingSoon =
-        _controller.selectionFor(exercise).type ==
-        ExerciseType.realLifeScenarios;
+  final isRealLifeScenario =
+      exercise.type == ExerciseType.realLifeScenarios;
 
-    final card = TrainingExerciseCard(
-      key: ValueKey(exercise.id),
-      exercise: exercise,
-      difficulty: _controller.difficultyOf(exercise),
-      isDropdownOpen: _controller.isDropdownOpen(exercise.id),
-      onToggleDropdown: () => _controller.toggleDropdown(exercise),
-      onDifficultySelected: (d) =>
-          _controller.selectDifficulty(exercise, d),
-      onStart: () => _startExercise(exercise),
-    );
+  return TrainingExerciseCard(
+    key: ValueKey(exercise.id),
+    exercise: exercise,
+    difficulty: _controller.difficultyOf(exercise),
+    isDropdownOpen: _controller.isDropdownOpen(exercise.id),
+    onToggleDropdown: () => _controller.toggleDropdown(exercise),
+    onDifficultySelected: (d) =>
+        _controller.selectDifficulty(exercise, d),
+    onStart: () => _startExercise(exercise),
 
-    // Keep all other exercises unchanged.
-    if (!comingSoon) {
-      return card;
-    }
-
-    // Real-life exercises: Coming Soon.
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _showComingSoonDialog,
-      child: Stack(
-        children: [
-          // Disable interactions with the original card.
-          AbsorbPointer(
-            child: Opacity(
-              opacity: 0.55,
-              child: card,
-            ),
-          ),
-
-          // Coming Soon badge.
-          Positioned(
-            top: 8,
-            left: 8,
-            child: IgnorePointer(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE1F0ED),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: const Color(0xFFCFE4E1),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.schedule_rounded,
-                      color: Color(0xFF1F5F5A),
-                      size: 14,
-                    ),
-                    SizedBox(width: 5),
-                    Text(
-                      'التدريب قريبًا',
-                      style: TextStyle(
-                        color: Color(0xFF1F5F5A),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+    // Real-Life Scenarios only
+    scenarios: isRealLifeScenario ? _scenarios : const [],
+    selectedScenario:
+        isRealLifeScenario ? _selectedScenario : null,
+    isLoadingScenarios:
+        isRealLifeScenario && _isLoadingScenarios,
+    onScenarioSelected: isRealLifeScenario
+        ? (scenario) {
+            setState(() {
+              _selectedScenario = scenario;
+            });
+          }
+        : null,
+  );
+}
 
   // =========================================================
   // Training Content
@@ -474,6 +529,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
       ),
     );
   }
+
 }
 
 // =========================================================

@@ -14,12 +14,14 @@ from api.dont_say_it import router as dont_say_it_router
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
-
+from api.scenarios import router as scenarios_router
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
-
+from api.scenario_realtime import (
+    router as scenario_realtime_router,
+)
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
@@ -56,6 +58,9 @@ app.include_router(dont_say_it_router)
 # Authentication endpoints
 app.mount("/auth", authentication_app)
 
+# Scenario endpoints
+app.include_router(scenarios_router)
+app.include_router(scenario_realtime_router)
 
 @app.get("/")
 def root():

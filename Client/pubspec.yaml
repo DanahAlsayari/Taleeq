@@ -26,11 +26,13 @@ dependencies:
   path: ^1.9.1
   supabase_flutter: ^2.17.2
   google_fonts: ^8.2.1
-
+ 
   ffmpeg_kit_flutter_new: ^4.6.2
   url_launcher: ^6.3.3
   flutter_svg: ^2.3.0
   confetti: ^0.8.0
+  flutter_webrtc: ^1.6.3
+  video_player: ^2.14.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -55,3 +57,5 @@ flutter:
           weight: 400
         - asset: assets/fonts/Tajawal-Bold.ttf
           weight: 700
+dependency_overrides:
+  video_player_avfoundation: 2.12.1

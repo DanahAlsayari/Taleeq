@@ -9,6 +9,15 @@ from sqlalchemy import engine_from_config, pool
 sys.path.append(os.getcwd())
 
 load_dotenv()
+from data_and_integration_layer.database.models.weekly_plan import (
+    WeeklyPlan,
+    PlannedPracticeSession,
+    WeeklyPracticeSchedule,
+)
+
+from data_and_integration_layer.database.models.pending_registration import (
+    PendingRegistration,
+)
 
 from data_and_integration_layer.database.connection import Base
 from data_and_integration_layer.database.models.user import User
@@ -31,10 +40,30 @@ from data_and_integration_layer.database.models.speech_exercise import SpeechExe
 from data_and_integration_layer.database.models.pending_email_change import PendingEmailChange
 from data_and_integration_layer.database.models.scenario import Scenario
 from data_and_integration_layer.database.models.scenario_difficulty import ScenarioDifficulty
+from data_and_integration_layer.database.models.scenario_attempt import (
+    ScenarioAttempt,
+)
 
+from data_and_integration_layer.database.models.scenario_user_progress import (
+    ScenarioUserProgress,
+)
 
 target_metadata = Base.metadata
+UNMANAGED_TABLES = {
+    "dont_say_it_challenges",
+    "dont_say_it_attempts",
+    "naming_challenge_prompts",
+    "naming_challenge_attempts",
+    "naming_challenge_scores",
+    "user_seen_exercises",
+}
 
+
+def include_name(name, type_, parent_names):
+    if type_ == "table" and name in UNMANAGED_TABLES:
+        return False
+
+    return True
 config = context.config
 
 if config.config_file_name is not None:
@@ -59,6 +88,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -76,6 +106,7 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_name=include_name,
         )
 
         with context.begin_transaction():
