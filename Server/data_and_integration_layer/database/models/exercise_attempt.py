@@ -33,10 +33,20 @@ class ExerciseAttempt(Base):
         index=True,
     )
 
-    exercise_id=Column(
+    exercise_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("speech_exercises.id"),##existing exercise
+        ForeignKey("speech_exercises.id"),
         nullable=False,
+    )
+
+    session_exercise_id = Column(
+        Integer,
+        ForeignKey(
+            "practice_session_exercises.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
     )
 
 

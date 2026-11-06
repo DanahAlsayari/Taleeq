@@ -43,6 +43,10 @@ from data_and_integration_layer.database.models.scenario_difficulty import Scena
 from data_and_integration_layer.database.models.scenario_attempt import (
     ScenarioAttempt,
 )
+from data_and_integration_layer.database.models.practice_session import (
+    PracticeSession,
+    PracticeSessionExercise,
+)
 
 from data_and_integration_layer.database.models.scenario_user_progress import (
     ScenarioUserProgress,

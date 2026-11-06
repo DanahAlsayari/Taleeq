@@ -22,11 +22,13 @@ logging.basicConfig(
 from api.scenario_realtime import (
     router as scenario_realtime_router,
 )
+from api.practice_sessions import router as practice_sessions_router
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
     version="1.0.0",
 )
+app.include_router(practice_sessions_router)
 
 app.add_middleware(
     CORSMiddleware,
