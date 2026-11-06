@@ -12,8 +12,8 @@ class ScenarioResultScreen extends StatelessWidget {
     required this.scenarioName,
   });
 
-  double _number(Map<String, dynamic> map, String key) =>
-      (map[key] as num?)?.toDouble() ?? 0.0;
+  double? _number(Map<String, dynamic> map, String key) =>
+      (map[key] as num?)?.toDouble();
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +98,7 @@ class ScenarioResultScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        '${fluency.toStringAsFixed(1)}%',
+                        fluency == null ? 'غير متاح' : '${fluency.toStringAsFixed(1)}%',
                         style: const TextStyle(
                           fontSize: 60,
                           fontWeight: FontWeight.w800,
@@ -243,11 +243,11 @@ class ScenarioResultScreen extends StatelessWidget {
     required Map<String, dynamic> scores,
     required Map<String, dynamic> metrics,
     required List<dynamic> events,
-    required double rhythm,
-    required double stuttering,
-    required double repetition,
-    required double prolongation,
-    required double blocks,
+    required double? rhythm,
+    required double? stuttering,
+    required double? repetition,
+    required double? prolongation,
+    required double? blocks,
   }) {
     showModalBottomSheet(
       context: context,
@@ -370,7 +370,7 @@ class ScenarioResultScreen extends StatelessWidget {
                       const SizedBox(height: 12),
                       if (events.isEmpty)
                         const Text(
-                          'لم يتم رصد أحداث تأتأة في هذا التسجيل.',
+                          'لا توجد أحداث محددة ضمن التحليل.',
                           style: TextStyle(
                             color: Color(0xFF7A8E8B),
                             height: 1.6,
@@ -442,7 +442,14 @@ class ScenarioResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _totalStuttering(double value) {
+  Widget _totalStuttering(double? value) {
+    if (value == null) {
+      return const Text(
+        'غير متاح — لا يمكن تقدير النسبة بدقة من المحادثة وحدها.',
+        style: TextStyle(color: Color(0xFF7A8E8B), height: 1.6),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -493,11 +500,11 @@ class ScenarioResultScreen extends StatelessWidget {
 
   Widget _metricRow(
     String title,
-    double value,
+    double? value,
     IconData icon,
     Color color,
   ) {
-    final safeValue = value.clamp(0.0, 100.0);
+    final safeValue = value?.clamp(0.0, 100.0);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
@@ -524,7 +531,9 @@ class ScenarioResultScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                '${value.toStringAsFixed(1)}${title.contains('دقيقة') ? '' : '%'}',
+                value == null
+                    ? 'غير متاح'
+                    : '${value.toStringAsFixed(1)}${title.contains('دقيقة') ? '' : '%'}',
                 style: const TextStyle(
                   color: Color(0xFF203E3A),
                   fontWeight: FontWeight.w800,
@@ -533,15 +542,16 @@ class ScenarioResultScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: (safeValue / 100).toDouble(),
-              minHeight: 8,
-              backgroundColor: const Color(0xFFE8EEEB),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
+          if (safeValue != null)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: (safeValue / 100).toDouble(),
+                minHeight: 8,
+                backgroundColor: const Color(0xFFE8EEEB),
+                valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
             ),
-          ),
         ],
       ),
     );
