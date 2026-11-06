@@ -504,7 +504,9 @@ class ScenarioResultScreen extends StatelessWidget {
     IconData icon,
     Color color,
   ) {
-    final safeValue = value?.clamp(0.0, 100.0);
+    final isSpeakingRate = title.contains('دقيقة');
+    final safeValue =
+        isSpeakingRate ? null : value?.clamp(0.0, 100.0);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Column(
