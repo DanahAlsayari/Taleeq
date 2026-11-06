@@ -36,6 +36,7 @@ class ScenarioRealtimeService {
   bool _awaitingAnalysisResponse = false;
   String? _analysisResponseId;
   String? _activeResponseId;
+  bool? _wasMutedBeforeAnalysis;
 
   bool get isMuted => _isMuted;
 
@@ -491,6 +492,7 @@ Do not claim precise acoustic measurements from conversational context alone. Se
 
   Future<void> muteMicrophoneForAnalysis() async {
     if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    _wasMutedBeforeAnalysis = _isMuted;
     for (final track in _localStream!.getAudioTracks()) {
       track.enabled = false;
     }
@@ -499,10 +501,12 @@ Do not claim precise acoustic measurements from conversational context alone. Se
 
   Future<void> restoreMicrophoneAfterAnalysis() async {
     if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    final shouldRemainMuted = _wasMutedBeforeAnalysis ?? false;
     for (final track in _localStream!.getAudioTracks()) {
-      track.enabled = true;
+      track.enabled = !shouldRemainMuted;
     }
-    _isMuted = false;
+    _isMuted = shouldRemainMuted;
+    _wasMutedBeforeAnalysis = null;
   }
 
   Future<void> disconnect() async {
