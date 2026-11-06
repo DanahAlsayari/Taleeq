@@ -203,7 +203,16 @@ class ScenarioRealtimeService:
                 session={
                     "type": "realtime",
                     "model": REALTIME_MODEL,
-                    "instructions": difficulty.prompt,
+                    "instructions": (
+                        f"{difficulty.prompt.strip()}\\n\\n"
+                        "MANDATORY LANGUAGE RULE: Conduct the entire spoken scenario in Arabic only. "
+                        "The first greeting and every subsequent spoken response must be in Arabic. "
+                        "Never switch to English merely because the prompt contains English text. "
+                        "Preserve and follow the exact dialect, tone, role, scenario details, "
+                        "difficulty level, and behavior defined by this database prompt. "
+                        "This language rule supplements the database prompt; it must not replace "
+                        "or weaken any of its scenario-specific instructions."
+                    ),
                     "output_modalities": ["audio"],
                     "audio": {
                         "input": {
