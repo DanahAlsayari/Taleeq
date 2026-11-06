@@ -360,31 +360,33 @@ Widget build(BuildContext context) {
                   horizontal: 20,
                   vertical: 12,
                 ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.arrow_back_ios_rounded,
-                        color: Colors.white,
+                child: SizedBox(
+                  height: 48,
+                  width: double.infinity,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Text(
+                        widget.scenario.name,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const Spacer(),
-                    Column(
-                      children: [
-                        Text(
-                          widget.scenario.name,
-                          style: const TextStyle(
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(
+                            Icons.arrow_back_ios_rounded,
                             color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        
-                      ],
-                    ),
-                   
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
