@@ -383,25 +383,25 @@ Widget _buildMicrophoneButton() {
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            _isMuted
-                ? Icons.mic_off_rounded
-                : Icons.mic_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
-          const SizedBox(width: 6),
           Flexible(
             child: Text(
               _isMuted ? 'تشغيل الميكروفون' : 'كتم الميكروفون',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
+                color: Colors.white,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),
+          ),
+          const SizedBox(width: 6),
+          Icon(
+            _isMuted
+                ? Icons.mic_off_rounded
+                : Icons.mic_rounded,
+            color: Colors.white,
+            size: 18,
           ),
         ],
       ),
@@ -559,21 +559,8 @@ Padding(
         Expanded(child: _buildMicrophoneButton()),
         const SizedBox(width: 12),
         Expanded(
-          child: ElevatedButton.icon(
+          child: ElevatedButton(
             onPressed: _isEndingScenario ? null : _endScenario,
-            icon: const Icon(Icons.stop_rounded, size: 18),
-            label: Flexible(
-              child: Text(
-                'إنهاء السيناريو',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color.fromARGB(197, 244, 67, 54)
                   .withOpacity(0.85),
@@ -585,6 +572,26 @@ Padding(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(30),
               ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    'إنهاء السيناريو',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.stop_rounded, size: 18),
+              ],
             ),
           ),
         ),
