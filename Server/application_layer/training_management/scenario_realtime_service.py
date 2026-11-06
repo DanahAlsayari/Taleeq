@@ -212,7 +212,7 @@ class ScenarioRealtimeService:
                             },
                         "turn_detection": {
                             "type": "semantic_vad",
-                            "eagerness": "low",
+                            "eagerness": "high",
                         },
                         },
                         "output": {
