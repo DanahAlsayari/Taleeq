@@ -488,7 +488,7 @@ Evaluate the user's speech across the complete conversation in this Realtime ses
 Return the result only by calling submit_scenario_analysis. Do not answer with normal text.
 
 Identify audible stuttering events in the user's speech: sound/syllable repetitions, sound prolongations, and blocks (audible or strongly supported by the audio). Do not label ordinary pauses, hesitation, or normal phrase repetition as stuttering unless the audio supports it.
-For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array. Set speech_sample_sufficient to true only when the user produced enough clear, intelligible speech to evaluate the scenario; set it to false if the user was silent, only made noise, or their speech was too unclear to understand.
+For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array. Set speech_sample_sufficient to true when the user contributed a meaningful amount of understandable speech (for example, around five or more intelligible words), even if the speech contains stuttering, repetitions, prolongations, pauses, an accent, or minor background noise. Do not treat stuttering itself as unclear speech. Set it to false only when the user was essentially silent, produced only non-speech sounds, or the speech was too unintelligible to evaluate.
 
 Estimate stuttering_percent, repetition_percent, prolongation_percent, and block_percent separately when there is enough audible user speech. Each percentage means the estimated percentage of the user's spoken syllables affected by that category, using the same denominator (all audible user syllables); the total stuttering_percent is the estimated percentage affected by any stuttering event. These are approximate speech-sample estimates, not clinical measurements. Use 0 when sufficient speech was assessed and no event of that type was detected; use null only when the audio/sample is insufficient to estimate. Keep all percentages between 0 and 100. Do not make the type percentages add to 100; they share the same denominator.
 
@@ -502,6 +502,10 @@ Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 t
               'parameters': {
                 'type': 'object',
                 'properties': {
+                  'speech_sample_sufficient': {
+                    'type': 'boolean',
+                    'description': 'True when the user contributed a meaningful amount of understandable speech, even if stuttering is present. False only when there is essentially no intelligible user speech.',
+                  },
                   'scores': {
                     'type': 'object',
                     'description': 'Approximate qualitative ratings from 0 to 100, not clinical measurements.',
