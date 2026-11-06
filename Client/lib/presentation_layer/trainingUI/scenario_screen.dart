@@ -326,6 +326,7 @@ Widget _buildMicrophoneButton() {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             _isMuted
@@ -335,12 +336,16 @@ Widget _buildMicrophoneButton() {
             size: 22,
           ),
           const SizedBox(width: 10),
-          Text(
-            _isMuted ? 'تشغيل المايك' : 'كتم المايك',
-            style: const TextStyle(
+          Flexible(
+            child: Text(
+              _isMuted ? 'تشغيل الميكروفون' : 'كتم الميكروفون',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -468,7 +473,7 @@ Widget build(BuildContext context) {
                         ),
                       ),
                       Align(
-                        alignment: Alignment.centerLeft,
+                        alignment: Alignment.centerRight,
                         child: IconButton(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(
@@ -489,43 +494,48 @@ Expanded(
 ),
 Padding(
   padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-  child: Wrap(
-    alignment: WrapAlignment.center,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    spacing: 12,
-    runSpacing: 12,
-    children: [
-      ElevatedButton.icon(
-        onPressed: _isEndingScenario ? null : _endScenario,
-        icon: _isEndingScenario
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                ),
-              )
-            : const Icon(Icons.stop_rounded),
-        label: Text(
-          _isEndingScenario ? 'جاري تحليل المحادثة...' : 'إنهاء السيناريو',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color.fromARGB(197, 244, 67, 54).withOpacity(0.85),
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(
-            horizontal: 18,
-            vertical: 16,
+  child: Directionality(
+    textDirection: TextDirection.rtl,
+    child: Row(
+      children: [
+        Expanded(child: _buildMicrophoneButton()),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _isEndingScenario ? null : _endScenario,
+            icon: _isEndingScenario
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.stop_rounded),
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                _isEndingScenario ? 'جاري التحليل...' : 'إنهاء السيناريو',
+                maxLines: 1,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(197, 244, 67, 54)
+                  .withOpacity(0.85),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
-          ),
         ),
-      ),
-      _buildMicrophoneButton(),
-    ],
+      ],
+    ),
   ),
 ),
             ],
