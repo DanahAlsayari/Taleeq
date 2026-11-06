@@ -67,7 +67,7 @@ class ScenarioResultScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  'أحسنتِ، أكملتِ السيناريو',
+                  'أحسنت، أكمل السيناريو',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 27,
