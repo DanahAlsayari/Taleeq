@@ -218,7 +218,7 @@ COFFEE SHOP ROLE LOCK:
 """
 
         session_instructions = (
-            f"{database_prompt}\\n\\n{language_and_role_rules.strip()}"
+            f"{database_prompt}\n\n{language_and_role_rules.strip()}"
         )
 
         try:
