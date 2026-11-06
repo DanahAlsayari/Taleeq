@@ -1,6 +1,7 @@
 import logging
 from uuid import UUID
 
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException
 from openai import APIError, APIConnectionError, RateLimitError
 from sqlalchemy.orm import Session
@@ -55,3 +56,38 @@ def create_realtime_session(
         )
 
     return result
+
+class CompleteRealtimeScenarioRequest(BaseModel):
+    duration_seconds: int = Field(ge=15, le=300)
+    end_reason: str = Field(default="user_ended", min_length=1, max_length=50)
+    analysis_result: dict
+
+
+@router.post("/attempts/{attempt_id}/complete-realtime")
+def complete_realtime_scenario(
+    attempt_id: UUID,
+    payload: CompleteRealtimeScenarioRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = ScenarioRealtimeService(db)
+
+    try:
+        result = service.complete_scenario(
+            user_id=current_user.id,
+            attempt_id=attempt_id,
+            duration_seconds=payload.duration_seconds,
+            end_reason=payload.end_reason,
+            analysis_result=payload.analysis_result,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    if result is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Scenario attempt not found or is no longer in progress.",
+        )
+
+    return result
+
