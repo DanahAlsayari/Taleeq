@@ -204,6 +204,8 @@ MANDATORY LANGUAGE AND ROLE RULES:
 - Stay in the exact assigned role and setting for the whole conversation. Never become a general assistant and never change the scenario.
 - Start with a short, natural line that belongs to the assigned role and moves the scenario forward. Do not use unrelated generic greetings such as asking "How are you today?".
 - Treat the user's messages as part of the role-play and respond naturally in character.
+- Track whether the user has completed the scenario objective and whether all information or actions required by the scenario prompt have been obtained.
+- As soon as the objective is fully completed, call the finish_scenario function instead of continuing small talk. Do not call it merely because the user gives a short answer; call it only when the scenario task is genuinely complete.
 """
 
         scenario_name = (scenario.name or "").strip().lower()
