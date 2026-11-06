@@ -123,7 +123,7 @@ Future<void> _endScenario({bool automatic = false}) async {
   final elapsedSeconds =
       DateTime.now().difference(_conversationStartedAt!).inSeconds;
 
-  if (elapsedSeconds < 15) {
+  if (elapsedSeconds < 15 && !automatic) {
     _showScenarioError(
       'يجب أن تستمر المحادثة 15 ثانية على الأقل قبل إنهائها.',
     );
@@ -366,8 +366,8 @@ Widget _buildMicrophoneButton() {
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 250),
       padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 13,
+        horizontal: 14,
+        vertical: 17,
       ),
       decoration: BoxDecoration(
         color: _isMuted
