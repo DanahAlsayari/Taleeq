@@ -28,6 +28,8 @@ class ScenarioRealtimeService {
   bool _isDisconnecting = false;
   bool _isDisposed = false;
   bool _conversationStartSent = false;
+  Completer<void>? _cancelResponseDone;
+  Completer<Map<String, dynamic>>? _analysisCompleter;
 
   bool get isMuted => _isMuted;
 
@@ -51,6 +53,13 @@ class ScenarioRealtimeService {
         }
 
         _connectionController.add(state);
+      };
+
+      _peerConnection!.onTrack = (event) {
+        if (_isDisconnecting || _isDisposed) return;
+        if (event.track.kind == 'audio') {
+          event.track.enabled = true;
+        }
       };
 
       _localStream = await navigator.mediaDevices.getUserMedia({
@@ -95,6 +104,7 @@ class ScenarioRealtimeService {
         }
 
         _eventsController.add(message.text);
+        _handleServerEvent(message.text);
       };
 
       final offer = await _peerConnection!.createOffer();
@@ -182,6 +192,177 @@ Future<void> stopConversation() async {
     ),
   );
 }
+
+  void _handleServerEvent(String rawEvent) {
+    try {
+      final event = jsonDecode(rawEvent);
+      if (event is! Map<String, dynamic>) return;
+
+      if (event['type'] == 'response.done') {
+        final cancelCompleter = _cancelResponseDone;
+        if (cancelCompleter != null && !cancelCompleter.isCompleted) {
+          cancelCompleter.complete();
+        }
+
+        final analysisCompleter = _analysisCompleter;
+        if (analysisCompleter == null || analysisCompleter.isCompleted) {
+          return;
+        }
+
+        final response = event['response'];
+        if (response is! Map<String, dynamic> ||
+            response['status'] != 'completed') {
+          analysisCompleter.completeError(
+            StateError('Realtime analysis response did not complete.'),
+          );
+          return;
+        }
+
+        final output = response['output'];
+        if (output is! List) {
+          analysisCompleter.completeError(
+            StateError('Realtime analysis output is missing.'),
+          );
+          return;
+        }
+
+        for (final item in output) {
+          if (item is Map<String, dynamic> &&
+              item['type'] == 'function_call' &&
+              item['name'] == 'submit_scenario_analysis' &&
+              item['arguments'] is String) {
+            final decoded = jsonDecode(item['arguments'] as String);
+            if (decoded is! Map) {
+              throw const FormatException('Analysis arguments must be a JSON object.');
+            }
+            analysisCompleter.complete(Map<String, dynamic>.from(decoded));
+            return;
+          }
+        }
+
+        analysisCompleter.completeError(
+          StateError('Realtime did not return the scenario analysis function.'),
+        );
+      }
+    } catch (error, stackTrace) {
+      final completer = _analysisCompleter;
+      if (completer != null && !completer.isCompleted) {
+        completer.completeError(error, stackTrace);
+      }
+    }
+  }
+
+  Future<Map<String, dynamic>> requestScenarioAnalysis() async {
+    if (_analysisCompleter != null) {
+      throw StateError('Scenario analysis is already in progress.');
+    }
+
+    // Cancel any response still speaking before requesting the final analysis.
+    final cancelCompleter = Completer<void>();
+    _cancelResponseDone = cancelCompleter;
+    try {
+      sendEvent({'type': 'response.cancel'});
+      await cancelCompleter.future.timeout(const Duration(seconds: 2));
+    } on TimeoutException {
+      // No active response may have existed; proceed with the analysis request.
+    } catch (_) {
+      // A cancel error must not block completion.
+    } finally {
+      _cancelResponseDone = null;
+    }
+
+    final completer = Completer<Map<String, dynamic>>();
+    _analysisCompleter = completer;
+
+    try {
+      sendEvent({
+        'type': 'response.create',
+        'response': {
+          'output_modalities': ['text'],
+          'instructions': '''
+Evaluate the user's speech across the complete conversation in this Realtime session.
+Return the result only by calling submit_scenario_analysis.
+Do not claim precise acoustic measurements from conversational context alone. Set percentage metrics and speaking_rate_wpm to null unless reliably measurable from available evidence. Use null for scores that cannot be responsibly assessed. Keep feedback concise, specific, and supportive.
+''',
+          'tools': [
+            {
+              'type': 'function',
+              'name': 'submit_scenario_analysis',
+              'description': 'Submit the final structured evaluation of the scenario conversation.',
+              'strict': true,
+              'parameters': {
+                'type': 'object',
+                'properties': {
+                  'scores': {
+                    'type': 'object',
+                    'properties': {
+                      'fluency_score': {'type': ['number', 'null']},
+                      'rhythm_score': {'type': ['number', 'null']},
+                    },
+                    'required': ['fluency_score', 'rhythm_score'],
+                    'additionalProperties': false,
+                  },
+                  'metrics': {
+                    'type': 'object',
+                    'properties': {
+                      'stuttering_percent': {'type': ['number', 'null']},
+                      'repetition_percent': {'type': ['number', 'null']},
+                      'prolongation_percent': {'type': ['number', 'null']},
+                      'block_percent': {'type': ['number', 'null']},
+                      'speaking_rate_wpm': {'type': ['number', 'null']},
+                    },
+                    'required': [
+                      'stuttering_percent',
+                      'repetition_percent',
+                      'prolongation_percent',
+                      'block_percent',
+                      'speaking_rate_wpm',
+                    ],
+                    'additionalProperties': false,
+                  },
+                  'feedback': {
+                    'type': 'object',
+                    'properties': {
+                      'strength': {'type': 'string'},
+                      'improvement': {'type': 'string'},
+                    },
+                    'required': ['strength', 'improvement'],
+                    'additionalProperties': false,
+                  },
+                  'speech_events': {
+                    'type': 'array',
+                    'items': {
+                      'type': 'object',
+                      'properties': {
+                        'event_type': {
+                          'type': 'string',
+                          'enum': ['repetition', 'prolongation', 'block'],
+                        },
+                        'word_or_sound': {'type': 'string'},
+                        'confidence': {'type': ['number', 'null']},
+                      },
+                      'required': ['event_type', 'word_or_sound', 'confidence'],
+                      'additionalProperties': false,
+                    },
+                  },
+                },
+                'required': ['scores', 'metrics', 'feedback', 'speech_events'],
+                'additionalProperties': false,
+              },
+            },
+          ],
+          'tool_choice': {
+            'type': 'function',
+            'name': 'submit_scenario_analysis',
+          },
+        },
+      });
+
+      return await completer.future.timeout(const Duration(seconds: 60));
+    } finally {
+      _analysisCompleter = null;
+    }
+  }
 
   void sendEvent(Map<String, dynamic> event) {
     if (_isDisconnecting ||
