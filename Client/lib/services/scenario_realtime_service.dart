@@ -212,6 +212,28 @@ if (_conversationStartSent ||
 
   _conversationStartSent = true;
 
+  sendEvent({
+    'type': 'session.update',
+    'session': {
+      'tools': [
+        {
+          'type': 'function',
+          'name': 'finish_scenario',
+          'description': 'Call this only when the user has completed the scenario objective and all required information or actions have been obtained.',
+          'parameters': {
+            'type': 'object',
+            'properties': {
+              'completion_reason': {'type': 'string'},
+            },
+            'required': ['completion_reason'],
+            'additionalProperties': false,
+          },
+        },
+      ],
+      'tool_choice': 'auto',
+    },
+  });
+
   debugPrint('Sending initial scenario greeting response.create');
 
   // Do not send response-level instructions here. In Realtime, response-level
@@ -284,6 +306,15 @@ Future<void> stopConversation() async {
 
       // Function arguments have their own completion event. Consume it
       // directly so we do not depend solely on parsing response.done output.
+      if (type == 'response.function_call_arguments.done' &&
+          event['name'] == 'finish_scenario') {
+        debugPrint('Realtime model marked the scenario as completed.');
+        if (!_eventsController.isClosed) {
+          _eventsController.add(jsonEncode({'type': 'scenario.completed'}));
+        }
+        return;
+      }
+
       if (type == 'response.function_call_arguments.done' &&
           event['name'] == 'submit_scenario_analysis') {
         final responseId = event['response_id']?.toString();
@@ -456,7 +487,7 @@ Evaluate the user's speech across the complete conversation in this Realtime ses
 Return the result only by calling submit_scenario_analysis. Do not answer with normal text.
 
 Identify audible stuttering events in the user's speech: sound/syllable repetitions, sound prolongations, and blocks (audible or strongly supported by the audio). Do not label ordinary pauses, hesitation, or normal phrase repetition as stuttering unless the audio supports it.
-For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array.
+For every detected event, include the exact affected sound or word fragment in word_or_sound, a short surrounding phrase in context, and where in the word it occurred in position_in_word (beginning, middle, end, whole_word, or unclear). Include only events supported by the audio; do not invent examples. If there are no clearly detected events after listening to sufficient user speech, return an empty speech_events array. Set speech_sample_sufficient to true only when the user produced enough clear, intelligible speech to evaluate the scenario; set it to false if the user was silent, only made noise, or their speech was too unclear to understand.
 
 Estimate stuttering_percent, repetition_percent, prolongation_percent, and block_percent separately when there is enough audible user speech. Each percentage means the estimated percentage of the user's spoken syllables affected by that category, using the same denominator (all audible user syllables); the total stuttering_percent is the estimated percentage affected by any stuttering event. These are approximate speech-sample estimates, not clinical measurements. Use 0 when sufficient speech was assessed and no event of that type was detected; use null only when the audio/sample is insufficient to estimate. Keep all percentages between 0 and 100. Do not make the type percentages add to 100; they share the same denominator.
 
@@ -553,7 +584,7 @@ Treat fluency_score and rhythm_score as approximate qualitative ratings from 0 t
                     },
                   },
                 },
-                'required': ['scores', 'metrics', 'feedback', 'speech_events'],
+                'required': ['speech_sample_sufficient', 'scores', 'metrics', 'feedback', 'speech_events'],
                 'additionalProperties': false,
               },
             },
