@@ -33,6 +33,9 @@ class ScenarioRealtimeService {
   bool _responseInProgress = false;
   Completer<void>? _cancelResponseDone;
   Completer<Map<String, dynamic>>? _analysisCompleter;
+  bool _awaitingAnalysisResponse = false;
+  String? _analysisResponseId;
+  String? _activeResponseId;
 
   bool get isMuted => _isMuted;
 
@@ -236,24 +239,52 @@ Future<void> stopConversation() async {
       final event = jsonDecode(rawEvent);
       if (event is! Map<String, dynamic>) return;
 
-      if (event['type'] == 'response.created') {
+      final type = event['type'];
+      if (type == 'response.created') {
         _responseInProgress = true;
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+        _activeResponseId = responseId;
+        if (_awaitingAnalysisResponse && responseId != null) {
+          _analysisResponseId = responseId;
+        }
         return;
       }
 
-      if (event['type'] == 'response.done') {
-        _responseInProgress = false;
+      if (type == 'response.done') {
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+
+        // A response.done received while cancelling belongs to the old turn.
         final cancelCompleter = _cancelResponseDone;
         if (cancelCompleter != null && !cancelCompleter.isCompleted) {
           cancelCompleter.complete();
-        }
-
-        final analysisCompleter = _analysisCompleter;
-        if (analysisCompleter == null || analysisCompleter.isCompleted) {
+          if (_activeResponseId == responseId) {
+            _responseInProgress = false;
+            _activeResponseId = null;
+          }
           return;
         }
 
-        final response = event['response'];
+        // Ignore late events from an earlier response. Only the response
+        // created for this analysis request may complete the analysis future.
+        if (responseId == null ||
+            _analysisResponseId == null ||
+            responseId != _analysisResponseId) {
+          if (_activeResponseId == responseId) {
+            _responseInProgress = false;
+            _activeResponseId = null;
+          }
+          return;
+        }
+
+        _responseInProgress = false;
+        _activeResponseId = null;
+        final analysisCompleter = _analysisCompleter;
+        if (analysisCompleter == null || analysisCompleter.isCompleted) return;
+
         if (response is! Map<String, dynamic> ||
             response['status'] != 'completed') {
           analysisCompleter.completeError(
@@ -277,7 +308,9 @@ Future<void> stopConversation() async {
               item['arguments'] is String) {
             final decoded = jsonDecode(item['arguments'] as String);
             if (decoded is! Map) {
-              throw const FormatException('Analysis arguments must be a JSON object.');
+              throw const FormatException(
+                'Analysis arguments must be a JSON object.',
+              );
             }
             analysisCompleter.complete(Map<String, dynamic>.from(decoded));
             return;
@@ -287,6 +320,21 @@ Future<void> stopConversation() async {
         analysisCompleter.completeError(
           StateError('Realtime did not return the scenario analysis function.'),
         );
+        return;
+      }
+
+      if (type == 'response.failed') {
+        final response = event['response'];
+        final responseId =
+            response is Map<String, dynamic> ? response['id']?.toString() : null;
+        if (responseId != null && responseId == _analysisResponseId) {
+          final completer = _analysisCompleter;
+          if (completer != null && !completer.isCompleted) {
+            completer.completeError(
+              StateError('Realtime analysis failed: ${event['error'] ?? 'unknown error'}'),
+            );
+          }
+        }
       }
     } catch (error, stackTrace) {
       final completer = _analysisCompleter;
@@ -317,6 +365,8 @@ Future<void> stopConversation() async {
 
     final completer = Completer<Map<String, dynamic>>();
     _analysisCompleter = completer;
+    _analysisResponseId = null;
+    _awaitingAnalysisResponse = true;
 
     try {
       sendEvent({
@@ -326,7 +376,8 @@ Future<void> stopConversation() async {
           'instructions': '''
 Evaluate the user's speech across the complete conversation in this Realtime session.
 Return the result only by calling submit_scenario_analysis.
-Do not claim precise acoustic measurements from conversational context alone. Set percentage metrics and speaking_rate_wpm to null unless reliably measurable from available evidence. Use null for scores that cannot be responsibly assessed. Keep feedback concise, specific, and supportive.
+Treat fluency_score and rhythm_score as approximate qualitative ratings on a 0-100 scale, not clinical measurements. Use null if there is insufficient evidence.
+Do not claim precise acoustic measurements from conversational context alone. Set percentage metrics and speaking_rate_wpm to null unless reliably measurable from available evidence. Percentage metrics, when available, must be from 0 to 100. Keep feedback concise, specific, and supportive.
 ''',
           'tools': [
             {
@@ -405,6 +456,8 @@ Do not claim precise acoustic measurements from conversational context alone. Se
       return await completer.future.timeout(const Duration(seconds: 60));
     } finally {
       _analysisCompleter = null;
+      _awaitingAnalysisResponse = false;
+      _analysisResponseId = null;
     }
   }
 
@@ -434,6 +487,22 @@ Do not claim precise acoustic measurements from conversational context alone. Se
     for (final track in _localStream!.getAudioTracks()) {
       track.enabled = !_isMuted;
     }
+  }
+
+  Future<void> muteMicrophoneForAnalysis() async {
+    if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    for (final track in _localStream!.getAudioTracks()) {
+      track.enabled = false;
+    }
+    _isMuted = true;
+  }
+
+  Future<void> restoreMicrophoneAfterAnalysis() async {
+    if (_localStream == null || _isDisconnecting || _isDisposed) return;
+    for (final track in _localStream!.getAudioTracks()) {
+      track.enabled = true;
+    }
+    _isMuted = false;
   }
 
   Future<void> disconnect() async {
