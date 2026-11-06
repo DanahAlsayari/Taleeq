@@ -456,7 +456,6 @@ Do not claim precise acoustic measurements from conversational context alone. Se
               'type': 'function',
               'name': 'submit_scenario_analysis',
               'description': 'Submit the final structured evaluation of the scenario conversation.',
-              'strict': true,
               'parameters': {
                 'type': 'object',
                 'properties': {
@@ -525,10 +524,7 @@ Do not claim precise acoustic measurements from conversational context alone. Se
               },
             },
           ],
-          'tool_choice': {
-            'type': 'function',
-            'name': 'submit_scenario_analysis',
-          },
+          'tool_choice': 'required',
         },
       });
 
