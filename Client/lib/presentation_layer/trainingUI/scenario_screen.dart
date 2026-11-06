@@ -282,7 +282,7 @@ void _checkConversationStart() {
       (widget.scenario.conversationStartTime - 5).clamp(
     0,
     widget.scenario.conversationStartTime,
-  );
+  ).toInt();
   final startTime = Duration(seconds: adjustedStartSeconds);
 
 if (currentPosition >= startTime) {
