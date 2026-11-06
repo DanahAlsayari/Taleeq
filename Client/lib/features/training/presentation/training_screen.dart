@@ -139,7 +139,7 @@ class _TrainingScreenState extends State<TrainingScreen> {
 
     setState(() {
       _scenarios = scenarios;
-      _selectedScenario = scenarios.isNotEmpty ? scenarios.first : null;
+      _selectedScenario = null;
     });
   } catch (error) {
     debugPrint('Failed to load scenarios: $error');
@@ -205,7 +205,7 @@ if (selection.type == ExerciseType.realLifeScenarios) {
   if (_selectedScenario == null) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('اختاري السيناريو أولًا'),
+        content: Text('اختر السيناريو أولًا'),
       ),
     );
     return;

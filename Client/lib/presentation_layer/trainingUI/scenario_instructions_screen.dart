@@ -16,9 +16,11 @@ class ScenarioInstructionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      
       body: SafeArea(
         child: Center(
           child: ElevatedButton(
+            //لطيفة زيني ديزاين البوتن مثل ماتبين خليته سادة 
             onPressed: () {
               Navigator.push(
                 context,

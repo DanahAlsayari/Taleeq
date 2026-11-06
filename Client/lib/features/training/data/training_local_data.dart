@@ -71,7 +71,7 @@ const List<TrainingCategory> kTrainingCategories = [
         titleAr: 'محاكاة المواقف الحياتية',
         titleEn: 'Real-Life Scenarios',
         descriptionAr: 'تدرّب على محادثات من الحياة اليومية مثل طلب قهوة أو مقابلة وظيفية.',
-        durationMinutes: 8,
+        durationMinutes: 5,
         defaultDifficulty: Difficulty.medium,
       ),
     ],

@@ -11,15 +11,12 @@ from data_and_integration_layer.database.Repositories.scenario_repository import
 
 logger = logging.getLogger(__name__)
 
-REALTIME_MODEL = "gpt-realtime-2.1-mini"
+REALTIME_MODEL = "gpt-realtime-1.5"
 
 # Voice mapping for each scenario. If a scenario is not listed here, the default voice "cedar" will be used.
 SCENARIO_VOICES = {
-    "Coffee Shop": "cedar",
-    "Job Interview": "ash",
-    "Phone Call": "echo",
-    "Self Introduction": "verse",
-    "Presentation": "marin",
+    "طلب قهوة": "cedar",
+  
 }
 
 
@@ -96,9 +93,10 @@ class ScenarioRealtimeService:
                             "noise_reduction": {
                                 "type": "near_field",
                             },
-                            "turn_detection": {
-                                "type": "server_vad",
-                            },
+                        "turn_detection": {
+                            "type": "semantic_vad",
+                            "eagerness": "low",
+                        },
                         },
                         "output": {
                             "voice": voice,

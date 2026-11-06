@@ -1,16 +1,17 @@
 
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class ScenarioRealtimeService {
   RTCPeerConnection? _peerConnection;
   RTCDataChannel? _dataChannel;
   MediaStream? _localStream;
   Completer<void>? _dataChannelReady;
-  
+
   final StreamController<String> _eventsController =
       StreamController<String>.broadcast();
 
@@ -24,23 +25,34 @@ class ScenarioRealtimeService {
       _connectionController.stream;
 
   bool _isMuted = false;
+  bool _isDisconnecting = false;
+  bool _isDisposed = false;
+  bool _conversationStartSent = false;
 
   bool get isMuted => _isMuted;
 
-  // 1. Connect to OpenAI Realtime
   Future<void> connect(String clientSecret) async {
+    if (_isDisposed || _isDisconnecting) {
+      throw StateError('Realtime service is already closing.');
+    }
+
     try {
-      // Create Peer Connection
       _peerConnection = await createPeerConnection({
         'sdpSemantics': 'unified-plan',
       });
 
-      // Listen to connection state
+      if (_isDisconnecting) return;
+
       _peerConnection!.onConnectionState = (state) {
+        if (_isDisconnecting ||
+            _isDisposed ||
+            _connectionController.isClosed) {
+          return;
+        }
+
         _connectionController.add(state);
       };
 
-      // Get microphone
       _localStream = await navigator.mediaDevices.getUserMedia({
         'audio': {
           'echoCancellation': true,
@@ -50,38 +62,49 @@ class ScenarioRealtimeService {
         'video': false,
       });
 
-      // Add microphone track to WebRTC
+      if (_isDisconnecting) return;
+
       for (final track in _localStream!.getAudioTracks()) {
         await _peerConnection!.addTrack(track, _localStream!);
       }
 
-      // Create Data Channel
-    _dataChannel = await _peerConnection!.createDataChannel(
-  'oai-events',
-  RTCDataChannelInit(),
-);
+      if (_isDisconnecting) return;
 
-_dataChannelReady = Completer<void>();
+      _dataChannel = await _peerConnection!.createDataChannel(
+        'oai-events',
+        RTCDataChannelInit(),
+      );
 
-_dataChannel!.onDataChannelState = (state) {
-  if (state == RTCDataChannelState.RTCDataChannelOpen &&
-      !(_dataChannelReady?.isCompleted ?? true)) {
-    _dataChannelReady!.complete();
-  }
-};
+      _dataChannelReady = Completer<void>();
+
+      _dataChannel!.onDataChannelState = (state) {
+        if (_isDisconnecting || _isDisposed) return;
+
+        if (state == RTCDataChannelState.RTCDataChannelOpen &&
+            !(_dataChannelReady?.isCompleted ?? true)) {
+          _dataChannelReady!.complete();
+        }
+      };
 
       _dataChannel!.onMessage = (message) {
-        if (message.isBinary) return;
+        if (message.isBinary ||
+            _isDisconnecting ||
+            _isDisposed ||
+            _eventsController.isClosed) {
+          return;
+        }
 
         _eventsController.add(message.text);
       };
 
-      // Create SDP Offer
       final offer = await _peerConnection!.createOffer();
+
+      if (_isDisconnecting) return;
 
       await _peerConnection!.setLocalDescription(offer);
 
-      // Send SDP Offer to OpenAI
+      if (_isDisconnecting) return;
+
       final response = await http.post(
         Uri.parse('https://api.openai.com/v1/realtime/calls'),
         headers: {
@@ -91,6 +114,8 @@ _dataChannel!.onDataChannelState = (state) {
         body: offer.sdp,
       );
 
+      if (_isDisconnecting) return;
+
       if (response.statusCode != 200 &&
           response.statusCode != 201) {
         throw Exception(
@@ -98,43 +123,86 @@ _dataChannel!.onDataChannelState = (state) {
         );
       }
 
-      // Set SDP Answer
       final answer = RTCSessionDescription(
         response.body,
         'answer',
       );
 
       await _peerConnection!.setRemoteDescription(answer);
+
+      if (_isDisconnecting) return;
+
       await _dataChannelReady!.future.timeout(
-  const Duration(seconds: 20),
-);
-
-sendEvent({
-  'type': 'response.create',
-});
-
+        const Duration(seconds: 20),
+      );
     } catch (e) {
       await disconnect();
       rethrow;
     }
   }
+void startConversation() {
+debugPrint('START CONVERSATION CALLED');
 
-  // 2. Send an event to OpenAI
-  void sendEvent(Map<String, dynamic> event) {
-  if (_dataChannel == null) {
-    throw Exception('Realtime data channel is not available.');
+if (_conversationStartSent ||
+    _isDisconnecting ||
+    _isDisposed) {
+  debugPrint('START IGNORED');
+  return;
+}
+
+  if (_dataChannel == null ||
+      _dataChannel!.state != RTCDataChannelState.RTCDataChannelOpen) {
+    debugPrint('Data channel is not ready.');
+    return;
   }
 
-  _dataChannel!.send(
+  _conversationStartSent = true;
+
+  debugPrint('Sending ONE initial response.create');
+
+  sendEvent({
+    'type': 'response.create',
+  });
+}
+
+
+Future<void> stopConversation() async {
+  if (_isDisconnecting || _isDisposed) return;
+
+  final channel = _dataChannel;
+
+  if (channel == null ||
+      channel.state != RTCDataChannelState.RTCDataChannelOpen) {
+    return;
+  }
+
+  channel.send(
     RTCDataChannelMessage(
-      jsonEncode(event),
+      jsonEncode({'type': 'response.cancel'}),
     ),
   );
 }
 
-  // 3. Mute / Unmute microphone
+  void sendEvent(Map<String, dynamic> event) {
+    if (_isDisconnecting ||
+        _isDisposed ||
+        _dataChannel == null ||
+        _dataChannel!.state !=
+            RTCDataChannelState.RTCDataChannelOpen) {
+      throw StateError('Realtime data channel is not available.');
+    }
+
+    _dataChannel!.send(
+      RTCDataChannelMessage(jsonEncode(event)),
+    );
+  }
+
   Future<void> toggleMute() async {
-    if (_localStream == null) return;
+    if (_localStream == null ||
+        _isDisconnecting ||
+        _isDisposed) {
+      return;
+    }
 
     _isMuted = !_isMuted;
 
@@ -143,31 +211,55 @@ sendEvent({
     }
   }
 
-  // 4. Disconnect and release resources
   Future<void> disconnect() async {
-    await _dataChannel?.close();
+    if (_isDisconnecting) return;
+
+    _isDisconnecting = true;
+
+    final channel = _dataChannel;
+    final peer = _peerConnection;
+    final stream = _localStream;
+
     _dataChannel = null;
-
-    await _peerConnection?.close();
     _peerConnection = null;
+    _localStream = null;
+    _dataChannelReady = null;
 
-    if (_localStream != null) {
-      for (final track in _localStream!.getTracks()) {
+    if (channel != null) {
+      channel.onMessage = null;
+      channel.onDataChannelState = null;
+      await channel.close();
+    }
+
+    if (peer != null) {
+      peer.onConnectionState = null;
+      await peer.close();
+    }
+
+    if (stream != null) {
+      for (final track in stream.getTracks()) {
         await track.stop();
       }
 
-      await _localStream!.dispose();
-      _localStream = null;
+      await stream.dispose();
     }
 
     _isMuted = false;
   }
 
-  // 5. Dispose streams
   Future<void> dispose() async {
+    if (_isDisposed) return;
+
     await disconnect();
 
-    await _eventsController.close();
-    await _connectionController.close();
+    _isDisposed = true;
+
+    if (!_eventsController.isClosed) {
+      await _eventsController.close();
+    }
+
+    if (!_connectionController.isClosed) {
+      await _connectionController.close();
+    }
   }
 }
