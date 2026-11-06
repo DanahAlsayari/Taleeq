@@ -30,6 +30,7 @@ class ScenarioRealtimeService {
   bool _isDisconnecting = false;
   bool _isDisposed = false;
   bool _conversationStartSent = false;
+  bool _responseInProgress = false;
   Completer<void>? _cancelResponseDone;
   Completer<Map<String, dynamic>>? _analysisCompleter;
 
@@ -235,7 +236,13 @@ Future<void> stopConversation() async {
       final event = jsonDecode(rawEvent);
       if (event is! Map<String, dynamic>) return;
 
+      if (event['type'] == 'response.created') {
+        _responseInProgress = true;
+        return;
+      }
+
       if (event['type'] == 'response.done') {
+        _responseInProgress = false;
         final cancelCompleter = _cancelResponseDone;
         if (cancelCompleter != null && !cancelCompleter.isCompleted) {
           cancelCompleter.complete();
@@ -294,18 +301,18 @@ Future<void> stopConversation() async {
       throw StateError('Scenario analysis is already in progress.');
     }
 
-    // Cancel any response still speaking before requesting the final analysis.
-    final cancelCompleter = Completer<void>();
-    _cancelResponseDone = cancelCompleter;
-    try {
-      sendEvent({'type': 'response.cancel'});
-      await cancelCompleter.future.timeout(const Duration(seconds: 2));
-    } on TimeoutException {
-      // No active response may have existed; proceed with the analysis request.
-    } catch (_) {
-      // A cancel error must not block completion.
-    } finally {
-      _cancelResponseDone = null;
+    // Cancel only when the assistant still has an active response.
+    if (_responseInProgress) {
+      final cancelCompleter = Completer<void>();
+      _cancelResponseDone = cancelCompleter;
+      try {
+        sendEvent({'type': 'response.cancel'});
+        await cancelCompleter.future.timeout(const Duration(seconds: 2));
+      } on TimeoutException {
+        debugPrint('Timed out waiting for the cancelled Realtime response.');
+      } finally {
+        _cancelResponseDone = null;
+      }
     }
 
     final completer = Completer<Map<String, dynamic>>();
