@@ -37,6 +37,8 @@ class ScenarioRealtimeService {
   String? _analysisResponseId;
   String? _activeResponseId;
   bool? _wasMutedBeforeAnalysis;
+  String? _lastRealtimeError;
+  String? _lastRealtimeEventType;
 
   bool get isMuted => _isMuted;
 
@@ -240,7 +242,28 @@ Future<void> stopConversation() async {
       final event = jsonDecode(rawEvent);
       if (event is! Map<String, dynamic>) return;
 
-      final type = event['type'];
+      final type = event['type']?.toString();
+      _lastRealtimeEventType = type;
+      debugPrint('Realtime server event: $type');
+
+      // Realtime reports invalid response.create payloads and other server
+      // errors as top-level "error" events, not response.failed events.
+      if (type == 'error') {
+        final error = event['error'];
+        final message = error is Map
+            ? '${error['message'] ?? error['code'] ?? error}'
+            : '${error ?? 'Unknown Realtime API error'}';
+        _lastRealtimeError = message;
+        debugPrint('Realtime API error: $message');
+        final completer = _analysisCompleter;
+        if (completer != null && !completer.isCompleted) {
+          completer.completeError(
+            StateError('Realtime API rejected the analysis request: $message'),
+          );
+        }
+        return;
+      }
+
       if (type == 'response.created') {
         _responseInProgress = true;
         final response = event['response'];
@@ -329,10 +352,21 @@ Future<void> stopConversation() async {
         final responseId =
             response is Map<String, dynamic> ? response['id']?.toString() : null;
         if (responseId != null && responseId == _analysisResponseId) {
+          final details = response is Map
+              ? response['status_details']
+              : null;
+          final failure = details is Map
+              ? details['error']
+              : event['error'];
+          final message = failure is Map
+              ? '${failure['message'] ?? failure['code'] ?? failure}'
+              : '${failure ?? 'unknown error'}';
+          _lastRealtimeError = message;
+          debugPrint('Realtime analysis response failed: $message');
           final completer = _analysisCompleter;
           if (completer != null && !completer.isCompleted) {
             completer.completeError(
-              StateError('Realtime analysis failed: ${event['error'] ?? 'unknown error'}'),
+              StateError('Realtime analysis failed: $message'),
             );
           }
         }
@@ -368,6 +402,8 @@ Future<void> stopConversation() async {
     _analysisCompleter = completer;
     _analysisResponseId = null;
     _awaitingAnalysisResponse = true;
+    _lastRealtimeError = null;
+    _lastRealtimeEventType = null;
 
     try {
       sendEvent({
@@ -461,7 +497,20 @@ Do not claim precise acoustic measurements from conversational context alone. Se
         },
       });
 
-      return await completer.future.timeout(const Duration(seconds: 60));
+      try {
+        return await completer.future.timeout(const Duration(seconds: 60));
+      } on TimeoutException {
+        final responseState = _analysisResponseId == null
+            ? 'No response.created event was received.'
+            : 'Analysis response id: $_analysisResponseId; last event: $_lastRealtimeEventType.';
+        final apiError = _lastRealtimeError == null
+            ? ''
+            : ' Last Realtime error: $_lastRealtimeError';
+        throw TimeoutException(
+          'Realtime analysis timed out. $responseState$apiError',
+          const Duration(seconds: 60),
+        );
+      }
     } finally {
       _analysisCompleter = null;
       _awaitingAnalysisResponse = false;
