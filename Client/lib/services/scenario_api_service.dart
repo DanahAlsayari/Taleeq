@@ -221,4 +221,28 @@ Future<Map<String, dynamic>> analyzeScenarioAudio({
   throw Exception(message);
 }
 
+
+/// Get all scenario attempts for the current user.
+
+Future<List<ScenarioAttemptModel>> getAllScenarioAttempts() async {
+  final response = await http.get(
+    Uri.parse('${ApiConfig.baseUrl}/scenarios/attempts'),
+    headers: await _getHeaders(),
+  );
+
+  final data = _decodeResponse(response);
+
+  final attemptsList = data is List
+      ? data
+      : data is Map && data['attempts'] is List
+          ? data['attempts'] as List
+          : throw Exception('Invalid attempts response');
+
+  return attemptsList
+      .map((item) => ScenarioAttemptModel.fromJson(_asMap(item)))
+      .toList();
+}
+
+
+
 }

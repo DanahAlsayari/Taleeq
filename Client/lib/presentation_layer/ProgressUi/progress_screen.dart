@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:convert';
 
 import 'package:client/services/exercise_api_service.dart';
+import 'package:client/services/scenario_api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -45,6 +46,8 @@ String _trainingGameFilter = 'الكل';
 String _selectedTrainingFilter = 'الكل';
   int _gameAttemptsCount = 0;
 int _gameDurationSeconds = 0;
+int _scenarioAttemptsCount = 0;
+int _scenarioDurationSeconds = 0;
 
 
    Map<String, int> stats = {
@@ -169,18 +172,36 @@ Future<void> _loadCombinedTrainingStats() async {
     final exerciseStats =
         await ExerciseApiService().getAttemptsStat();
 
+        final scenarioAttempts =
+            await ScenarioApiService().getAllScenarioAttempts();
+
+        final completedScenarios = scenarioAttempts
+            .where((attempt) => attempt.status == 'completed')
+            .toList();
+
+        final scenarioAttemptsCount = completedScenarios.length;
+
+        final scenarioDurationSeconds = completedScenarios.fold<int>(
+          0,
+          (sum, attempt) => sum + (attempt.durationSeconds ?? 0),
+        );
+
     if (!mounted) return;
 
     setState(() {
       stats = {
-        'total_attempts':
-            intValue(exerciseStats, 'total_attempts') +
-            intValue(dontSayIt, 'total_attempts') +
-            intValue(namingChallenge, 'total_attempts'),
-        'total_duration_seconds':
-            intValue(exerciseStats, 'total_duration_seconds') +
-            intValue(dontSayIt, 'total_duration_seconds') +
-            intValue(namingChallenge, 'total_duration_seconds'),
+      'total_attempts':
+          intValue(exerciseStats, 'total_attempts') +
+          intValue(dontSayIt, 'total_attempts') +
+          intValue(namingChallenge, 'total_attempts') +
+          scenarioAttemptsCount,
+
+      'total_duration_seconds':
+          intValue(exerciseStats, 'total_duration_seconds') +
+          intValue(dontSayIt, 'total_duration_seconds') +
+          intValue(namingChallenge, 'total_duration_seconds') +
+          scenarioDurationSeconds,
+        
       };
     });
   } catch (error) {
@@ -229,20 +250,16 @@ void _retry() {
 
   @override
   Widget build(BuildContext context) {
-    final totalAttempts =
-        (stats['total_attempts'] ?? 0) + _gameAttemptsCount;
+ final totalAttempts = stats['total_attempts'] ?? 0;
 
-    final totalSeconds =
-        (stats['total_duration_seconds'] ?? 0) + _gameDurationSeconds;
-    final totalMinutes = totalSeconds ~/ 60;
+  final totalSeconds = stats['total_duration_seconds'] ?? 0;
 
-    final totalRemainingSeconds = totalSeconds % 60;
-    final trainingTime =
-        totalMinutes > 0
-            ? '$totalMinutes د و$totalRemainingSeconds ث'
-            : '$totalRemainingSeconds ث';
+  final totalMinutes = totalSeconds ~/ 60;
+  final totalRemainingSeconds = totalSeconds % 60;
 
-
+  final trainingTime = totalMinutes > 0
+      ? '$totalMinutes د و$totalRemainingSeconds ث'
+      : '$totalRemainingSeconds ث';
     return Scaffold(
       backgroundColor: TaleeqTheme.warmBackground,
       appBar: AppBar(
