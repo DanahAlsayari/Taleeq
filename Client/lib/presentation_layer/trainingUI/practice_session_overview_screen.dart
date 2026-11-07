@@ -541,8 +541,6 @@ class _PracticeSessionOverviewScreenState
                       const SizedBox(height: 20),
 
                       _buildProgress(completedCount, exercises.length),
-                      if (allCompleted) _buildAdditionalRecommendations(),
-
                       const SizedBox(height: 24),
 
                       const Text(
@@ -615,7 +613,7 @@ class _PracticeSessionOverviewScreenState
                         ),
                       ],
 
-                      if (!allCompleted) _buildAdditionalRecommendations(),
+                      _buildAdditionalRecommendations(),
                     ],
                   ),
                 ),
