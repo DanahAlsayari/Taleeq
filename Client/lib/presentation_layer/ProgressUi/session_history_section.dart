@@ -34,7 +34,10 @@ class _SessionHistorySectionState extends State<SessionHistorySection> {
   Future<void> _open(SessionHistoryItem item) async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) => SessionResultScreen(sessionId: item.sessionId),
+        builder: (_) => SessionResultScreen(
+          sessionId: item.sessionId,
+          fromHistory: true,
+        ),
       ),
     );
 

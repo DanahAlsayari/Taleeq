@@ -15,9 +15,18 @@ import 'session_result_widgets.dart';
 /// While some exercises are still being analyzed the backend answers with
 /// status "pending"; this screen then polls the same endpoint.
 class SessionResultScreen extends StatefulWidget {
-  const SessionResultScreen({super.key, required this.sessionId});
+  const SessionResultScreen({
+    super.key,
+    required this.sessionId,
+    this.fromHistory = false,
+  });
 
   final int sessionId;
+
+  /// True when opened from the sessions list in the Progress tab: the screen
+  /// then shows a back arrow and "إنهاء" returns to that list instead of
+  /// going home.
+  final bool fromHistory;
 
   @override
   State<SessionResultScreen> createState() => _SessionResultScreenState();
@@ -143,9 +152,29 @@ class _SessionResultScreenState extends State<SessionResultScreen> {
 
     return Column(
       children: [
+        if (widget.fromHistory)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              child: IconButton(
+                tooltip: 'رجوع',
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: ResultColors.text,
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 32, 20, 12),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              widget.fromHistory ? 8 : 32,
+              20,
+              12,
+            ),
             child: Column(
               children: [
                 const ResultCheckBadge(),
@@ -228,13 +257,19 @@ class _SessionResultScreenState extends State<SessionResultScreen> {
               ),
               ResultTextButton(
                 label: 'إنهاء',
-                onPressed: () =>
-                    Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (_) => const MainNavigationScreen(),
-                  ),
-                  (route) => false,
-                ),
+                onPressed: () {
+                  if (widget.fromHistory) {
+                    Navigator.of(context).pop();
+                    return;
+                  }
+
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const MainNavigationScreen(),
+                    ),
+                    (route) => false,
+                  );
+                },
               ),
             ],
           ),
