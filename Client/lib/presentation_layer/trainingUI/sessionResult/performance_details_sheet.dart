@@ -319,7 +319,7 @@ class _PerformanceDetailsSheetState extends State<PerformanceDetailsSheet> {
   }
 
   static const String _techniqueHelp =
-      'يوضح هل طبّقت التكنيك المطلوب في كل تمرين، ووين كان التطبيق جيد ووين يحتاج تحسين.';
+      'يوضح هل طبّقت التقنية المطلوبة في كل تمرين، ووين كان التطبيق جيد ووين يحتاج تحسين.';
 
   Widget _card({
     required IconData icon,
@@ -372,11 +372,11 @@ class _PerformanceDetailsSheetState extends State<PerformanceDetailsSheet> {
 
     return _card(
       icon: Icons.psychology_alt_rounded,
-      title: 'تطبيق التكنيك',
+      title: 'تطبيق التقنية',
       help: _techniqueHelp,
       children: [
         Text(
-          'طُبّق التكنيك بشكل جيد في $applied من ${exercises.length} تمارين. '
+          'طُبّقت التقنية بشكل جيد في $applied من ${exercises.length} تمارين. '
           'اختر تمرين من فوق لتشوف وين غلطت.',
           style: const TextStyle(
             fontFamily: 'Tajawal',
@@ -428,11 +428,11 @@ class _PerformanceDetailsSheetState extends State<PerformanceDetailsSheet> {
     if (technique == null) {
       return _card(
         icon: Icons.psychology_alt_rounded,
-        title: 'تطبيق التكنيك',
+        title: 'تطبيق التقنية',
         help: _techniqueHelp,
         children: const [
           Text(
-            'هذا التمرين بدون تكنيك محدد.',
+            'هذا التمرين بدون تقنية محددة.',
             style: TextStyle(
               fontFamily: 'Tajawal',
               fontSize: 13,
@@ -445,14 +445,14 @@ class _PerformanceDetailsSheetState extends State<PerformanceDetailsSheet> {
 
     return _card(
       icon: Icons.psychology_alt_rounded,
-      title: 'تطبيق التكنيك',
+      title: 'تطبيق التقنية',
       help: _techniqueHelp,
       children: [
         Row(
           children: [
             Expanded(
               child: Text(
-                technique.nameAr ?? 'التكنيك',
+                technique.nameAr ?? 'التقنية',
                 style: const TextStyle(
                   fontFamily: 'Tajawal',
                   fontSize: 16,
