@@ -11,24 +11,19 @@ from data_and_integration_layer.database.models.practice_session import (
 )
 from application_layer.training_management.exercise_selection_service import (
     preview_personalized_session,
-    get_schedule_for_date,
-    build_exercise_preview,
-)
+    get_schedule_for_date,)
 from data_and_integration_layer.database.models.technique import Technique
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, selectinload
-from data_and_integration_layer.database.models.assessment import (
-    AssessmentTask,
-    TaskAnalysisResult,
-)
-from data_and_integration_layer.database.models.exercise_attempt import (
-    ExerciseAttempt,
-)
 from application_layer.training_management.session_result_service import (
     ensure_session_result,
 )
 from application_layer.training_management.technique_recommendation_service import (
     TechniqueRecommendationService,
+)
+from data_and_integration_layer.database.models.weekly_plan import (
+    PlannedPracticeSession,
+    WeeklyPlan,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,35 +78,11 @@ def get_or_create_today_session(
         if user is None:
             raise ValueError("User not found.")
 
-        # Resume an unfinished session, including one from a previous day.
-        existing = (
-            db.query(PracticeSession)
-            .filter(
-                PracticeSession.user_id == user_id,
-                PracticeSession.status.in_(["ready", "in_progress"]),
-            )
-            .order_by(PracticeSession.sequence_number.desc())
-            .first()
-        )
+        # Apply the same priority used by the homepage.
+        homepage = get_today_session_state(db=db, user_id=user_id)
 
-        # Reopening today's main session must not generate another one.
-        if existing is None and not additional_session:
-            existing = (
-                db.query(PracticeSession)
-                .filter(
-                    PracticeSession.user_id == user_id,
-                    PracticeSession.practice_date == today,
-                    PracticeSession.additional_session.is_(False),
-                    PracticeSession.status == "completed",
-                )
-                .order_by(PracticeSession.sequence_number.desc())
-                .first()
-            )
-
-        if existing is not None:
-            refresh_unstarted_session(db, existing)
-
-            response = serialize_session(existing)
+        if homepage["session"] is not None:
+            response = homepage["session"]
             db.commit()
             return response
 
@@ -122,7 +93,13 @@ def get_or_create_today_session(
         )
 
         sequence_number = (last_sequence or 0) + 1
-
+        # The saved schedule determines whether this is optional practice.
+        schedule = get_schedule_for_date(
+            db=db,
+            user_id=user_id,
+            practice_date=today,
+        )
+        additional_session = schedule["duration_minutes"] is None
         preview = preview_personalized_session(
             db=db,
             user_id=user_id,
@@ -260,8 +237,6 @@ def start_or_resume_session(
 
         if session.status == "cancelled":
             raise PracticeSessionConflictError("This session has been cancelled.")
-
-        refresh_unstarted_session(db, session)
 
         if session_exercise_id is None:
             next_item = next(
@@ -474,6 +449,31 @@ def mark_session_exercise_completed(
         session.status = "completed"
         session.completed_at = now
 
+        if session.planned_practice_session_id is not None:
+            planned_session = (
+                db.query(PlannedPracticeSession)
+                .join(
+                    WeeklyPlan,
+                    PlannedPracticeSession.plan_id == WeeklyPlan.id,
+                )
+                .filter(
+                    PlannedPracticeSession.id
+                    == session.planned_practice_session_id,
+                    WeeklyPlan.user_id == session.user_id,
+                    PlannedPracticeSession.practice_date
+                    == session.practice_date,
+                )
+                .one_or_none()
+            )
+
+            if planned_session is None:
+                raise PracticeSessionConflictError(
+                    "The linked planned practice session is unavailable."
+                )
+
+            planned_session.is_completed = True
+            planned_session.completed_at = now
+
     db.flush()
 
     if next_item is None:
@@ -505,188 +505,111 @@ def get_today_session_state(
     db: Session,
     user_id: int,
 ) -> dict:
-    """Read homepage state without creating or changing records."""
+    """Choose today's homepage session without creating records."""
 
-    today = datetime.now(timezone(timedelta(hours=3))).date()
+    riyadh = timezone(timedelta(hours=3))
+    today = datetime.now(riyadh).date()
+    day_start = datetime(
+        today.year, today.month, today.day, tzinfo=riyadh
+    )
+    day_end = day_start + timedelta(days=1)
 
-    # Unfinished sessions take priority, including previous-day sessions.
-    session = (
+    schedule = get_schedule_for_date(
+        db=db,
+        user_id=user_id,
+        practice_date=today,
+    )
+    scheduled_today = schedule["duration_minutes"] is not None
+
+    # Today's saved session takes priority over previous sessions.
+    today_session = (
         db.query(PracticeSession)
         .options(selectinload(PracticeSession.exercises))
         .filter(
             PracticeSession.user_id == user_id,
-            PracticeSession.status.in_(["ready", "in_progress"]),
+            PracticeSession.practice_date == today,
+            PracticeSession.status.in_(
+                ["ready", "in_progress", "completed"]
+            ),
         )
         .order_by(PracticeSession.sequence_number.desc())
         .first()
     )
 
-    if session is None:
-        session = (
-            db.query(PracticeSession)
-            .options(selectinload(PracticeSession.exercises))
-            .filter(
-                PracticeSession.user_id == user_id,
-                PracticeSession.practice_date == today,
-                PracticeSession.status == "completed",
-            )
-            .order_by(PracticeSession.sequence_number.desc())
-            .first()
+    # A previous session may have been completed today.
+    completed_today = (
+        db.query(PracticeSession)
+        .options(selectinload(PracticeSession.exercises))
+        .filter(
+            PracticeSession.user_id == user_id,
+            PracticeSession.status == "completed",
+            PracticeSession.completed_at >= day_start,
+            PracticeSession.completed_at < day_end,
         )
+        .order_by(
+            PracticeSession.completed_at.desc(),
+            PracticeSession.id.desc(),
+        )
+        .first()
+    )
 
-    if session is None:
-        return {
-            "today": today.isoformat(),
-            "state": "not_generated",
-            "session": None,
-            "next_session_exercise_id": None,
-            "completed_exercise_count": 0,
-        }
+    # Offer the oldest saved unfinished session first.
+    previous_session = (
+        db.query(PracticeSession)
+        .options(selectinload(PracticeSession.exercises))
+        .filter(
+            PracticeSession.user_id == user_id,
+            PracticeSession.practice_date < today,
+            PracticeSession.status.in_(["ready", "in_progress"]),
+        )
+        .order_by(
+            PracticeSession.practice_date,
+            PracticeSession.sequence_number,
+        )
+        .first()
+    )
 
-    next_item = next(
-        (item for item in session.exercises if item.status != "completed"),
-        None,
+    session = today_session
+
+    if session is None and not scheduled_today:
+        # After completing a previous session today, stop offering
+        # optional practice. Otherwise offer unfinished previous work.
+        session = completed_today or previous_session
+
+    next_item = (
+        next(
+            (
+                item
+                for item in session.exercises
+                if item.status != "completed"
+            ),
+            None,
+        )
+        if session is not None
+        else None
     )
 
     return {
         "today": today.isoformat(),
-        "state": session.status,
-        "session": serialize_session(session),
-        "next_session_exercise_id": (next_item.id if next_item is not None else None),
-        "completed_exercise_count": sum(
-            item.status == "completed" for item in session.exercises
+        "scheduled_today": scheduled_today,
+        "state": session.status if session is not None else "not_generated",
+        "session": serialize_session(session) if session is not None else None,
+        "previous_session": (
+            serialize_session(previous_session)
+            if previous_session is not None
+            else None
+        ),
+        "completed_today": (
+            serialize_session(completed_today)
+            if completed_today is not None
+            else None
+        ),
+        "next_session_exercise_id": (
+            next_item.id if next_item is not None else None
+        ),
+        "completed_exercise_count": (
+            sum(item.status == "completed" for item in session.exercises)
+            if session is not None
+            else 0
         ),
     }
-
-
-def refresh_unstarted_session(
-    db: Session,
-    session: PracticeSession,
-) -> bool:
-    """Refresh today's ready session inside the caller's transaction.
-
-    The caller must hold the user lock.
-    Returns True when exercise items are replaced.
-    """
-
-    today = datetime.now(timezone(timedelta(hours=3))).date()
-
-    if (
-        session.status != "ready"
-        or session.started_at is not None
-        or session.additional_session
-        or session.practice_date != today
-    ):
-        return False
-
-    # Never replace exercises that already have progress.
-    if any(item.status != "pending" for item in session.exercises):
-        raise PracticeSessionConflictError(
-            "A session with exercise progress cannot be rebuilt."
-        )
-
-    item_ids = [item.id for item in session.exercises]
-
-    if item_ids:
-        attempt_exists = (
-            db.query(ExerciseAttempt.id)
-            .filter(
-                ExerciseAttempt.session_exercise_id.in_(item_ids),
-            )
-            .first()
-        )
-
-        if attempt_exists is not None:
-            raise PracticeSessionConflictError(
-                "A session with saved attempts cannot be rebuilt."
-            )
-
-    schedule = get_schedule_for_date(
-        db=db,
-        user_id=session.user_id,
-        practice_date=session.practice_date,
-    )
-
-    duration = schedule["duration_minutes"]
-    planned_id = schedule["planned_practice_session_id"]
-
-    if duration == session.target_duration_minutes:
-        # The dated weekly plan may have been created since generation.
-        # Update its link without changing exercises or techniques.
-        session.planned_practice_session_id = planned_id
-        return False
-
-    # Keep the original assessment, even if a newer one now exists.
-    rows = (
-        db.query(
-            AssessmentTask.task_type,
-            TaskAnalysisResult.stuttering_percent,
-        )
-        .join(
-            TaskAnalysisResult,
-            TaskAnalysisResult.task_id == AssessmentTask.id,
-        )
-        .filter(
-            AssessmentTask.assessment_id == session.assessment_id,
-        )
-        .all()
-    )
-
-    if not rows:
-        raise PracticeSessionConflictError(
-            "The session's original assessment results are unavailable."
-        )
-
-    preview = build_exercise_preview(
-        db=db,
-        task_results=[
-            {
-                "task_type": row.task_type,
-                "stuttering_percent": row.stuttering_percent,
-            }
-            for row in rows
-        ],
-        duration_minutes=duration,
-        session_number=session.sequence_number,
-    )
-
-    # Delete old pending items before inserting replacement positions.
-    # Everything remains inside one transaction.
-
-    saved_technique_ids = [
-        item.technique_id
-        for item in sorted(
-            session.exercises,
-            key=lambda item: item.position,
-        )
-    ]
-    if not saved_technique_ids or any(
-            technique_id is None for technique_id in saved_technique_ids
-        ):
-            raise PracticeSessionConflictError(
-                "The session has no valid saved technique assignments."
-            )
-    
-    session.exercises.clear()
-    db.flush()
-
-    session.exercises.extend(
-        [
-            PracticeSessionExercise(
-                exercise_id=UUID(item["exercise_id"]),
-                position=item["position"],
-                selection_role=item["selection_role"],
-                exercise_snapshot=dict(item),
-                target_recording_seconds=item["target_recording_seconds"],
-                status="pending",
-                technique_id=saved_technique_ids[index % len(saved_technique_ids)],
-            )
-            for index, item in enumerate(preview["exercises"])
-        ]
-    )
-
-    session.target_duration_minutes = duration
-    session.planned_practice_session_id = planned_id
-
-    db.flush()
-    return True

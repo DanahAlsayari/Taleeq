@@ -11,9 +11,11 @@ class PracticeSessionOverviewScreen extends StatefulWidget {
   const PracticeSessionOverviewScreen({
     super.key,
     this.additionalSession = false,
+    this.sessionId,
   });
 
   final bool additionalSession;
+  final int? sessionId;
 
   @override
   State<PracticeSessionOverviewScreen> createState() =>
@@ -38,6 +40,12 @@ class _PracticeSessionOverviewScreenState
   }
 
   Future<Map<String, dynamic>> _prepareSession() {
+    final sessionId = widget.sessionId;
+
+    if (sessionId != null) {
+      return _service.getSession(sessionId);
+    }
+
     return _service.prepareToday(additionalSession: widget.additionalSession);
   }
 
@@ -359,7 +367,7 @@ class _PracticeSessionOverviewScreenState
         const Text(
           'يمكنك استكشاف الألعاب التدريبية وسيناريوهات '
           'الحياة الواقعية للتدرب بشكل إضافي خارج جلستك المخصصة.',
-          style: const TextStyle(color: Color(0xFF526B68), height: 1.6),
+          style: TextStyle(color: Color(0xFF526B68), height: 1.6),
         ),
         const SizedBox(height: 14),
         SizedBox(

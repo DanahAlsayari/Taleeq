@@ -146,12 +146,20 @@ class PracticeSessionService {
       () => http.post(
         Uri.parse('${ApiConfig.baseUrl}/practice-sessions/$sessionId/start'),
         headers: headers,
-        body: jsonEncode({
-          if (sessionExerciseId != null)
-            'session_exercise_id': sessionExerciseId,
-        }),
+        body: jsonEncode({'session_exercise_id': sessionExerciseId}),
       ),
     );
   }
 
+  Future<Map<String, dynamic>> getTodayState() async {
+    final headers = await _headers();
+
+    return _send(
+      () => http.get(
+        Uri.parse('${ApiConfig.baseUrl}/practice-sessions/today'),
+        headers: headers,
+      ),
+      expectSession: false,
+    );
+  }
 }

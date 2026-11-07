@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
 
+import '../../services/practice_session_service.dart';
 import '../../services/assessment_api_service.dart';
 import '../../services/profile_service.dart';
 import '../widgets/assesmentWidgets/pre_assessment_intro_screen.dart';
@@ -37,6 +38,39 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _isLoadingAssessmentStatus = true;
   bool _isUpdatingCompletion = false;
   String? _assessmentStatusError;
+  String _plannedCompletionLabel(Map<String, dynamic> session) {
+    if (session['is_completed'] != true) return 'مخططة';
+
+    final rawCompletedAt = session['completed_at'] as String?;
+    if (rawCompletedAt == null) return 'مكتملة';
+
+    final parsed = DateTime.tryParse(rawCompletedAt);
+    if (parsed == null) return 'مكتملة';
+
+    // Backend completion timestamps are UTC; compare Riyadh dates.
+    final utc = parsed.isUtc
+        ? parsed
+        : DateTime.utc(
+            parsed.year,
+            parsed.month,
+            parsed.day,
+            parsed.hour,
+            parsed.minute,
+            parsed.second,
+          );
+
+    final completedInRiyadh = utc.add(const Duration(hours: 3));
+    final completedDate = DateTime.utc(
+      completedInRiyadh.year,
+      completedInRiyadh.month,
+      completedInRiyadh.day,
+    );
+
+    final plannedDate = _parsePracticeDate(session['practice_date'] as String);
+
+    return completedDate.isAfter(plannedDate) ? 'مكتملة لاحقًا' : 'مكتملة';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +133,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _loadAssessmentStatus() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingAssessmentStatus = true;
       _assessmentStatusError = null;
@@ -120,6 +156,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         _nextStep = nextStep as String;
         _isLoadingAssessmentStatus = false;
       });
+
+      if (nextStep == 'completed') {
+        await _loadPracticeSessionState();
+      }
     } catch (_) {
       if (!mounted) return;
 
@@ -190,6 +230,136 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Widget _buildPracticeSessionCard() {
+    final state = _practiceSessionState?['state'];
+    final finished = state == 'completed';
+    final unfinished = state == 'ready' || state == 'in_progress';
+
+    final session = _practiceSessionState?['session'] as Map<String, dynamic>?;
+    final previousSession =
+        _practiceSessionState?['previous_session'] as Map<String, dynamic>?;
+
+    final todayKey = _riyadhToday().toIso8601String().substring(0, 10);
+    final scheduledToday = _practiceSessionState?['scheduled_today'] == true;
+
+    final isPrevious = session != null && session['practice_date'] != todayKey;
+
+    final sessionDate = session == null
+        ? ''
+        : _arabicDate(_parsePracticeDate(session['practice_date'] as String));
+
+    final loading = _isLoadingPracticeSession || _isLoadingWeeklyPlan;
+    final error = _practiceSessionError ?? _weeklyPlanError;
+
+    final description = finished
+        ? isPrevious
+              ? 'أحسنت! أكملت اليوم جلسة سابقة بتاريخ $sessionDate.'
+              : 'أحسنت! أكملت جلسة اليوم.'
+        : unfinished
+        ? isPrevious
+              ? 'لديك جلسة غير مكتملة بتاريخ $sessionDate. يمكنك متابعة التمارين المتبقية.'
+              : 'جلستك محفوظة. يمكنك متابعة التمارين المتبقية.'
+        : scheduledToday
+        ? 'لديك جلسة مخططة اليوم. اطّلع على تمارينك وابدأ عندما تكون مستعدًا.'
+        : 'لا توجد جلسة ضمن خطتك اليوم. يمكنك بدء جلسة اختيارية إذا رغبت.';
+
+    final buttonLabel = finished
+        ? 'عرض الجلسة المكتملة'
+        : unfinished && isPrevious
+        ? 'متابعة جلسة سابقة'
+        : state == 'in_progress'
+        ? 'متابعة الجلسة'
+        : state == 'ready' || scheduledToday
+        ? 'عرض الجلسة'
+        : 'ابدأ جلسة اختيارية';
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF398681), Color(0xFF5B9D98)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'جلستك التدريبية',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (loading)
+            const Center(child: CircularProgressIndicator(color: Colors.white))
+          else if (error != null) ...[
+            Text(error, style: const TextStyle(color: Colors.white)),
+            TextButton(
+              onPressed: () {
+                _loadPracticeSessionState();
+                _loadWeeklyPlan();
+              },
+              child: const Text(
+                'إعادة المحاولة',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ] else ...[
+            Text(
+              description,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => _openPracticeSession(
+                sessionId: session?['session_id'] as int?,
+                additionalSession: !scheduledToday,
+              ),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: const Color(0xFF1F5F5A),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                buttonLabel,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (finished && scheduledToday && previousSession != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'لديك أيضًا جلسة غير مكتملة بتاريخ '
+                '${_arabicDate(_parsePracticeDate(previousSession['practice_date'] as String))}.',
+                style: const TextStyle(color: Colors.white, height: 1.6),
+              ),
+              TextButton(
+                onPressed: () => _openPracticeSession(
+                  sessionId: previousSession['session_id'] as int,
+                ),
+                child: const Text(
+                  'متابعة جلسة سابقة',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _syncTrainingReminders() async {
     // Capture the notification generation before fetching plans.
     final generation = _notificationScheduler.generation;
@@ -226,6 +396,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (error) {
       // Notification synchronization must not affect the weekly plan UI.
       debugPrint('Training reminder sync failed: $error');
+    }
+  }
+
+  final _practiceSessionService = PracticeSessionService();
+  Map<String, dynamic>? _practiceSessionState;
+  bool _isLoadingPracticeSession = true;
+  String? _practiceSessionError;
+
+  Future<void> _loadPracticeSessionState() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingPracticeSession = true;
+      _practiceSessionError = null;
+    });
+
+    try {
+      final state = await _practiceSessionService.getTodayState();
+
+      if (!mounted) return;
+
+      setState(() {
+        _practiceSessionState = state;
+        _isLoadingPracticeSession = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _practiceSessionError = 'تعذر تحميل حالة الجلسة';
+        _isLoadingPracticeSession = false;
+      });
     }
   }
 
@@ -995,7 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       _weeklyPlan == null
                           ? 'لا توجد جلسات مجدولة لهذا اليوم.'
                           : sessions.isEmpty
-                          ? 'لم تخطط للممارسة هذا الأسبوع. يمكنك تعديل خطتك في أي وقت.'
+                          ? 'لم تخطط للممارسة هذا الأسبوع. يمكنك التخطيط للأسبوع القادم.'
                           : 'لا توجد جلسة مخططة لهذا اليوم',
                       style: const TextStyle(color: mutedText, height: 1.6),
                     )
@@ -1031,7 +1233,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               Text(
                                 '${selectedSession['duration_minutes']} دقيقة'
                                 ' • '
-                                '${selectedSession['is_completed'] == true ? 'مكتملة' : 'مخططة'}',
+                                '${_plannedCompletionLabel(selectedSession)}',
                                 style: const TextStyle(
                                   color: mutedText,
                                   fontSize: 13,
@@ -1049,16 +1251,29 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _openPracticeSession() async {
+  Future<void> _openPracticeSession({
+    bool additionalSession = false,
+    int? sessionId,
+  }) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const PracticeSessionOverviewScreen(),
+        builder: (_) => PracticeSessionOverviewScreen(
+          additionalSession: additionalSession,
+          sessionId: sessionId,
+        ),
       ),
     );
+
+    if (!mounted) return;
+
+    await Future.wait([_loadPracticeSessionState(), _loadWeeklyPlan()]);
   }
 
   Widget _buildAssessmentCard() {
     final completed = _nextStep == 'completed';
+    if (completed) {
+      return _buildPracticeSessionCard();
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
