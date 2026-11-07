@@ -1709,7 +1709,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 24),
 
-              _sectionTitle('التذكيرات'),
+             /* _sectionTitle('التذكيرات'),
 
               const SizedBox(height: 10),
 
@@ -1718,7 +1718,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 time: _reminderTime,
                 onChanged: _changeReminderStatus,
                 onChangeTime: _changeReminderTime,
-              ),
+              ),*/
 
               const SizedBox(height: 28),
 
