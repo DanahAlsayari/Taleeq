@@ -176,3 +176,18 @@ class ScenarioService:
         logger.info("Scenario completed: attempt_id=%s", attempt_id)
 
         return completed_attempt
+
+    
+    # =========================
+    # Get All User Attempts
+    # =========================
+
+    def get_user_scenario_attempts(self, user_id: int):
+        logger.info(
+            "Fetching all scenario attempts for user_id=%s",
+            user_id,
+        )
+
+        return self.repository.get_attempts_by_user(
+            user_id=user_id,
+        )

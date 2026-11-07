@@ -238,3 +238,17 @@ class ScenarioRepository:
         except Exception:
             self.db.rollback()
             raise
+
+
+
+    # =========================
+    # Scenario attempts by user
+    # =========================
+
+    def get_attempts_by_user(self, user_id: int):
+        return (
+            self.db.query(ScenarioAttempt)
+            .filter(ScenarioAttempt.user_id == user_id)
+            .order_by(ScenarioAttempt.started_at.desc())
+            .all()
+        )

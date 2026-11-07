@@ -1,7 +1,8 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.orm import relationship
 
 from ..connection import Base
+
 
 
 class User(Base):
@@ -20,6 +21,10 @@ class User(Base):
     age = Column(Integer, nullable=False)
     gender = Column(String(20), nullable=False)
     profile_picture_path = Column(String(255), nullable=True)
+    training_goals_changed_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     assessments = relationship(
         "Assessment", back_populates="user", cascade="all, delete-orphan"

@@ -39,6 +39,21 @@ def get_active_scenarios(
 
     return service.get_active_scenarios()
 
+# =========================
+# Get all User Attempt
+# =========================
+@router.get("/attempts")
+def get_user_scenario_attempts(
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    service = ScenarioService(db)
+
+    return service.get_user_scenario_attempts(
+        user_id=current_user.id,
+    )
+
+
 
 # =========================
 # Get Scenario Details
@@ -66,6 +81,7 @@ def get_scenario_details(
         )
 
     return result
+
 
 
 # =========================
@@ -132,3 +148,6 @@ def get_user_attempt(
         )
 
     return attempt
+
+
+

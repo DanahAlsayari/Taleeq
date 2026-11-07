@@ -7,6 +7,7 @@ class ScenarioAttemptModel {
   final DateTime? startedAt;
   final DateTime? endedAt;
   final int? durationSeconds;
+  final Map<String, dynamic>? analysisResult;
   final String? endReason;
 
   ScenarioAttemptModel({
@@ -18,6 +19,7 @@ class ScenarioAttemptModel {
     this.startedAt,
     this.endedAt,
     this.durationSeconds,
+    this.analysisResult,
     this.endReason,
   });
 
@@ -35,6 +37,9 @@ class ScenarioAttemptModel {
           ? DateTime.tryParse(json['ended_at'])
           : null,
       durationSeconds: (json['duration_seconds'] as num?)?.toInt(),
+      analysisResult: json['analysis_result'] is Map
+          ? Map<String, dynamic>.from(json['analysis_result'])
+          : null,
       endReason: json['end_reason'],
     );
   }

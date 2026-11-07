@@ -20,7 +20,6 @@ from data_and_integration_layer.database.models.practice_session import (
 )
 from data_and_integration_layer.database.models.user import User
 
-
 router = APIRouter(
     prefix="/practice-sessions",
     tags=["Practice Sessions"],
@@ -29,7 +28,8 @@ router = APIRouter(
 
 class PrepareSessionRequest(BaseModel):
     additional_session: bool = Field(default=False, strict=True)
-
+class StartSessionRequest(BaseModel):
+    session_exercise_id: int | None = Field(default=None, gt=0)
 
 @router.post("/today")
 def prepare_today_session(
@@ -49,6 +49,7 @@ def prepare_today_session(
             detail=str(error),
         ) from error
 
+
 @router.get("/today")
 def read_today_session_state(
     current_user: User = Depends(get_current_user),
@@ -58,6 +59,7 @@ def read_today_session_state(
         db=db,
         user_id=current_user.id,
     )
+
 
 @router.get("/{session_id}")
 def read_session(
@@ -83,9 +85,11 @@ def read_session(
 
     return serialize_session(session)
 
+
 @router.post("/{session_id}/start")
 def start_session(
     session_id: int,
+    request: StartSessionRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -94,6 +98,7 @@ def start_session(
             db=db,
             user_id=current_user.id,
             session_id=session_id,
+            session_exercise_id=request.session_exercise_id,
         )
     except PracticeSessionNotFoundError as error:
         raise HTTPException(
@@ -105,6 +110,7 @@ def start_session(
             status_code=409,
             detail=str(error),
         ) from error
+
 
 @router.get("/{session_id}/exercises/{session_exercise_id}")
 def read_session_exercise(
@@ -130,3 +136,4 @@ def read_session_exercise(
             status_code=409,
             detail=str(error),
         ) from error
+

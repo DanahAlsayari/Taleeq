@@ -14,6 +14,7 @@ class ExerciseApiService {
     required String exerciseId,
     required String recordingPath,
     int? techniqueId,
+    int? sessionExerciseId,
   }) async {
     final token = await AuthStorage.getToken();
 
@@ -36,6 +37,9 @@ class ExerciseApiService {
     request.headers['Authorization'] = 'Bearer $token';
     if (techniqueId != null) {
       request.fields['technique_id'] = techniqueId.toString();
+    }
+    if (sessionExerciseId != null) {
+      request.fields['session_exercise_id'] = sessionExerciseId.toString();
     }
 
     request.files.add(await http.MultipartFile.fromPath('file', recordingPath));

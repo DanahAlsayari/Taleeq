@@ -55,10 +55,10 @@ class ExerciseAnalysisService:
             )
             .first()
         )
-
         if not exercise:
             raise ValueError("Exercise not found.")
-            assigned_technique_id = None
+
+        assigned_technique_id = None
 
         if session_exercise_id is not None:
             _, session_item = validate_session_submission(
@@ -106,6 +106,7 @@ class ExerciseAnalysisService:
             technique_name=technique.name_ar if technique else None,
             technique_description=technique.description if technique else None,
             technique_steps=technique.steps if technique else None,
+            technique_category=technique.category if technique else None,
         )
 
     

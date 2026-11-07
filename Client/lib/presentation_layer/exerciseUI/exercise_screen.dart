@@ -13,12 +13,19 @@ import 'package:client/presentation_layer/exerciseUI/exercise_result_screen.dart
 import '../../services/exercise_api_service.dart';
 import 'exercise_success_screen.dart';
 import '../widgets/main_navigation_screen.dart';
+import 'personalized_exercise_success_screen.dart';
 
 class ExerciseScreen extends StatefulWidget {
   final TechniqueModel? technique;
   final Map<String, dynamic> exercise;
+  final int? sessionExerciseId;
 
-  const ExerciseScreen({super.key, this.technique, required this.exercise});
+  const ExerciseScreen({
+    super.key,
+    this.technique,
+    required this.exercise,
+    this.sessionExerciseId,
+  });
 
   @override
   State<ExerciseScreen> createState() => _ExerciseScreenState();
@@ -172,21 +179,39 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       if (isPlaying) {
         await recordingService.stopAudio();
       }
-
       final result = await ExerciseApiService().analyzeExerciseAudio(
         exerciseId: widget.exercise['id'].toString(),
         recordingPath: recordingPath!,
         techniqueId: widget.technique?.id,
-    );
-
-    if (!mounted) return;
-      debugPrint('Exercise analysis result: $result');
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              ExerciseSuccessScreen(result: result, exercise: widget.exercise),
-        ),
+        sessionExerciseId: widget.sessionExerciseId,
       );
+
+      if (!mounted) return;
+
+      debugPrint('Exercise analysis result: $result');
+
+      if (widget.sessionExerciseId != null) {
+        final returnedToSession = await Navigator.of(context).push<bool>(
+          MaterialPageRoute(
+            builder: (_) => const PersonalizedExerciseSuccessScreen(),
+          ),
+        );
+
+        if (!mounted) return;
+
+        if (returnedToSession == true) {
+          Navigator.of(context).pop(true);
+        }
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ExerciseSuccessScreen(
+              result: result,
+              exercise: widget.exercise,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
 
@@ -202,9 +227,48 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     }
   }
 
+  Future<void> _exitPersonalizedExercise() async {
+    if (_isSubmitting) return;
+
+    if (isRecording) {
+      ErrorSnackBar.show(context, 'أوقفي التسجيل أولًا قبل الخروج');
+      return;
+    }
+
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('الخروج من التمرين'),
+        content: const Text(
+          'هل أنت متأكد من رغبتك في الخروج من التمرين؟ '
+          'لن يتم حفظ التسجيل الحالي، ويمكنك العودة لإكمال التمرين لاحقًا.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('تأكيد الخروج'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit != true || !mounted) return;
+
+    await recordingService.stopAudio();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pop(false);
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isSubmitting) {
+    if (_isSubmitting && widget.sessionExerciseId == null) {
       return const Scaffold(
         backgroundColor: Color(0xFFFCFAF6),
         body: Center(
@@ -278,6 +342,15 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                             ),
                           ),
                         ),
+                        if (widget.sessionExerciseId != null)
+                          Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: IconButton(
+                              icon: const Icon(Icons.close),
+                              tooltip: 'الخروج من التمرين',
+                              onPressed: _exitPersonalizedExercise,
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -954,8 +1027,8 @@ bottomNavigationBar: Padding(
             height: 58,
             child: ElevatedButton(
               onPressed: _isSubmitting || isRecording || recordingPath == null
-                    ? null
-                    : _submitExercise,
+                  ? null
+                  : _submitExercise,
               style: ElevatedButton.styleFrom(
                 backgroundColor: TrainingColors.primary,
                 foregroundColor: Colors.white,

@@ -106,6 +106,9 @@ Technique techniqueFromModel(TechniqueModel model) => Technique(
 class ExercisePrepScreen extends StatefulWidget {
   final String? exerciseId;
   final ExerciseDetailsLoader? exerciseLoader;
+  final int? recommendedTechniqueId;
+
+  bool get isPersonalizedSession => recommendedTechniqueId != null;
   // Preview only; remove when the exercise API is connected.
   final ExerciseDetails? exercise;
   final List<Technique> techniques;
@@ -117,6 +120,7 @@ class ExercisePrepScreen extends StatefulWidget {
     this.exercise,
     this.techniques = const [],
     required this.onStart,
+    this.recommendedTechniqueId,
   });
   @override
   State<ExercisePrepScreen> createState() => _ExercisePrepScreenState();
@@ -153,7 +157,25 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
     loadExercise();
     if (widget.techniques.isNotEmpty) {
       availableTechniques = widget.techniques;
-      selectedTechnique = widget.techniques.first;
+
+      if (widget.isPersonalizedSession) {
+        withoutTechniqueSelected = false;
+
+        for (final technique in widget.techniques) {
+          if (technique.id == widget.recommendedTechniqueId) {
+            selectedTechnique = technique;
+            break;
+          }
+        }
+
+        if (selectedTechnique == null) {
+          techniqueError = 'التقنية الموصى بها غير متاحة.';
+        } else {
+          loadTechniqueDetails(selectedTechnique!.id);
+        }
+      } else {
+        selectedTechnique = widget.techniques.first;
+      }
     } else {
       loadTechniques();
     }
@@ -171,9 +193,32 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
         widget.techniques.isNotEmpty) {
       setState(() {
         availableTechniques = widget.techniques;
-        selectedTechnique = widget.techniques.first;
         _showTechniqueList = false;
+
+        if (widget.isPersonalizedSession) {
+          withoutTechniqueSelected = false;
+          selectedTechnique = null;
+
+          for (final technique in widget.techniques) {
+            if (technique.id == widget.recommendedTechniqueId) {
+              selectedTechnique = technique;
+              break;
+            }
+          }
+
+          techniqueError = selectedTechnique == null
+              ? 'التقنية الموصى بها غير متاحة.'
+              : null;
+        } else {
+          selectedTechnique = widget.techniques.first;
+          withoutTechniqueSelected = true;
+          techniqueError = null;
+        }
       });
+
+      if (widget.isPersonalizedSession && selectedTechnique != null) {
+        loadTechniqueDetails(selectedTechnique!.id);
+      }
     }
   }
 
@@ -186,12 +231,34 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
       final models = await techniqueService.getAllTechniques();
       if (!mounted) return;
       final fetched = models.map(techniqueFromModel).toList();
+
+      Technique? initialTechnique;
+
+      if (widget.isPersonalizedSession) {
+        for (final technique in fetched) {
+          if (technique.id == widget.recommendedTechniqueId) {
+            initialTechnique = technique;
+            break;
+          }
+        }
+      } else if (fetched.isNotEmpty) {
+        initialTechnique = fetched.first;
+      }
+
       setState(() {
         availableTechniques = fetched;
-        selectedTechnique = fetched.isEmpty ? null : fetched.first;
+        selectedTechnique = initialTechnique;
+        withoutTechniqueSelected = !widget.isPersonalizedSession;
         loadingTechniques = false;
+
+        if (widget.isPersonalizedSession && initialTechnique == null) {
+          techniqueError = 'التقنية الموصى بها غير متاحة.';
+        }
       });
-      if (fetched.isNotEmpty) await loadTechniqueDetails(fetched.first.id);
+
+      if (initialTechnique != null) {
+        await loadTechniqueDetails(initialTechnique.id);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -321,10 +388,12 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
               const SizedBox(height: 24),
               Row(
                 children: [
-                  const Flexible(
+                  Flexible(
                     child: Text(
-                      'اختر تقنية تساعدك أثناء التمرين',
-                      style: TextStyle(
+                      widget.isPersonalizedSession
+                          ? 'التقنية الموصى بها لهذا التمرين'
+                          : 'اختر تقنية تساعدك أثناء التمرين',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: TaleeqColors.text,
@@ -333,7 +402,9 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    tooltip: 'معلومات عن اختيار التقنية',
+                    tooltip: widget.isPersonalizedSession
+                        ? 'معلومات عن التقنية الموصى بها'
+                        : 'معلومات عن اختيار التقنية',
                     constraints: const BoxConstraints(
                       minWidth: 40,
                       minHeight: 40,
@@ -351,8 +422,10 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        title: const Text(
-                          'لماذا أختار تقنية؟',
+                        title: Text(
+                          widget.isPersonalizedSession
+                              ? 'لماذا هذه التقنية موصى بها؟'
+                              : 'لماذا أختار تقنية؟',
                           textAlign: TextAlign.right,
                           style: TextStyle(
                             fontSize: 18,
@@ -360,10 +433,14 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                             color: TaleeqColors.primary,
                           ),
                         ),
-                        content: const Text(
-                          'توجد طرق مختلفة تساعدك على ممارسة الكلام براحة أكبر. '
-                          'يمكنك اختيار أي تقنية والاطلاع على طريقة تطبيقها قبل بدء التمرين. '
-                          'اختيارك للتقنية لا يؤثر على تقييم أدائك.',
+                        content: Text(
+                          widget.isPersonalizedSession
+                              ? 'تم اقتراح هذه التقنية بناءً على أهدافك '
+                                    'لمساعدتك على التدرب بطريقة تناسب احتياجاتك. '
+                                    'يمكنك الاطلاع على تعليمات التقنية قبل بدء التمرين.'
+                              : 'توجد طرق مختلفة تساعدك على ممارسة الكلام براحة أكبر. '
+                                    'يمكنك اختيار أي تقنية والاطلاع على طريقة تطبيقها قبل بدء التمرين. '
+                                    'اختيارك للتقنية لا يؤثر على تقييم أدائك.',
                           textAlign: TextAlign.right,
                           style: TextStyle(
                             fontSize: 14,
@@ -418,7 +495,9 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                       Text(techniqueError!, textAlign: TextAlign.center),
                       TextButton(
                         onPressed:
-                            loadingTechniques || availableTechniques.isEmpty
+                            loadingTechniques ||
+                                availableTechniques.isEmpty ||
+                                selectedTechnique == null
                             ? loadTechniques
                             : () => loadTechniqueDetails(selectedTechnique!.id),
                         child: const Text('إعادة المحاولة'),
@@ -438,7 +517,9 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                       TechniqueSelector(
                         technique: selectedTechnique!,
                         withoutTechnique: withoutTechniqueSelected,
+                        allowChange: !widget.isPersonalizedSession,
                         onTap: () {
+                          if (widget.isPersonalizedSession) return;
                           final opening = !_showTechniqueList;
 
                           setState(() {
@@ -526,8 +607,11 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
                           loadingDetails ||
                           techniqueError != null ||
                           loadedExercise == null ||
-                          (!withoutTechniqueSelected &&
-                              selectedTechnique == null)
+                          (widget.isPersonalizedSession
+                              ? selectedTechnique?.id !=
+                                    widget.recommendedTechniqueId
+                              : (!withoutTechniqueSelected &&
+                                    selectedTechnique == null))
                       ? null
                       : () => widget.onStart(
                           ExerciseStartData(
@@ -715,6 +799,7 @@ class TechniqueSelector extends StatelessWidget {
   final bool embedded;
   final bool expanded;
   final bool withoutTechnique;
+  final bool allowChange;
 
   const TechniqueSelector({
     super.key,
@@ -723,6 +808,7 @@ class TechniqueSelector extends StatelessWidget {
     this.embedded = false,
     this.expanded = false,
     this.withoutTechnique = false,
+    this.allowChange = true,
   });
   @override
   Widget build(BuildContext context) {
@@ -773,36 +859,39 @@ class TechniqueSelector extends StatelessWidget {
               ],
             ),
           ),
-
-          TextButton(
-            onPressed: onTap,
-            style: TextButton.styleFrom(
-              foregroundColor: TaleeqColors.primary,
-              backgroundColor: const Color(0xFFE1F0ED),
-              shape: const StadiumBorder(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              minimumSize: const Size(0, 44),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  expanded ? 'إغلاق' : 'تغيير',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+          if (allowChange)
+            TextButton(
+              onPressed: onTap,
+              style: TextButton.styleFrom(
+                foregroundColor: TaleeqColors.primary,
+                backgroundColor: const Color(0xFFE1F0ED),
+                shape: const StadiumBorder(),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                minimumSize: const Size(0, 44),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    expanded ? 'إغلاق' : 'تغيير',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  expanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  size: 20,
-                ),
-              ],
+                  const SizedBox(width: 6),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
