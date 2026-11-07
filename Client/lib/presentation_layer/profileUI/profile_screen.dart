@@ -46,6 +46,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   bool _isLoading = true;
   String? _errorMessage;
+  bool _isDeletingAccount = false;
 
   @override
   void initState() {
@@ -1400,6 +1401,137 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _deleteAccount() async {
+    if (_isDeletingAccount) return;
+
+    setState(() {
+      _isDeletingAccount = true;
+    });
+
+    // Delete the account from the backend.
+    try {
+      await _profileService.deleteAccount();
+    } catch (e) {
+      debugPrint('DELETE ACCOUNT REQUEST ERROR: $e');
+
+      if (mounted) {
+        setState(() {
+          _isDeletingAccount = false;
+        });
+
+        _showError('تعذر تأكيد حذف الحساب. يرجى التحقق قبل إعادة المحاولة.');
+      }
+      return;
+    }
+
+    // The backend confirmed successful deletion.
+    try {
+      await NotificationScheduler().suspendAndCancelTrainingReminders();
+    } catch (e) {
+      debugPrint('Failed to cancel training reminders: $e');
+    }
+
+    try {
+      await AuthStorage.deleteToken();
+    } catch (e) {
+      debugPrint('Failed to remove authentication token: $e');
+
+      if (mounted) {
+        setState(() {
+          _isDeletingAccount = false;
+        });
+
+        _showError('تم حذف حسابك، لكن تعذر مسح بيانات تسجيل الدخول من الجهاز.');
+      }
+      return;
+    }
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: background,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+          ),
+          title: const Text(
+            'تم حذف حسابك بنجاح',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: darkGreen, fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'تم حذف حسابك وبياناتك نهائيًا.',
+            textAlign: TextAlign.center,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('حسنًا', style: TextStyle(color: darkGreen)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (context) => const WelcomeScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _showDeleteAccountConfirmation() async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            backgroundColor: background,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: const Text(
+              'حذف الحساب',
+              style: TextStyle(color: darkText, fontWeight: FontWeight.bold),
+            ),
+            content: const Text(
+              'هل أنت متأكد من رغبتك في حذف حسابك نهائيًا؟ '
+              'سيتم حذف جميع بياناتك وتقدمك التدريبي، '
+              'ولا يمكن التراجع عن هذه العملية.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text(
+                  'إلغاء',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                ),
+                child: const Text('حذف الحساب'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (shouldDelete != true || !mounted) return;
+
+    await _deleteAccount();
+  }
+
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
@@ -1443,18 +1575,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-if (shouldLogout != true) return;
+    if (shouldLogout != true) return;
 
-// Stop outdated synchronization and cancel scheduled training reminders.
-try {
-  await NotificationScheduler().suspendAndCancelTrainingReminders();
-} catch (error) {
-  // Notification errors must not prevent the user from logging out.
-  debugPrint('Failed to cancel training reminders: $error');
-}
+    // Stop outdated synchronization and cancel scheduled training reminders.
+    try {
+      await NotificationScheduler().suspendAndCancelTrainingReminders();
+    } catch (error) {
+      // Notification errors must not prevent the user from logging out.
+      debugPrint('Failed to cancel training reminders: $error');
+    }
 
-// Continue logging out even if notification cancellation fails.
-await AuthStorage.deleteToken();
+    // Continue logging out even if notification cancellation fails.
+    await AuthStorage.deleteToken();
 
     if (!mounted) return;
 
@@ -1591,6 +1723,30 @@ await AuthStorage.deleteToken();
               const SizedBox(height: 28),
 
               LogoutButton(onPressed: _logout),
+
+              const SizedBox(height: 12),
+
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _isDeletingAccount
+                      ? null
+                      : _showDeleteAccountConfirmation,
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text(
+                    'حذف الحساب',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 25),
 

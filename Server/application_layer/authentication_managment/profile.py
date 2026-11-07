@@ -14,6 +14,9 @@ from data_and_integration_layer.database.models.user import User
 
 from . import schemas
 from . import email_change_service
+from application_layer.authentication_managment.account_deletion_service import (
+    delete_user_account,
+)
 
 router = APIRouter(prefix="/profile", tags=["Profile"])
 
@@ -171,7 +174,6 @@ def update_goal(
                 status_code=400,
                 detail="Goal cannot be empty",
             )
-
 
         if goal.goal != goal_text:
             goal.goal = goal_text
@@ -531,3 +533,28 @@ def verify_profile_email_change(
         current_user,
         db,
     )
+
+
+@router.delete("")
+def delete_account(
+    current_user: User = Depends(auth.get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        profile_picture_path = delete_user_account(db, current_user.id)
+        db.commit()
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to delete account",
+        )
+
+    if profile_picture_path:
+        try:
+            delete_profile_picture_from_storage(profile_picture_path)
+        except Exception as e:
+            print(f"Failed to delete profile picture after account deletion: {e}")
+
+    return {"message": "Account deleted successfully"}

@@ -151,6 +151,17 @@ class ProfileService {
     }
   }
 
+  Future<void> deleteAccount() async {
+    final response = await http.delete(
+      Uri.parse('${ApiConfig.authBaseUrl}/profile'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      _throwRequestError(response);
+    }
+  }
+
   Future<List<dynamic>> getGoals() async {
     final response = await http.get(
       Uri.parse('${ApiConfig.authBaseUrl}/profile/goals'),
