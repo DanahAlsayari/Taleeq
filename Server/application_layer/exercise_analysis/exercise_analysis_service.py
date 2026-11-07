@@ -106,6 +106,7 @@ class ExerciseAnalysisService:
             technique_name=technique.name_ar if technique else None,
             technique_description=technique.description if technique else None,
             technique_steps=technique.steps if technique else None,
+            technique_category=technique.category if technique else None,
         )
 
     

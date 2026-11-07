@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from sqlalchemy import func
@@ -23,10 +24,14 @@ from data_and_integration_layer.database.models.assessment import (
 from data_and_integration_layer.database.models.exercise_attempt import (
     ExerciseAttempt,
 )
+from application_layer.training_management.session_result_service import (
+    ensure_session_result,
+)
 from application_layer.training_management.technique_recommendation_service import (
     TechniqueRecommendationService,
 )
 
+logger = logging.getLogger(__name__)
 
 def serialize_session(session: PracticeSession) -> dict:
     exercises = []
@@ -470,6 +475,19 @@ def mark_session_exercise_completed(
         session.completed_at = now
 
     db.flush()
+
+    if next_item is None:
+        # Build the session result in the same transaction. A SAVEPOINT keeps
+        # a calculation problem from losing the attempt that was just saved;
+        # GET /practice-sessions/{id}/result creates the result lazily.
+        try:
+            with db.begin_nested():
+                ensure_session_result(db, session)
+        except Exception:
+            logger.exception(
+                "Could not create the result for session %s",
+                session.id,
+            )
 
     return {
         "session_id": session.id,

@@ -23,11 +23,15 @@ from api.scenario_realtime import (
     router as scenario_realtime_router,
 )
 from api.practice_sessions import router as practice_sessions_router
+from api.session_results import router as session_results_router
 app = FastAPI(
     title="Taleeq API",
     description="Backend API for Taleeq",
     version="1.0.0",
 )
+# Before practice_sessions_router: "/practice-sessions/history" must match
+# before "/practice-sessions/{session_id}".
+app.include_router(session_results_router)
 app.include_router(practice_sessions_router)
 
 app.add_middleware(
