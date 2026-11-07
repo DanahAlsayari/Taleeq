@@ -14,6 +14,13 @@ from data_and_integration_layer.ai_integration.openai_audio import (
 
 load_dotenv()
 
+# Techniques practiced WITH stuttering (deliberate or real). Taleeq's
+# technique categories: DESENSITIZATION, STUTTERING_MODIFICATION.
+STUTTERING_PRACTICE_CATEGORIES = {
+    "DESENSITIZATION",
+    "STUTTERING_MODIFICATION",
+}
+
 
 
 
@@ -71,6 +78,49 @@ class OpenAIExerciseAnalyzer:
         return OpenAIAudioAnalyzer._parse_json_response(content)
 
 
+    @staticmethod
+    def _normalize_technique_feedback(
+        result_data: dict,
+        has_technique: bool,
+    ) -> None:
+        """Keep feedback["technique"] only when it is valid."""
+
+        feedback = result_data.get("feedback")
+
+        if not isinstance(feedback, dict):
+            return
+
+        technique = feedback.get("technique")
+
+        if (
+            not has_technique
+            or not isinstance(technique, dict)
+            or technique.get("status")
+            not in {"applied", "partial", "not_applied"}
+        ):
+            feedback.pop("technique", None)
+            return
+
+        def clean(items) -> list[str]:
+            if not isinstance(items, list):
+                return []
+
+            return [
+                item.strip()
+                for item in items
+                if isinstance(item, str) and item.strip()
+            ][:3]
+
+        tip = technique.get("tip")
+
+        feedback["technique"] = {
+            "status": technique["status"],
+            "applied_where": clean(technique.get("applied_where")),
+            "improve_where": clean(technique.get("improve_where")),
+            "tip": tip.strip() if isinstance(tip, str) else "",
+        }
+
+
 
     def analyze_audio(
             self,
@@ -83,6 +133,7 @@ class OpenAIExerciseAnalyzer:
             technique_name: str | None = None,
             technique_description: str | None = None,
             technique_steps: list | dict | None = None,
+            technique_category: str | None = None,
         ) -> ExerciseAnalysisResult:
             self.audio_validator._validate_audio(audio_bytes)
 
@@ -116,6 +167,74 @@ class OpenAIExerciseAnalyzer:
 
             Keep all existing metrics and scoring rules unchanged.
             """
+
+            practices_stuttering = (
+                technique_category in STUTTERING_PRACTICE_CATEGORIES
+            )
+
+            if practices_stuttering:
+                technique_prompt += f"""
+
+            STUTTERING-RELATED TECHNIQUE:
+            The selected technique ({technique_name}) is practiced WITH
+            stuttering: the speaker is expected to stutter, either
+            deliberately or in the moments where the technique is applied.
+            This overrides the instruction above to keep the existing
+            metrics rules unchanged, only for stuttering that belongs to
+            practicing this technique.
+
+            - Do not lower fluency_score, rhythm_score, speed_control_score
+              or task_adherence_score because of stuttering, pauses,
+              repetitions, prolongations, or tension that belong to
+              practicing this technique.
+            - Exclude stuttering that is part of practicing this technique
+              from stuttering_percent, repetition_percent,
+              prolongation_percent, block_percent, and speech_events.
+              Measure these only on the rest of the speech, so the speaker
+              is not penalized for doing the exercise.
+            - Evaluate how the speaker handled these moments according to
+              the technique steps (for example paused, reduced tension, or
+              completed the word with less effort).
+            - Do not raise any score above what the evidence supports for
+              the rest of the speech.
+            """
+
+            technique_output_prompt = ""
+
+            if technique_name is not None:
+                technique_output_prompt = """
+TECHNIQUE FEEDBACK:
+Because a technique was selected, add one more key named "technique"
+inside the "feedback" object. This is the only addition to the OUTPUT
+structure above. It must have exactly:
+"technique": {
+  "status": "applied",
+  "applied_where": [],
+  "improve_where": [],
+  "tip": ""
+}
+
+- status must be one of: "applied", "partial", "not_applied".
+  Judge only from audible evidence, comparing the speech with the
+  technique's steps. Use "partial" when the technique was applied
+  in some parts only, or when the evidence is insufficient.
+- applied_where: up to 3 short Arabic items naming concrete moments
+  where the technique was applied (for example a sentence or a word).
+- improve_where: up to 3 short Arabic items naming concrete moments
+  where the technique was missed or could be better. Use an empty
+  array if there are none.
+- tip: one short, practical Arabic sentence for the next attempt.
+- Do not invent moments that were not audible.
+- Do not change any metric, score, or other feedback because of this.
+"""
+
+                if practices_stuttering:
+                    technique_output_prompt += """
+For this technique, status describes how well the speaker handled the
+stuttering moments according to the technique steps, not how much
+stuttering occurred. applied_where and improve_where must also describe
+the handling of those moments.
+"""
 
             prompt = f"""
 You are Taleeq's audio-based speech fluency analyzer.
@@ -317,7 +436,7 @@ Confidence must be between 0.0 and 1.0.
 
 Always include all required keys. Use valid JSON only, without
 Markdown or additional explanation.
-"""
+{technique_output_prompt}"""
 
             encoded_audio = base64.b64encode(
                 audio_bytes
@@ -367,6 +486,11 @@ Markdown or additional explanation.
                     result_data.get("validation_reason")
                     or "لم نتمكن من تحليل التسجيل الصوتي."
                 )
+
+            self._normalize_technique_feedback(
+                result_data,
+                has_technique=technique_name is not None,
+            )
 
             raw_response = result_data.copy()
 

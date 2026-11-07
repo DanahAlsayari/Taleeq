@@ -51,6 +51,7 @@ from data_and_integration_layer.database.models.practice_session import (
 from data_and_integration_layer.database.models.scenario_user_progress import (
     ScenarioUserProgress,
 )
+from data_and_integration_layer.database.models.session_result import SessionResult
 
 target_metadata = Base.metadata
 UNMANAGED_TABLES = {
