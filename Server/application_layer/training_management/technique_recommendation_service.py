@@ -10,7 +10,7 @@ from data_and_integration_layer.database.Repositories.training_goal_repository i
 from data_and_integration_layer.ai_integration.goal_classifier import (
     GoalClassifier,
 )
-
+from data_and_integration_layer.database.Repositories.practice_session_repository import PracticeSessionRepository
 GOAL_TECHNIQUE_MAPPING = {
     "GENERAL_FLUENCY": [
         "Easy Onset",
@@ -46,6 +46,7 @@ class TechniqueRecommendationService:
         self.technique_repository = TechniqueRepository(db)
         self.goal_repository = TrainingGoalRepository(db)
         self.goal_classifier = GoalClassifier()
+        self.practice_session_repository = PracticeSessionRepository(db)
 
     # Retrieve the patient's active training goals and available techniques.
     def get_recommendation_inputs(self, user_id: int):
@@ -59,6 +60,7 @@ class TechniqueRecommendationService:
 
         for goal in active_goals:
             result = self.goal_classifier.classify_goal(goal.goal)
+            print("GOAL:", goal.goal, "CATEGORIES:", result.categories)
             categories.extend(result.categories)
 
         return categories
@@ -108,6 +110,8 @@ class TechniqueRecommendationService:
         goal_matched = [
             technique for technique in techniques if scores.get(technique.id, 0) > 0
         ]
+        print("TECHNIQUE SCORES:", scores)
+        print("COMPLETED SESSION COUNTS:", completed_session_counts)
         return sorted(
             goal_matched,
             key=lambda technique: (
@@ -242,3 +246,54 @@ class TechniqueRecommendationService:
             raise ValueError("Unable to assign a technique to every exercise.")
 
         return selected
+
+   
+    def get_initial_practice_completion_time(
+        self,
+        scores,
+        completed_exercises,
+    ):
+        matched_ids = {
+            technique_id
+            for technique_id, score in scores.items()
+            if score > 0
+        }
+
+        if not matched_ids:
+            return None
+
+        sessions_by_technique = {
+            technique_id: set()
+            for technique_id in matched_ids
+        }
+
+        for exercise in completed_exercises:
+            if exercise.technique_id in matched_ids:
+                sessions_by_technique[exercise.technique_id].add(
+                    exercise.session_id
+                )
+
+                if all(
+                    len(session_ids) >= 2
+                    for session_ids in sessions_by_technique.values()
+                ):
+                    return exercise.session_id
+
+        return None
+    def count_sessions_after_initial_practice(
+        self,
+        user_id: int,
+        completion_session_id: int | None,
+    ) -> int:
+        if completion_session_id is None:
+            return 0
+
+        completed_sessions = (
+            self.practice_session_repository.get_completed_sessions(user_id)
+        )
+
+        return sum(
+            1
+            for session in completed_sessions
+            if session.id > completion_session_id
+        )

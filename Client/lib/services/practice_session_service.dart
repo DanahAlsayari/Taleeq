@@ -54,9 +54,27 @@ class PracticeSessionService {
     );
   }
 
-  Future<Map<String, dynamic>> _send(
-    Future<http.Response> Function() request,
+  Future<Map<String, dynamic>> getSessionExercise(
+    int sessionId,
+    int sessionExerciseId,
   ) async {
+    final headers = await _headers();
+
+    return _send(
+      () => http.get(
+        Uri.parse(
+          '${ApiConfig.baseUrl}/practice-sessions/$sessionId/exercises/$sessionExerciseId',
+        ),
+        headers: headers,
+      ),
+      expectSession: false,
+    );
+  }
+
+  Future<Map<String, dynamic>> _send(
+    Future<http.Response> Function() request, {
+    bool expectSession = true,
+  }) async {
     final http.Response response;
 
     try {
@@ -90,9 +108,12 @@ class PracticeSessionService {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (data == null ||
-          data['session_id'] is! int ||
-          data['exercises'] is! List) {
+      if (data == null) {
+        throw const PracticeSessionException('تعذر قراءة بيانات الاستجابة.');
+      }
+
+      if (expectSession &&
+          (data['session_id'] is! int || data['exercises'] is! List)) {
         throw const PracticeSessionException('تعذر قراءة بيانات الجلسة.');
       }
 
@@ -114,4 +135,23 @@ class PracticeSessionService {
 
     throw PracticeSessionException(message);
   }
+
+  Future<Map<String, dynamic>> startSession(
+    int sessionId, {
+    int? sessionExerciseId,
+  }) async {
+    final headers = await _headers();
+
+    return _send(
+      () => http.post(
+        Uri.parse('${ApiConfig.baseUrl}/practice-sessions/$sessionId/start'),
+        headers: headers,
+        body: jsonEncode({
+          if (sessionExerciseId != null)
+            'session_exercise_id': sessionExerciseId,
+        }),
+      ),
+    );
+  }
+
 }

@@ -14,7 +14,7 @@ from application_layer.training_management.exercise_selection_service import (
     build_exercise_preview,
 )
 from data_and_integration_layer.database.models.technique import Technique
-from datetime import datetime, timedelta,timezone
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session, selectinload
 from data_and_integration_layer.database.models.assessment import (
     AssessmentTask,
@@ -23,6 +23,10 @@ from data_and_integration_layer.database.models.assessment import (
 from data_and_integration_layer.database.models.exercise_attempt import (
     ExerciseAttempt,
 )
+from application_layer.training_management.technique_recommendation_service import (
+    TechniqueRecommendationService,
+)
+
 
 def serialize_session(session: PracticeSession) -> dict:
     exercises = []
@@ -36,9 +40,7 @@ def serialize_session(session: PracticeSession) -> dict:
                 "position": item.position,
                 "technique_id": item.technique_id,
                 "status": item.status,
-                "target_recording_seconds": (
-                    item.target_recording_seconds
-                ),
+                "target_recording_seconds": (item.target_recording_seconds),
             }
         )
 
@@ -52,8 +54,7 @@ def serialize_session(session: PracticeSession) -> dict:
         "status": session.status,
         "exercise_count": len(exercises),
         "total_target_recording_seconds": sum(
-            item["target_recording_seconds"]
-            for item in exercises
+            item["target_recording_seconds"] for item in exercises
         ),
         "exercises": exercises,
     }
@@ -68,18 +69,11 @@ def get_or_create_today_session(
 
     from datetime import datetime, timedelta, timezone
 
-    today = datetime.now(
-        timezone(timedelta(hours=3))
-    ).date()
+    today = datetime.now(timezone(timedelta(hours=3))).date()
 
     try:
         # Serialize session creation for the same user.
-        user = (
-            db.query(User)
-            .filter(User.id == user_id)
-            .with_for_update()
-            .one_or_none()
-        )
+        user = db.query(User).filter(User.id == user_id).with_for_update().one_or_none()
 
         if user is None:
             raise ValueError("User not found.")
@@ -89,9 +83,7 @@ def get_or_create_today_session(
             db.query(PracticeSession)
             .filter(
                 PracticeSession.user_id == user_id,
-                PracticeSession.status.in_(
-                    ["ready", "in_progress"]
-                ),
+                PracticeSession.status.in_(["ready", "in_progress"]),
             )
             .order_by(PracticeSession.sequence_number.desc())
             .first()
@@ -132,19 +124,61 @@ def get_or_create_today_session(
             session_number=sequence_number,
             additional_session=additional_session,
         )
+        technique_service = TechniqueRecommendationService(db)
+
+        active_goals, techniques = technique_service.get_recommendation_inputs(user_id)
+
+        categories = technique_service.classify_active_goals(active_goals)
+        print("GOAL CATEGORIES:", categories)
+
+        scores = technique_service.calculate_goal_scores(categories, techniques)
+        completed_session_counts = (
+            technique_service.practice_session_repository.get_completed_session_counts(
+                user_id
+            )
+        )
+        initial_complete = technique_service.is_initial_practice_complete(
+            scores,
+            completed_session_counts,
+        )
+        completed_exercises = (
+            technique_service.practice_session_repository.get_completed_exercises(
+                user_id
+            )
+        )
+
+        completion_session_id = technique_service.get_initial_practice_completion_time(
+            scores,
+            completed_exercises,
+        )
+
+        completed_after_initial = (
+            technique_service.count_sessions_after_initial_practice(
+                user_id,
+                completion_session_id,
+            )
+        )
+
+        sessions_since_initial_phase = completed_after_initial + 1
+        candidates = technique_service.get_session_technique_candidates(
+            techniques=techniques,
+            scores=scores,
+            completed_session_counts=completed_session_counts,
+            sessions_since_initial_phase=sessions_since_initial_phase,
+        )
+        selected_techniques = technique_service.select_session_techniques(
+            candidates=candidates,
+            exercise_count=len(preview["exercises"]),
+        )
 
         session = PracticeSession(
             user_id=user_id,
             assessment_id=preview["assessment_id"],
-            planned_practice_session_id=preview[
-                "planned_practice_session_id"
-            ],
+            planned_practice_session_id=preview["planned_practice_session_id"],
             practice_date=today,
             sequence_number=sequence_number,
             additional_session=additional_session,
-            target_duration_minutes=preview[
-                "target_duration_minutes"
-            ],
+            target_duration_minutes=preview["target_duration_minutes"],
             status="ready",
         )
 
@@ -154,12 +188,11 @@ def get_or_create_today_session(
                 position=item["position"],
                 selection_role=item["selection_role"],
                 exercise_snapshot=dict(item),
-                target_recording_seconds=item[
-                    "target_recording_seconds"
-                ],
+                target_recording_seconds=item["target_recording_seconds"],
                 status="pending",
+                technique_id=selected_techniques[index].id,
             )
-            for item in preview["exercises"]
+            for index, item in enumerate(preview["exercises"])
         ]
 
         db.add(session)
@@ -198,9 +231,7 @@ def _get_owned_session(
     )
 
     if session is None:
-        raise PracticeSessionNotFoundError(
-            "Practice session not found."
-        )
+        raise PracticeSessionNotFoundError("Practice session not found.")
 
     return session
 
@@ -209,42 +240,55 @@ def start_or_resume_session(
     db: Session,
     user_id: int,
     session_id: int,
+    session_exercise_id: int | None = None,
 ) -> dict:
     """Start the session or resume its first unfinished exercise."""
 
     try:
         # Use the same user lock as session creation.
-        user = (
-            db.query(User)
-            .filter(User.id == user_id)
-            .with_for_update()
-            .one_or_none()
-        )
+        user = db.query(User).filter(User.id == user_id).with_for_update().one_or_none()
 
         if user is None:
-            raise PracticeSessionNotFoundError(
-                "Practice session not found."
-            )
+            raise PracticeSessionNotFoundError("Practice session not found.")
 
-        session = _get_owned_session(
-            db, user_id, session_id
-        )
+        session = _get_owned_session(db, user_id, session_id)
 
         if session.status == "cancelled":
-            raise PracticeSessionConflictError(
-                "This session has been cancelled."
-            )
+            raise PracticeSessionConflictError("This session has been cancelled.")
 
         refresh_unstarted_session(db, session)
 
-        next_item = next(
-            (
-                item
-                for item in session.exercises
-                if item.status != "completed"
-            ),
-            None,
-        )
+        if session_exercise_id is None:
+            next_item = next(
+                (
+                    item
+                    for item in sorted(
+                        session.exercises,
+                        key=lambda item: item.position
+                    )
+                    if item.status != "completed"
+                ),
+                None,
+            )
+        else:
+            next_item = next(
+                (
+                    item
+                    for item in session.exercises
+                    if item.id == session_exercise_id
+                ),
+                None,
+            )
+
+            if next_item is None:
+                raise PracticeSessionNotFoundError(
+                    "Session exercise not found."
+                )
+
+            if next_item.status == "completed":
+                raise PracticeSessionConflictError(
+                    "This session exercise is already completed."
+                )
 
         if session.status == "completed":
             response = serialize_session(session)
@@ -262,6 +306,10 @@ def start_or_resume_session(
 
         if session.started_at is None:
             session.started_at = datetime.now(timezone.utc)
+
+        for item in session.exercises:
+            if item.status == "in_progress" and item.id != next_item.id:
+                item.status = "pending"
 
         next_item.status = "in_progress"
 
@@ -286,9 +334,7 @@ def get_session_exercise(
 ) -> dict:
     """Read saved exercise data without changing progress."""
 
-    session = _get_owned_session(
-        db, user_id, session_id
-    )
+    session = _get_owned_session(db, user_id, session_id)
 
     item = next(
         (
@@ -300,9 +346,7 @@ def get_session_exercise(
     )
 
     if item is None:
-        raise PracticeSessionNotFoundError(
-            "Session exercise not found."
-        )
+        raise PracticeSessionNotFoundError("Session exercise not found.")
 
     technique = None
 
@@ -310,9 +354,7 @@ def get_session_exercise(
         technique_model = db.get(Technique, item.technique_id)
 
         if technique_model is None:
-            raise PracticeSessionConflictError(
-                "The assigned technique is unavailable."
-            )
+            raise PracticeSessionConflictError("The assigned technique is unavailable.")
 
         technique = {
             "id": technique_model.id,
@@ -343,6 +385,8 @@ def get_session_exercise(
         "exercise": exercise_data,
         "technique": technique,
     }
+
+
 def validate_session_submission(
     db: Session,
     user_id: int,
@@ -368,20 +412,14 @@ def validate_session_submission(
     )
 
     if session is None:
-        raise PracticeSessionNotFoundError(
-            "Session exercise not found."
-        )
+        raise PracticeSessionNotFoundError("Session exercise not found.")
 
     if session.status != "in_progress":
         raise PracticeSessionConflictError(
             "Start or resume the session before submitting."
         )
 
-    item = next(
-        item
-        for item in session.exercises
-        if item.id == session_exercise_id
-    )
+    item = next(item for item in session.exercises if item.id == session_exercise_id)
 
     if item.exercise_id != exercise_id:
         raise PracticeSessionConflictError(
@@ -393,25 +431,12 @@ def validate_session_submission(
             "This session exercise is already completed."
         )
 
-    next_item = next(
-        (
-            candidate
-            for candidate in session.exercises
-            if candidate.status != "completed"
-        ),
-        None,
-    )
-
-    if (
-        next_item is None
-        or next_item.id != item.id
-        or item.status != "in_progress"
-    ):
+    if item.status != "in_progress":
         raise PracticeSessionConflictError(
-            "Start the next unfinished exercise before submitting."
+            "Start this session exercise before submitting."
         )
 
-    if technique_id is not None and technique_id != item.technique_id:
+    if technique_id != item.technique_id:
         raise PracticeSessionConflictError(
             "Use the technique assigned to this session exercise."
         )
@@ -451,23 +476,20 @@ def mark_session_exercise_completed(
         "session_exercise_id": item.id,
         "session_status": session.status,
         "completed_exercise_count": sum(
-            candidate.status == "completed"
-            for candidate in session.exercises
+            candidate.status == "completed" for candidate in session.exercises
         ),
         "exercise_count": len(session.exercises),
-        "next_session_exercise_id": (
-            next_item.id if next_item is not None else None
-        ),
+        "next_session_exercise_id": (next_item.id if next_item is not None else None),
     }
+
+
 def get_today_session_state(
     db: Session,
     user_id: int,
 ) -> dict:
     """Read homepage state without creating or changing records."""
 
-    today = datetime.now(
-        timezone(timedelta(hours=3))
-    ).date()
+    today = datetime.now(timezone(timedelta(hours=3))).date()
 
     # Unfinished sessions take priority, including previous-day sessions.
     session = (
@@ -504,11 +526,7 @@ def get_today_session_state(
         }
 
     next_item = next(
-        (
-            item
-            for item in session.exercises
-            if item.status != "completed"
-        ),
+        (item for item in session.exercises if item.status != "completed"),
         None,
     )
 
@@ -516,14 +534,13 @@ def get_today_session_state(
         "today": today.isoformat(),
         "state": session.status,
         "session": serialize_session(session),
-        "next_session_exercise_id": (
-            next_item.id if next_item is not None else None
-        ),
+        "next_session_exercise_id": (next_item.id if next_item is not None else None),
         "completed_exercise_count": sum(
-            item.status == "completed"
-            for item in session.exercises
+            item.status == "completed" for item in session.exercises
         ),
     }
+
+
 def refresh_unstarted_session(
     db: Session,
     session: PracticeSession,
@@ -534,9 +551,7 @@ def refresh_unstarted_session(
     Returns True when exercise items are replaced.
     """
 
-    today = datetime.now(
-        timezone(timedelta(hours=3))
-    ).date()
+    today = datetime.now(timezone(timedelta(hours=3))).date()
 
     if (
         session.status != "ready"
@@ -619,6 +634,21 @@ def refresh_unstarted_session(
 
     # Delete old pending items before inserting replacement positions.
     # Everything remains inside one transaction.
+
+    saved_technique_ids = [
+        item.technique_id
+        for item in sorted(
+            session.exercises,
+            key=lambda item: item.position,
+        )
+    ]
+    if not saved_technique_ids or any(
+            technique_id is None for technique_id in saved_technique_ids
+        ):
+            raise PracticeSessionConflictError(
+                "The session has no valid saved technique assignments."
+            )
+    
     session.exercises.clear()
     db.flush()
 
@@ -629,12 +659,11 @@ def refresh_unstarted_session(
                 position=item["position"],
                 selection_role=item["selection_role"],
                 exercise_snapshot=dict(item),
-                target_recording_seconds=item[
-                    "target_recording_seconds"
-                ],
+                target_recording_seconds=item["target_recording_seconds"],
                 status="pending",
+                technique_id=saved_technique_ids[index % len(saved_technique_ids)],
             )
-            for item in preview["exercises"]
+            for index, item in enumerate(preview["exercises"])
         ]
     )
 
