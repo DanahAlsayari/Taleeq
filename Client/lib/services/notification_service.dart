@@ -16,13 +16,12 @@ class NotificationService {
   Future<void> initialize() async {
     // Load timezone data.
     tz_data.initializeTimeZones();
-
-    // Get the device's current timezone.
-    final deviceTimezone = await FlutterTimezone.getLocalTimezone();
-
-    // Set the timezone used for scheduling notifications.
-    tz.setLocalLocation(tz.getLocation(deviceTimezone.identifier));
-
+    try {
+      final deviceTimezone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(deviceTimezone.identifier));
+    } catch (_) {
+      tz.setLocalLocation(tz.getLocation('Asia/Riyadh'));
+    }
     //icon for the notification
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
