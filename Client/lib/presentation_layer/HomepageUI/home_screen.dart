@@ -993,7 +993,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: selectedSession == null
                   ? Text(
                       _weeklyPlan == null
-                          ? 'اختر أيامك وأنشئ خطة تناسب أسبوعك.'
+                          ? 'لا توجد جلسات مجدولة لهذا اليوم.'
                           : sessions.isEmpty
                           ? 'لم تخطط للممارسة هذا الأسبوع. يمكنك تعديل خطتك في أي وقت.'
                           : 'لا توجد جلسة مخططة لهذا اليوم',

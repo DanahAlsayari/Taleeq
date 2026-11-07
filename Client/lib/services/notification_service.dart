@@ -138,8 +138,8 @@ class NotificationService {
     required int notificationId,
     required DateTime practiceDate,
   }) async {
-    const int reminderHour = 21;
-    const int reminderMinute = 30;
+    const int reminderHour = 22;
+    const int reminderMinute = 15;
 
     final scheduledTime = tz.TZDateTime(
       //translate the practiceDate to the local timezone and set the time to 7 PM

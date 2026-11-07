@@ -21,6 +21,8 @@ class Scenario(Base):
 
     description = Column(Text, nullable=True)
 
+    instructions = Column(Text, nullable=True)
+
     video_url = Column(Text, nullable=True)
 
     # Time in seconds when the conversation starts
