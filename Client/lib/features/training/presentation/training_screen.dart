@@ -15,16 +15,19 @@ import 'package:client/services/technique_service.dart';
 
 import '../../../presentation_layer/trainingUI/Games/dont_say_it_screen.dart';
 import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dart';
+
 import 'package:client/models/scenario_model.dart';
-import 'package:client/models/scenario_difficulty_model.dart';
 import 'package:client/services/scenario_api_service.dart';
 import 'package:client/presentation_layer/trainingUI/scenario_instructions_screen.dart';
+
 // TODO (Integration):
 // Connect this callback to the Instructions screen.
 // Pass the selected exercise data (id, type, title,
 // instructions, difficulty, and content).
 // Do not mark the exercise as completed here.
 // Completion must happen after the user finishes the exercise.
+enum TrainingSection { all, games, scenarios }
+
 class TrainingScreen extends StatefulWidget {
   const TrainingScreen({
     super.key,
@@ -34,6 +37,7 @@ class TrainingScreen extends StatefulWidget {
     this.showBottomNav = true,
     this.onTabSelected,
     this.onExerciseFetched,
+    this.section = TrainingSection.all,
   });
 
   final ValueChanged<ExerciseSelection> onStartExercise;
@@ -42,6 +46,7 @@ class TrainingScreen extends StatefulWidget {
   final ValueChanged<Map<String, dynamic>>? onExerciseFetched;
 
   final TrainingRepository? repository;
+  final TrainingSection section;
   final VoidCallback? onBack;
   final bool showBottomNav;
   final ValueChanged<int>? onTabSelected;
@@ -62,6 +67,15 @@ class _TrainingScreenState extends State<TrainingScreen> {
   ScenarioModel? _selectedScenario;
 
   bool _isLoadingScenarios = false;
+  bool _matchesSection(ExerciseType type) {
+    return switch (widget.section) {
+      TrainingSection.all => true,
+      TrainingSection.games =>
+        type == ExerciseType.countingChallenge ||
+            type == ExerciseType.dontSayIt,
+      TrainingSection.scenarios => type == ExerciseType.realLifeScenarios,
+    };
+  }
   // =========================================================
   // Coming Soon Dialog
   // =========================================================
@@ -127,58 +141,59 @@ class _TrainingScreenState extends State<TrainingScreen> {
       },
     );
   }
+
   Future<void> _loadScenarios() async {
-  setState(() {
-    _isLoadingScenarios = true;
-  });
-
-  try {
-    final scenarios = await _scenarioApiService.getScenarios();
-    debugPrint(
-      'Scenario list API returned ${scenarios.length} active scenarios: '
-      '${scenarios.map((scenario) => scenario.name).join(', ')}',
-    );
-
-    if (!mounted) return;
-
     setState(() {
-      _scenarios = scenarios;
-      _selectedScenario = null;
+      _isLoadingScenarios = true;
     });
-  } catch (error) {
-    debugPrint('Failed to load scenarios: $error');
 
-    if (!mounted) return;
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text(
-            'تعذر تحميل السيناريوهات',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          backgroundColor: const Color(0xFFD9534F),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
+    try {
+      final scenarios = await _scenarioApiService.getScenarios();
+      debugPrint(
+        'Scenario list API returned ${scenarios.length} active scenarios: '
+        '${scenarios.map((scenario) => scenario.name).join(', ')}',
       );
-  } finally {
-    if (mounted) {
+
+      if (!mounted) return;
+
       setState(() {
-        _isLoadingScenarios = false;
+        _scenarios = scenarios;
+        _selectedScenario = null;
       });
+    } catch (error) {
+      debugPrint('Failed to load scenarios: $error');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text(
+              'تعذر تحميل السيناريوهات',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            backgroundColor: const Color(0xFFD9534F),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingScenarios = false;
+        });
+      }
     }
   }
-}
 
   @override
   void initState() {
@@ -187,9 +202,8 @@ class _TrainingScreenState extends State<TrainingScreen> {
     _controller = TrainingController(
       repository: widget.repository ?? const LocalTrainingRepository(),
     )..load();
-     _loadScenarios();
+    _loadScenarios();
   }
-
 
   @override
   void dispose() {
@@ -221,90 +235,87 @@ class _TrainingScreenState extends State<TrainingScreen> {
     if (_isStartingExercise) return;
 
     final selection = _controller.selectionFor(exercise);
-if (selection.type == ExerciseType.realLifeScenarios) {
-  if (_selectedScenario == null) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text(
-            'اختر السيناريو أولًا',
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+    if (selection.type == ExerciseType.realLifeScenarios) {
+      if (_selectedScenario == null) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: const Text(
+                'اختر السيناريو أولًا',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              backgroundColor: const Color(0xFFD9534F),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        return;
+      }
+
+      setState(() {
+        _isStartingExercise = true;
+      });
+
+      try {
+        final difficulties = await _scenarioApiService.getScenarioDifficulties(
+          _selectedScenario!.id,
+        );
+
+        final selectedDifficulty = difficulties.firstWhere(
+          (item) => item.difficulty.toLowerCase() == selection.difficulty.id,
+          orElse: () => throw Exception(
+            'Selected difficulty is not available for this scenario.',
+          ),
+        );
+
+        final attempt = await _scenarioApiService.startScenario(
+          scenarioId: _selectedScenario!.id,
+          difficultyId: selectedDifficulty.id,
+        );
+
+        if (!mounted) return;
+
+        debugPrint('Scenario ID: ${_selectedScenario!.id}');
+        debugPrint('Difficulty ID: ${selectedDifficulty.id}');
+        debugPrint('Attempt ID: ${attempt.id}');
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ScenarioInstructionsScreen(
+              attemptId: attempt.id,
+              scenario: _selectedScenario!,
             ),
           ),
-          backgroundColor: const Color(0xFFD9534F),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          margin: const EdgeInsets.all(16),
-        ),
-      );
-    return;
-  }
+        );
 
-  setState(() {
-    _isStartingExercise = true;
-  });
+        // سنضيف الانتقال إلى Instructions Screen في الخطوة القادمة.
+      } catch (error) {
+        if (!mounted) return;
 
-  try {
-    final difficulties =
-        await _scenarioApiService.getScenarioDifficulties(
-      _selectedScenario!.id,
-    );
+        debugPrint('Failed to start scenario: $error');
 
-    final selectedDifficulty = difficulties.firstWhere(
-      (item) => item.difficulty.toLowerCase() == selection.difficulty.id,
-      orElse: () => throw Exception(
-        'Selected difficulty is not available for this scenario.',
-      ),
-    );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر بدء السيناريو، حاولي مرة أخرى')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isStartingExercise = false;
+          });
+        }
+      }
 
-    final attempt = await _scenarioApiService.startScenario(
-      scenarioId: _selectedScenario!.id,
-      difficultyId: selectedDifficulty.id,
-    );
-
-    if (!mounted) return;
-
-    debugPrint('Scenario ID: ${_selectedScenario!.id}');
-    debugPrint('Difficulty ID: ${selectedDifficulty.id}');
-    debugPrint('Attempt ID: ${attempt.id}');
-await Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (_) => ScenarioInstructionsScreen(
-  attemptId: attempt.id,
-  scenario: _selectedScenario!,
-),
-  ),
-);
-
-    // سنضيف الانتقال إلى Instructions Screen في الخطوة القادمة.
-  } catch (error) {
-    if (!mounted) return;
-
-    debugPrint('Failed to start scenario: $error');
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('تعذر بدء السيناريو، حاولي مرة أخرى'),
-      ),
-    );
-  } finally {
-    if (mounted) {
-      setState(() {
-        _isStartingExercise = false;
-      });
+      return;
     }
-  }
-
-  return;
-}
 
     // Navigate directly to the selected game.
     switch (selection.type) {
@@ -390,10 +401,7 @@ await Navigator.push(
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            _errorMessage(error),
-            textAlign: TextAlign.center,
-          ),
+          content: Text(_errorMessage(error), textAlign: TextAlign.center),
           backgroundColor: const Color(0xFFB55252),
           behavior: SnackBarBehavior.floating,
         ),
@@ -491,36 +499,31 @@ await Navigator.push(
   // =========================================================
 
   Widget _buildExerciseCard(TrainingExercise exercise) {
-  final isRealLifeScenario =
-      exercise.type == ExerciseType.realLifeScenarios;
+    final isRealLifeScenario = exercise.type == ExerciseType.realLifeScenarios;
 
-  return TrainingExerciseCard(
-    key: ValueKey(exercise.id),
-    exercise: exercise,
-    difficulty: _controller.difficultyOf(exercise),
-    isDropdownOpen: _controller.isDropdownOpen(exercise.id),
-    onToggleDropdown: () => _controller.toggleDropdown(exercise),
-    onDifficultySelected: (d) =>
-        _controller.selectDifficulty(exercise, d),
-    onStart: () => _startExercise(exercise),
+    return TrainingExerciseCard(
+      key: ValueKey(exercise.id),
+      exercise: exercise,
+      difficulty: _controller.difficultyOf(exercise),
+      isDropdownOpen: _controller.isDropdownOpen(exercise.id),
+      onToggleDropdown: () => _controller.toggleDropdown(exercise),
+      onDifficultySelected: (d) => _controller.selectDifficulty(exercise, d),
+      onStart: () => _startExercise(exercise),
 
-    // Real-Life Scenarios only
-    scenarios: isRealLifeScenario ? _scenarios : const [],
-    selectedScenario:
-        isRealLifeScenario ? _selectedScenario : null,
-    isLoadingScenarios:
-        isRealLifeScenario && _isLoadingScenarios,
-    onRefreshScenarios:
-        isRealLifeScenario ? _loadScenarios : null,
-    onScenarioSelected: isRealLifeScenario
-        ? (scenario) {
-            setState(() {
-              _selectedScenario = scenario;
-            });
-          }
-        : null,
-  );
-}
+      // Real-Life Scenarios only
+      scenarios: isRealLifeScenario ? _scenarios : const [],
+      selectedScenario: isRealLifeScenario ? _selectedScenario : null,
+      isLoadingScenarios: isRealLifeScenario && _isLoadingScenarios,
+      onRefreshScenarios: isRealLifeScenario ? _loadScenarios : null,
+      onScenarioSelected: isRealLifeScenario
+          ? (scenario) {
+              setState(() {
+                _selectedScenario = scenario;
+              });
+            }
+          : null,
+    );
+  }
 
   // =========================================================
   // Training Content
@@ -535,28 +538,45 @@ await Navigator.push(
           children: [
             const SizedBox(height: 14),
 
-            Text(
-              'التدريب',
-              style: TrainingText.screenTitle,
-            ),
+            Text(switch (widget.section) {
+              TrainingSection.all => 'التدريب',
+              TrainingSection.games => 'الألعاب التدريبية',
+              TrainingSection.scenarios => 'مواقف الحياة اليومية',
+            }, style: TrainingText.screenTitle),
 
             const SizedBox(height: 4),
 
-            Text(
-              'تصفّح التمارين المتاحة، واختر التمرين والمستوى المناسب لك',
-              style: TrainingText.screenSubtitle,
-            ),
+            Text(switch (widget.section) {
+              TrainingSection.all =>
+                'تصفّح التمارين المتاحة، واختر التمرين والمستوى المناسب لك',
+              TrainingSection.games =>
+                'اختر لعبة والمستوى المناسب لك وابدأ الممارسة',
+              TrainingSection.scenarios =>
+                'اختر موقفًا تفاعليًا وتدرّب على المحادثة',
+            }, style: TrainingText.screenSubtitle),
 
             const SizedBox(height: 14),
 
-            for (final category in _controller.categories) ...[
+            for (final category in _controller.categories.where(
+              (category) => category.exercises.any(
+                (exercise) => _matchesSection(exercise.type),
+              ),
+            )) ...[
               TrainingCategoryCard(
                 key: ValueKey(category.id),
                 category: category,
-                isExpanded: _controller.isExpanded(category.id),
-                onToggle: () => _controller.toggleCategory(category.id),
+                isExpanded:
+                    widget.section != TrainingSection.all ||
+                    _controller.isExpanded(category.id),
+                onToggle: () {
+                  if (widget.section == TrainingSection.all) {
+                    _controller.toggleCategory(category.id);
+                  }
+                },
                 exercises: [
-                  for (final exercise in category.exercises)
+                  for (final exercise in category.exercises.where(
+                    (exercise) => _matchesSection(exercise.type),
+                  ))
                     _buildExerciseCard(exercise),
                 ],
               ),
@@ -567,7 +587,6 @@ await Navigator.push(
       ),
     );
   }
-
 }
 
 // =========================================================
@@ -575,9 +594,7 @@ await Navigator.push(
 // =========================================================
 
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({
-    required this.onRetry,
-  });
+  const _ErrorView({required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -587,17 +604,11 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            'تعذّر تحميل التمارين',
-            style: TrainingText.categoryTitle,
-          ),
+          Text('تعذّر تحميل التمارين', style: TrainingText.categoryTitle),
           const SizedBox(height: 12),
           TextButton(
             onPressed: onRetry,
-            child: Text(
-              'إعادة المحاولة',
-              style: TrainingText.exerciseTitle,
-            ),
+            child: Text('إعادة المحاولة', style: TrainingText.exerciseTitle),
           ),
         ],
       ),

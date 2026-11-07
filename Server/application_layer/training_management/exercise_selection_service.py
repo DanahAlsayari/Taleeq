@@ -26,7 +26,7 @@ TASK_TO_EXERCISE_TYPE = {
     "task_3": "Free Speech",
 }
 
-MEDIUM_MAX_STUTTERING_PERCENT = 15.0
+MEDIUM_MAX_STUTTERING_PERCENT = 20.0
 
 
 def recommend_starting_difficulty(
@@ -130,31 +130,69 @@ def select_intro_exercise_types(
         },
     ]
 
+ESTIMATED_EXERCISE_SECONDS = 5 * 60
+
+
 def build_exercise_preview(
     db: Session,
     task_results: list[dict],
     duration_minutes: int | None = None,
     session_number: int = 1,
 ) -> dict:
-    """Select exercises without saving or changing existing exercise logic.
-
-    No duration: select one exercise for each of the three priorities.
-    With duration: fit distinct exercises within a recording-time budget.
-    """
+    """Select distinct exercises using a provisional five-minute estimate."""
 
     if duration_minutes is not None:
         if (
             isinstance(duration_minutes, bool)
             or not isinstance(duration_minutes, int)
-            or not 1 <= duration_minutes <= 120
+            or not 5 <= duration_minutes <= 120
         ):
             raise ValueError(
-                "Duration must be a whole number from 1 to 120 minutes."
+                "Duration must be a whole number from 5 to 120 minutes."
             )
 
     priorities = select_intro_exercise_types(
         task_results,
         session_number=session_number,
+    )
+
+    # Optional sessions contain the original three activities.
+    # Scheduled sessions can include all five types before repeating.
+    if duration_minutes is not None:
+        included_types = {
+            item["exercise_type"] for item in priorities
+        }
+        percentages = {
+            TASK_TO_EXERCISE_TYPE[result["task_type"]]:
+                result.get("stuttering_percent")
+            for result in task_results
+            if result.get("task_type") in TASK_TO_EXERCISE_TYPE
+        }
+
+        for exercise_type in [
+            "Reading",
+            "Picture Description",
+            "Free Speech",
+            "Question & Answer",
+            "Storytelling",
+        ]:
+            if exercise_type in included_types:
+                continue
+
+            percent = percentages.get(exercise_type)
+
+            priorities.append(
+                {
+                    "exercise_type": exercise_type,
+                    "difficulty": recommend_starting_difficulty(percent),
+                    "selection_role": "additional_variety",
+                }
+            )
+
+    exercise_limit = (
+        duration_minutes // 5
+        if duration_minutes is not None
+        else 3
     )
 
     pools = []
@@ -191,80 +229,61 @@ def build_exercise_preview(
                 continue
 
             candidates.append(
-                {
-                    "exercise": exercise,
-                    "recording_seconds": math.ceil(recording_seconds),
-                }
+                (exercise, math.ceil(recording_seconds))
             )
 
+        random.shuffle(candidates)
         pools.append((priority, candidates))
 
-    budget_seconds = (
-        duration_minutes * 60
-        if duration_minutes is not None
-        else None
-    )
+    unavailable_types = [
+        priority["exercise_type"]
+        for priority, candidates in pools
+        if not candidates
+    ]
 
-    total_recording_seconds = 0
-    selected = []
-    selected_ids = set()
-    unavailable_types = []
-
-    for priority, candidates in pools:
-        if not candidates:
-            unavailable_types.append(priority["exercise_type"])
-
-    # Without a budget, require all three activity types.
-    # Report missing content instead of silently returning fewer exercises.
-    if budget_seconds is None and unavailable_types:
+    if duration_minutes is None and unavailable_types:
         raise ValueError(
             "No usable active exercise available for: "
             + ", ".join(unavailable_types)
         )
 
-    while True:
+    selected = []
+    selected_ids = set()
+
+    # Visit every priority once before repeating types.
+    while len(selected) < exercise_limit:
         added_any = False
 
         for priority, candidates in pools:
-            fitting = [
-                candidate
-                for candidate in candidates
-                if candidate["exercise"].id not in selected_ids
-                and (
-                    budget_seconds is None
-                    or total_recording_seconds
-                    + candidate["recording_seconds"]
-                    <= budget_seconds
+            if len(selected) >= exercise_limit:
+                break
+
+            while candidates:
+                exercise, recording_seconds = candidates.pop()
+
+                if exercise.id in selected_ids:
+                    continue
+
+                selected.append(
+                    {
+                        "exercise_id": str(exercise.id),
+                        "position": len(selected) + 1,
+                        "exercise_type": exercise.type,
+                        "difficulty": exercise.difficulty,
+                        "title": exercise.title,
+                        "instructions": exercise.instructions,
+                        "content": exercise.content,
+                        "selection_role": priority["selection_role"],
+                        "target_recording_seconds": recording_seconds,
+                        "estimated_duration_seconds":
+                            ESTIMATED_EXERCISE_SECONDS,
+                    }
                 )
-            ]
+                selected_ids.add(exercise.id)
+                added_any = True
+                break
 
-            if not fitting:
-                continue
-
-            candidate = random.choice(fitting)
-            exercise = candidate["exercise"]
-            recording_seconds = candidate["recording_seconds"]
-
-            selected.append(
-                {
-                    "exercise_id": str(exercise.id),
-                    "position": len(selected) + 1,
-                    "exercise_type": exercise.type,
-                    "difficulty": exercise.difficulty,
-                    "title": exercise.title,
-                    "instructions": exercise.instructions,
-                    "content": exercise.content,
-                    "selection_role": priority["selection_role"],
-                    "target_recording_seconds": recording_seconds,
-                }
-            )
-
-            selected_ids.add(exercise.id)
-            total_recording_seconds += recording_seconds
-            added_any = True
-
-        # Unscheduled sessions get one pass: three exercises.
-        if budget_seconds is None or not added_any:
+        if not added_any:
             break
 
     if not selected:
@@ -272,17 +291,22 @@ def build_exercise_preview(
             "No suitable exercise fits the selected recording-time budget."
         )
 
+    estimated_seconds = len(selected) * ESTIMATED_EXERCISE_SECONDS
+
     return {
         "selection_mode": (
-            "recording_time_budget"
-            if budget_seconds is not None
+            "estimated_time_budget"
+            if duration_minutes is not None
             else "three_exercises"
         ),
         "target_duration_minutes": duration_minutes,
-        "total_target_recording_seconds": total_recording_seconds,
-        "remaining_recording_budget_seconds": (
-            budget_seconds - total_recording_seconds
-            if budget_seconds is not None
+        "estimated_duration_seconds": estimated_seconds,
+        "total_target_recording_seconds": sum(
+            item["target_recording_seconds"] for item in selected
+        ),
+        "remaining_estimated_budget_seconds": (
+            duration_minutes * 60 - estimated_seconds
+            if duration_minutes is not None
             else None
         ),
         "unavailable_exercise_types": unavailable_types,

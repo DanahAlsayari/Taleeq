@@ -216,22 +216,26 @@ class _PracticeSessionOverviewScreenState
 
   // Open independent training.
   // Additional training does not affect personalized session progress.
-  Future<void> _openAdditionalTraining() async {
+  Future<void> _openAdditionalTraining(TrainingSection section) async {
+    final title = section == TrainingSection.games
+        ? 'الألعاب التدريبية'
+        : 'مواقف الحياة اليومية';
+
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => Scaffold(
+          backgroundColor: _background,
           appBar: AppBar(
-            title: const Text('تدريبات إضافية'),
+            title: Text(title),
             backgroundColor: _background,
             foregroundColor: _teal,
           ),
           body: TrainingScreen(
+            section: section,
             showBottomNav: false,
-            onStartExercise: (selection) {
+            onStartExercise: (_) {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('هذا النوع من التدريب غير متاح من هذه الشاشة.'),
-                ),
+                const SnackBar(content: Text('تعذر فتح هذا التدريب.')),
               );
             },
           ),
@@ -331,6 +335,13 @@ class _PracticeSessionOverviewScreenState
                 '${_exerciseType(exercise['exercise_type']?.toString() ?? '')} · '
                 '${_difficulty(exercise['difficulty']?.toString() ?? '')}',
               ),
+              if (exercise['estimated_duration_seconds'] == 300) ...[
+                const SizedBox(height: 6),
+                const Text(
+                  'المدة التقريبية: ٥ دقائق',
+                  style: TextStyle(color: Color(0xFF526B68), fontSize: 13),
+                ),
+              ],
               const SizedBox(height: 8),
               Text(
                 _statusLabel(status),
@@ -353,38 +364,90 @@ class _PracticeSessionOverviewScreenState
 
   Widget _buildAdditionalRecommendations() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 24),
         const Text(
-          'تدريبات إضافية مقترحة',
+          'اكتشف المزيد',
           style: TextStyle(
             color: _teal,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         const Text(
-          'يمكنك استكشاف الألعاب التدريبية وسيناريوهات '
-          'الحياة الواقعية للتدرب بشكل إضافي خارج جلستك المخصصة.',
-          style: TextStyle(color: Color(0xFF526B68), height: 1.6),
+          'أنشطة اختيارية خارج جلستك',
+          style: TextStyle(color: Color(0xFF526B68), fontSize: 13),
         ),
         const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _openAdditionalTraining,
-            icon: const Icon(Icons.explore_outlined),
-            label: const Text('استكشاف تدريبات إضافية'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _teal,
-              side: const BorderSide(color: _teal),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _buildOptionalActivityCard(
+                title: 'الألعاب التدريبية',
+                description: 'تدرّب والعب',
+                icon: Icons.sports_esports_outlined,
+                section: TrainingSection.games,
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildOptionalActivityCard(
+                title: 'مواقف يومية',
+                description: 'جرّب محادثة تفاعلية',
+                icon: Icons.forum_outlined,
+                section: TrainingSection.scenarios,
+              ),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildOptionalActivityCard({
+    required String title,
+    required String description,
+    required IconData icon,
+    required TrainingSection section,
+  }) {
+    return Material(
+      color: const Color(0xFFE8F2EF),
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _openAdditionalTraining(section),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+          child: Column(
+            children: [
+              Icon(icon, color: _teal, size: 34),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: _teal,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF526B68),
+                  fontSize: 12,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -478,6 +541,7 @@ class _PracticeSessionOverviewScreenState
                       const SizedBox(height: 20),
 
                       _buildProgress(completedCount, exercises.length),
+                      if (allCompleted) _buildAdditionalRecommendations(),
 
                       const SizedBox(height: 24),
 
@@ -551,8 +615,7 @@ class _PracticeSessionOverviewScreenState
                         ),
                       ],
 
-                      // Optional training outside the session.
-                      _buildAdditionalRecommendations(),
+                      if (!allCompleted) _buildAdditionalRecommendations(),
                     ],
                   ),
                 ),

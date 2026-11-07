@@ -25,6 +25,7 @@ class ExerciseDetails {
   final List<String> instructions;
   final String difficulty;
   final String language;
+  final int? estimatedDurationSeconds;
   final Map<String, dynamic> content;
 
   const ExerciseDetails({
@@ -35,6 +36,7 @@ class ExerciseDetails {
     required this.instructions,
     required this.difficulty,
     required this.language,
+    this.estimatedDurationSeconds,
     required this.content,
   });
 
@@ -49,6 +51,8 @@ class ExerciseDetails {
           .toList(),
       difficulty: json['difficulty']?.toString() ?? '',
       language: json['language']?.toString() ?? '',
+      estimatedDurationSeconds: (json['estimated_duration_seconds'] as num?)
+          ?.toInt(),
       content: Map<String, dynamic>.from(json['content'] as Map? ?? {}),
     );
   }
@@ -528,8 +532,10 @@ class _ExercisePrepScreenState extends State<ExercisePrepScreen> {
 
                           if (opening) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (!mounted || !_pageScrollController.hasClients)
+                              if (!mounted ||
+                                  !_pageScrollController.hasClients) {
                                 return;
+                              }
 
                               _pageScrollController.animateTo(
                                 _pageScrollController.position.maxScrollExtent,
@@ -745,6 +751,13 @@ class ExerciseCard extends StatelessWidget {
               color: TaleeqColors.primary,
             ),
           ),
+          if (exercise.estimatedDurationSeconds == 300) ...[
+            const SizedBox(height: 10),
+            const Text(
+              'المدة التقريبية: ٥ دقائق',
+              style: TextStyle(color: TaleeqColors.muted, fontSize: 14),
+            ),
+          ],
 
           const SizedBox(height: 10),
 
@@ -923,7 +936,7 @@ class TechniqueInlineList extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       padding: EdgeInsets.zero,
       itemCount: techniques.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 7),
+      separatorBuilder: (_, _) => const SizedBox(height: 7),
       itemBuilder: (context, index) {
         if (index == techniques.length) {
           return Material(

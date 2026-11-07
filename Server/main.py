@@ -10,7 +10,7 @@ from api.speech_exercises import router as speech_exercises_router
 from api.exercise import router as exercise_router
 from api.naming_game import router as naming_challenge_router
 from api.dont_say_it import router as dont_say_it_router
-
+from api.practice_streak import router as practice_streak_router
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
@@ -33,6 +33,7 @@ app = FastAPI(
 # before "/practice-sessions/{session_id}".
 app.include_router(session_results_router)
 app.include_router(practice_sessions_router)
+app.include_router(practice_streak_router)
 
 app.add_middleware(
     CORSMiddleware,

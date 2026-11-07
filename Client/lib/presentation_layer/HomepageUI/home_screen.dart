@@ -10,6 +10,7 @@ import '../../services/weekly_plan_service.dart';
 import '../../services/notification_scheduler.dart';
 import '../../services/notification_service.dart';
 import '../trainingUI/practice_session_overview_screen.dart';
+import '../../services/practice_streak_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.isActive = true});
@@ -37,6 +38,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String? _nextStep;
   bool _isLoadingAssessmentStatus = true;
   bool _isUpdatingCompletion = false;
+  final _streakService = PracticeStreakService();
+  Map<String, dynamic>? _streak;
+  bool _isLoadingStreak = true;
+  String? _streakError;
+  int _streakRequest = 0;
   String? _assessmentStatusError;
   String _plannedCompletionLabel(Map<String, dynamic> session) {
     if (session['is_completed'] != true) return 'مخططة';
@@ -82,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadProfile();
     _loadAssessmentStatus();
     _loadWeeklyPlan();
+    _loadStreak();
   }
 
   DateTime _riyadhToday() {
@@ -197,6 +204,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadProfile();
       _loadAssessmentStatus();
       _loadWeeklyPlan();
+      _loadStreak();
     }
   }
 
@@ -205,6 +213,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && widget.isActive) {
       _loadWeeklyPlan();
       _loadAssessmentStatus();
+      _loadStreak();
     }
   }
 
@@ -688,9 +697,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               );
 
                                               if (minutes == null ||
-                                                  minutes < 1 ||
+                                                  minutes < 5 ||
                                                   minutes > 120) {
-                                                return 'أدخل عددًا صحيحًا من 1 إلى 120';
+                                                return 'أدخل عددًا صحيحًا من 5 إلى 120';
                                               }
 
                                               return null;
@@ -869,6 +878,232 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _loadStreak() async {
+    if (!mounted) return;
+
+    final request = ++_streakRequest;
+
+    setState(() {
+      _isLoadingStreak = true;
+      _streakError = null;
+    });
+
+    try {
+      final streak = await _streakService.getStreak();
+
+      if (!mounted || request != _streakRequest) return;
+
+      setState(() {
+        _streak = streak;
+        _isLoadingStreak = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _streakRequest) return;
+
+      setState(() {
+        _streakError = 'تعذر تحميل سلسلة الممارسة';
+        _isLoadingStreak = false;
+      });
+    }
+  }
+
+  Widget _buildStreakCard() {
+    const teal = Color(0xFF398681);
+    const orange = Color(0xFFCF793D);
+    const darkText = Color(0xFF2E3A38);
+    const muted = Color(0xFF718078);
+
+    final current = (_streak?['current_streak'] as int?) ?? 0;
+    final practicedDates = ((_streak?['week_practice_dates'] as List?) ?? [])
+        .map((value) => value.toString())
+        .toSet();
+
+    final today = _riyadhToday();
+    final weekStart = today.subtract(Duration(days: today.weekday % 7));
+
+    const dayNames = [
+      'أحد',
+      'إثنين',
+      'ثلاثاء',
+      'أربعاء',
+      'خميس',
+      'جمعة',
+      'سبت',
+    ];
+
+    final countLabel = switch (current) {
+      0 => '٠ يوم',
+      1 => 'يوم واحد',
+      2 => 'يومان',
+      >= 3 && <= 10 => '$current أيام',
+      _ => '$current يومًا',
+    };
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF5EEE4),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFFE7DCCD)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'سلسلة الممارسة',
+                    style: TextStyle(
+                      color: darkText,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (!_isLoadingStreak && _streakError == null)
+                  Semantics(
+                    label: 'أيام الممارسة المتتالية: $current',
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF6E6D6),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.local_fire_department_rounded,
+                            color: current > 0 ? orange : muted,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            countLabel,
+                            style: const TextStyle(
+                              color: darkText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (_isLoadingStreak)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: teal,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                ),
+              )
+            else if (_streakError != null)
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _streakError!,
+                      style: const TextStyle(color: muted, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadStreak,
+                    child: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              )
+            else
+              Row(
+                children: List.generate(7, (index) {
+                  final date = weekStart.add(Duration(days: index));
+                  final key = date.toIso8601String().substring(0, 10);
+                  final completed = practicedDates.contains(key);
+                  final isToday = date == today;
+                  final isFuture = date.isAfter(today);
+
+                  return Expanded(
+                    child: Semantics(
+                      label:
+                          '${dayNames[index]}، '
+                          '${completed
+                              ? 'تمت الممارسة'
+                              : isFuture
+                              ? 'يوم قادم'
+                              : 'لم تسجل ممارسة'}'
+                          '${isToday ? '، اليوم' : ''}',
+                      child: Column(
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              dayNames[index],
+                              style: TextStyle(
+                                color: isToday ? teal : muted,
+                                fontSize: 10,
+                                fontWeight: isToday
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            child: AspectRatio(
+                              aspectRatio: 1,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFFFFFCF7),
+                                  border: Border.all(
+                                    color: isToday
+                                        ? teal
+                                        : completed
+                                        ? const Color(0xFFE2AD7F)
+                                        : const Color(0xFFDDD7CE),
+                                    width: isToday ? 1.8 : 1.2,
+                                  ),
+                                ),
+                                child: completed
+                                    ? const FittedBox(
+                                        child: Icon(
+                                          Icons.local_fire_department_rounded,
+                                          color: orange,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _changeCompletion(
     Map<String, dynamic> session,
     bool completed,
@@ -999,9 +1234,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3EADF),
+        color: const Color(0xFFF5EEE4),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5D8C8)),
+        border: Border.all(color: const Color(0xFFE7DCCD)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1266,7 +1501,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     if (!mounted) return;
 
-    await Future.wait([_loadPracticeSessionState(), _loadWeeklyPlan()]);
+    await Future.wait([
+      _loadPracticeSessionState(),
+      _loadWeeklyPlan(),
+      _loadStreak(),
+    ]);
   }
 
   Widget _buildAssessmentCard() {
@@ -1411,6 +1650,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
               ] else
                 _buildAssessmentCard(),
+              const SizedBox(height: 14),
+              _buildStreakCard(),
               const SizedBox(height: 14),
               _buildWeeklyPlanCard(),
             ],

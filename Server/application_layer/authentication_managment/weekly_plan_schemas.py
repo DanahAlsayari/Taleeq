@@ -10,7 +10,7 @@ from pydantic import (
 
 class PracticeSessionInput(BaseModel):
     practice_date: date
-    duration_minutes: int = Field(strict=True, gt=0, le=120)
+    duration_minutes: int = Field(strict=True, gt=5, le=120)
 
 
 class WeeklyPlanInput(BaseModel):
