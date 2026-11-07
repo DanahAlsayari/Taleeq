@@ -218,12 +218,22 @@ structure above. It must have exactly:
   Judge only from audible evidence, comparing the speech with the
   technique's steps. Use "partial" when the technique was applied
   in some parts only, or when the evidence is insufficient.
-- applied_where: up to 3 short Arabic items naming concrete moments
-  where the technique was applied (for example a sentence or a word).
-- improve_where: up to 3 short Arabic items naming concrete moments
-  where the technique was missed or could be better. Use an empty
+- applied_where: up to 3 short Arabic items. Each item names a concrete
+  moment (quote the word or phrase) and says what the speaker did well
+  there, in one sentence.
+- improve_where: up to 3 short Arabic items. Each item must answer two
+  things in one or two short sentences: WHERE (quote the word, phrase or
+  part of the speech) and HOW to fix it (one concrete action the speaker
+  can do at that exact moment, based on the technique steps). Do not
+  only quote the moment and do not give vague advice. Use an empty
   array if there are none.
-- tip: one short, practical Arabic sentence for the next attempt.
+- tip: at most two short Arabic sentences. When improve_where is not
+  empty, the tip must be tied to those exact moments: name the same
+  words or sentences and teach how to apply the technique in them next
+  time, using the technique's steps (for example when to breathe, how to
+  start the sound, how long to pause). Do not repeat improve_where; add
+  the "how". When improve_where is empty, give one short sentence for
+  keeping the technique up. Avoid generic advice.
 - Do not invent moments that were not audible.
 - Do not change any metric, score, or other feedback because of this.
 """
