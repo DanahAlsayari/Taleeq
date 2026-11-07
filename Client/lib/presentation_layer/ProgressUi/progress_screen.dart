@@ -16,6 +16,7 @@ import '../../services/progress_calculator.dart';
 import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../widgets/taleeq_info_modal.dart';
 import '../exerciseUI/exercise_result_screen.dart';
+import 'session_history_section.dart';
 import '../../services/game_progress_api_service.dart';
 import '../trainingUI/Games/dont_say_it_screen.dart';
 import '../trainingUI/Games/naming_challenge_screen.dart';
@@ -1501,6 +1502,11 @@ onTap: () {
                   ),
                 ),
               ],
+            ),
+
+            // Completed practice sessions with their result.
+            SessionHistorySection(
+              key: ValueKey('session-history-${_trainingAttempts.hashCode}'),
             ),
 
             const SizedBox(height: 10),

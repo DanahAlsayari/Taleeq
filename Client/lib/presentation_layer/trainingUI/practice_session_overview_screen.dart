@@ -4,6 +4,7 @@ import '../../models/technique_model.dart';
 import '../../services/practice_session_service.dart';
 import 'exercise_prep_screen_prepared.dart';
 import '../exerciseUI/exercise_screen.dart';
+import 'sessionResult/session_result_screen.dart';
 
 import 'package:client/features/training/presentation/training_screen.dart';
 
@@ -518,6 +519,34 @@ class _PracticeSessionOverviewScreenState
                                 ),
                               ),
                             ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.of(context).push<void>(
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    SessionResultScreen(sessionId: sessionId),
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _teal,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'عرض نتيجة الجلسة',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
                         ),
                       ],
