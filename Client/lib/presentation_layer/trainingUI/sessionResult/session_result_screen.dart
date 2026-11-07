@@ -6,6 +6,7 @@ import '../../../models/session_result_model.dart';
 import '../../../services/practice_session_service.dart'
     show PracticeSessionException;
 import '../../../services/session_result_service.dart';
+import '../../widgets/main_navigation_screen.dart';
 import 'performance_details_sheet.dart';
 import 'session_result_widgets.dart';
 
@@ -226,8 +227,14 @@ class _SessionResultScreenState extends State<SessionResultScreen> {
                     showPerformanceDetailsSheet(context, session: data),
               ),
               ResultTextButton(
-                label: 'العودة للتمارين',
-                onPressed: () => Navigator.of(context).pop(),
+                label: 'إنهاء',
+                onPressed: () =>
+                    Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (_) => const MainNavigationScreen(),
+                  ),
+                  (route) => false,
+                ),
               ),
             ],
           ),
