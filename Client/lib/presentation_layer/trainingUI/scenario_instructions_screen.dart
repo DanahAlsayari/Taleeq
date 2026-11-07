@@ -165,7 +165,7 @@ class ScenarioInstructionsScreen extends StatelessWidget {
     SizedBox(height: 20),
     Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: TaleeqColors.medium.withValues(alpha: 0.19),
         borderRadius: BorderRadius.circular(22),
