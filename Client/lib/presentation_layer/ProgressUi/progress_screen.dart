@@ -25,7 +25,14 @@ import '../../services/naming_challenge_api_service.dart';
 class ProgressScreen extends StatefulWidget {
   final int initialTab;
 
-  const ProgressScreen({super.key, this.initialTab = 0});
+  /// False while another bottom-nav tab is shown.
+  final bool isActive;
+
+  const ProgressScreen({
+    super.key,
+    this.initialTab = 0,
+    this.isActive = true,
+  });
   @override
   State<ProgressScreen> createState() => _ProgressScreenState();
 }
@@ -223,6 +230,23 @@ void initState() {
   _loadGameProgress();
   _loadCombinedTrainingStats();
   _loadTrainingAttempts();
+}
+
+@override
+void didUpdateWidget(covariant ProgressScreen oldWidget) {
+  super.didUpdateWidget(oldWidget);
+
+  // The bottom-nav keeps this screen alive; reload the training data
+  // (stats, attempts and the sessions list) each time its tab is opened.
+  if (widget.isActive && !oldWidget.isActive) {
+    setState(() {
+      _loadTrainingAttempts();
+      _loadAttemptsStat();
+    });
+
+    _loadCombinedTrainingStats();
+    _loadGameProgress();
+  }
 }
 void _retry() {
   setState(() {

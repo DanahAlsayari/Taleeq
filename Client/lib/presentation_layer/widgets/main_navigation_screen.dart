@@ -36,7 +36,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         children: [
           HomeScreen(isActive: _selectedIndex == 0),
           TrainingScreen(onStartExercise: (_) {}, showBottomNav: false),
-          ProgressScreen(initialTab: widget.initialProgressTab),
+          ProgressScreen(
+            initialTab: widget.initialProgressTab,
+            isActive: _selectedIndex == 2,
+          ),
           ProfileScreen(isActive: _selectedIndex == 3),
         ],
       ),
