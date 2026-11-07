@@ -1,8 +1,7 @@
 import os
 import uuid
 import requests
-
-from datetime import time
+from datetime import time, datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
@@ -130,6 +129,7 @@ def add_goal(
     )
 
     db.add(goal)
+    current_user.training_goals_changed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(goal)
 
@@ -160,6 +160,7 @@ def update_goal(
             status_code=404,
             detail="Goal not found",
         )
+    goal_changed = False
 
     # Update goal text only if provided
     if data.goal is not None:
@@ -171,12 +172,19 @@ def update_goal(
                 detail="Goal cannot be empty",
             )
 
-        goal.goal = goal_text
+
+        if goal.goal != goal_text:
+            goal.goal = goal_text
+            goal_changed = True
 
     # Update completion status only if provided
     if data.is_completed is not None:
-        goal.is_completed = data.is_completed
+        if goal.is_completed != data.is_completed:
+            goal.is_completed = data.is_completed
+            goal_changed = True
 
+    if goal_changed:
+        current_user.training_goals_changed_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(goal)
 
@@ -205,6 +213,7 @@ def delete_goal(
         )
 
     db.delete(goal)
+    current_user.training_goals_changed_at = datetime.now(timezone.utc)
     db.commit()
 
     return {
