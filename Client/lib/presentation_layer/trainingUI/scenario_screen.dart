@@ -40,6 +40,7 @@ StreamSubscription<RTCPeerConnectionState>?
     _connectionSubscription;
 StreamSubscription<String>? _eventsSubscription;
   bool _isEndingScenario = false;
+  bool _isLeavingScenario = false;
   DateTime? _conversationStartedAt;
 
 Timer? _warningTimer;
@@ -52,6 +53,51 @@ static const Duration _warningBeforeEnd =
     Duration(seconds: 10);
 
 bool _timeLimitReached = false;
+
+  Future<void> _confirmExitScenario() async {
+    if (_isLeavingScenario || _isEndingScenario) return;
+
+    final shouldExit = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text(
+          'مغادرة السيناريو؟',
+          textAlign: TextAlign.right,
+        ),
+        content: const Text(
+          'سيتم إيقاف السيناريو الحالي وإنهاء المحادثة دون حفظ النتيجة. هل أنت متأكد؟',
+          textAlign: TextAlign.right,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('تأكيد'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldExit != true || !mounted) return;
+
+    setState(() => _isLeavingScenario = true);
+    _warningTimer?.cancel();
+    _scenarioEndTimer?.cancel();
+
+    try {
+      await _videoController.pause();
+      await _realtimeService.disconnect();
+    } catch (error) {
+      debugPrint('Scenario exit cleanup error: $error');
+    }
+
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
 
   void _showScenarioError(String message) {
     ScaffoldMessenger.of(context)
@@ -519,7 +565,14 @@ Widget _buildAudioVisualizer() {
 }
  @override
 Widget build(BuildContext context) {
-  return Scaffold(
+  return PopScope(
+    canPop: false,
+    onPopInvokedWithResult: (didPop, result) {
+      if (!didPop) {
+        _confirmExitScenario();
+      }
+    },
+    child: Scaffold(
     backgroundColor: const Color(0xFFF7F3EA),
     body: Stack(
       fit: StackFit.expand,
@@ -583,7 +636,7 @@ Widget build(BuildContext context) {
                       Align(
                         alignment: Alignment.centerRight,
                         child: IconButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: _confirmExitScenario,
                           icon: const Icon(
                             Icons.arrow_back_ios_rounded,
                             color: Colors.white,
@@ -682,6 +735,7 @@ Padding(
             ),
           ),
       ],
+    ),
     ),
   );
 }

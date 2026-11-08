@@ -285,11 +285,10 @@ Future<void> stopConversation() async {
             : '';
         final lowerMessage = message.toLowerCase();
         final isInactiveResponseCancellation =
-            cancelCompleter != null &&
-            (lowerMessage.contains('no active response') ||
-                errorCode.contains('cancel') &&
-                    (errorCode.contains('not_active') ||
-                        errorCode.contains('no_active')));
+            lowerMessage.contains('no active response') ||
+            (errorCode.contains('cancel') &&
+                (errorCode.contains('not_active') ||
+                    errorCode.contains('no_active')));
 
         if (isInactiveResponseCancellation) {
           debugPrint(
@@ -297,7 +296,7 @@ Future<void> stopConversation() async {
           );
           _responseInProgress = false;
           _activeResponseId = null;
-          if (!cancelCompleter.isCompleted) {
+          if (cancelCompleter != null && !cancelCompleter.isCompleted) {
             cancelCompleter.complete();
           }
           return;
