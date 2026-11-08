@@ -52,8 +52,9 @@ class ScenarioInstructionsScreen extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
 
         
         children: [
@@ -224,11 +225,9 @@ class ScenarioInstructionsScreen extends StatelessWidget {
      
     )
 
-        ]
-
-        
-      ),
-      
+        ],
+            ),
+          ),
         ),
       ),
       bottomNavigationBar: Container(
