@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         : state == 'in_progress'
         ? 'متابعة الجلسة'
         : state == 'ready' || scheduledToday
-        ? 'عرض الجلسة'
+        ? 'ابدأ الجلسة'
         : 'ابدأ جلسة اختيارية';
 
     return Container(
@@ -1585,7 +1585,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
             child: Text(
               completed
-                  ? 'عرض الجلسة'
+                  ? 'ابدأ الجلسة'
                   : _nextStep == 'pre_assessment'
                   ? 'ابدأ التقييم القبلي'
                   : 'متابعة تقييم الكلام',
