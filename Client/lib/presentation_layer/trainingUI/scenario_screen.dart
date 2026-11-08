@@ -42,6 +42,17 @@ StreamSubscription<String>? _eventsSubscription;
   bool _isEndingScenario = false;
   DateTime? _conversationStartedAt;
 
+Timer? _warningTimer;
+Timer? _scenarioEndTimer;
+
+static const Duration _maxScenarioDuration =
+    Duration(minutes: 5);
+
+static const Duration _warningBeforeEnd =
+    Duration(seconds: 10);
+
+bool _timeLimitReached = false;
+
   void _showScenarioError(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -66,6 +77,59 @@ StreamSubscription<String>? _eventsSubscription;
         ),
       );
   }
+
+
+void _startScenarioTimers() {
+  _warningTimer?.cancel();
+  _scenarioEndTimer?.cancel();
+
+  _warningTimer = Timer(
+    _maxScenarioDuration - _warningBeforeEnd,
+    () {
+      if (!mounted || _isEndingScenario || _timeLimitReached) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+  ..hideCurrentSnackBar()
+  ..showSnackBar(
+    SnackBar(
+      content: const Text(
+        'باقي 10 ثوانٍ على انتهاء السيناريو',
+        textAlign: TextAlign.right,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      backgroundColor: const Color(0xFFD9534F),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 4),
+    ),
+  );
+    },
+  );
+
+  _scenarioEndTimer = Timer(
+    _maxScenarioDuration,
+    () {
+      if (!mounted || _isEndingScenario || _timeLimitReached) {
+        return;
+      }
+
+      _timeLimitReached = true;
+
+      _endScenario(automatic: true);
+    },
+  );
+}
+
+
 Future<void> _connectRealtime() async {
   if (_isConnecting || _isConnected) return;
 
@@ -100,6 +164,7 @@ Future<void> _connectRealtime() async {
     if (!_conversationStarted) {
       _conversationStarted = true;
       _conversationStartedAt = DateTime.now();
+      _startScenarioTimers();
       _realtimeService.startConversation();
     }
   } catch (e) {
@@ -133,10 +198,14 @@ Future<void> _endScenario({bool automatic = false}) async {
 
   // Keep the saved duration within the backend's supported range.
   final durationSeconds = elapsedSeconds.clamp(15, 300).toInt();
-  final endReason = elapsedSeconds > 300
-      ? 'duration_limit'
-      : (automatic ? 'scenario_completed' : 'user_ended');
+  final endReason = _timeLimitReached || elapsedSeconds >= 300
+    ? 'duration_limit'
+    : (automatic ? 'scenario_completed' : 'user_ended');
 
+  final hasReachedTimeLimit = endReason == 'duration_limit';
+
+  _warningTimer?.cancel();
+  _scenarioEndTimer?.cancel();
   setState(() => _isEndingScenario = true);
 
   try {
@@ -154,21 +223,7 @@ Future<void> _endScenario({bool automatic = false}) async {
     );
 
     if (analysis['speech_sample_sufficient'] != true) {
-      await _realtimeService.restoreMicrophoneAfterAnalysis();
-      if (!mounted) return;
-      setState(() {
-        _isMuted = _realtimeService.isMuted;
-        _isEndingScenario = false;
-      });
-      try {
-        if (_videoController.value.isInitialized &&
-            !_videoController.value.isPlaying) {
-          await _videoController.play();
-        }
-      } catch (videoError) {
-        debugPrint('Could not resume scenario video: $videoError');
-      }
-      _showScenarioError(
+      await _returnToHomeWithError(
         'لم نتمكن من اكتشاف كلام واضح. أعيدي السيناريو وحاولي التحدث بوضوح.',
       );
       return;
@@ -199,33 +254,58 @@ Future<void> _endScenario({bool automatic = false}) async {
       ),
     );
   } catch (error, stackTrace) {
-    debugPrint('Failed to finish scenario: $error');
-    debugPrintStack(stackTrace: stackTrace);
+  debugPrint('Failed to finish scenario: $error');
+  debugPrintStack(stackTrace: stackTrace);
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    // Allow the user to continue if analysis or saving failed.
-    try {
-      await _realtimeService.restoreMicrophoneAfterAnalysis();
-      if (mounted) {
-        setState(() => _isMuted = _realtimeService.isMuted);
-      }
-    } catch (restoreError) {
-      debugPrint('Could not restore microphone after failed analysis: $restoreError');
-    }
-    try {
-      if (_videoController.value.isInitialized &&
-          !_videoController.value.isPlaying) {
-        await _videoController.play();
-      }
-    } catch (videoError) {
-      debugPrint('Could not resume scenario video: $videoError');
-    }
+  // Keep the original error details.
+  final message = error.toString().replaceFirst('Exception: ', '');
 
-    final message = error.toString().replaceFirst('Exception: ', '');
-    _showScenarioError('تعذر إنهاء السيناريو: $message');
-    setState(() => _isEndingScenario = false);
+  // Return to Instructions instead of resuming the scenario.
+  await _returnToHomeWithError(
+    'تعذر إنهاء السيناريو: $message',
+  );
+}
+}
+Future<void> _returnToHomeWithError(String message) async {
+  _warningTimer?.cancel();
+  _scenarioEndTimer?.cancel();
+
+  try {
+    await _realtimeService.disconnect();
+  } catch (error) {
+    debugPrint('Realtime disconnect error: $error');
   }
+
+  if (!mounted) return;
+
+  final messenger = ScaffoldMessenger.of(context);
+
+  Navigator.of(context).pop();
+
+  messenger
+  ..hideCurrentSnackBar()
+  ..showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        textAlign: TextAlign.right,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      backgroundColor: const Color(0xFFD9534F),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      margin: const EdgeInsets.all(16),
+      duration: const Duration(seconds: 5),
+    ),
+  );
 }
 void _handleRealtimeEvent(String event) {
   try {
@@ -328,6 +408,8 @@ void dispose() {
   _connectionSubscription?.cancel();
   _realtimeService.dispose();
   _eventsSubscription?.cancel();
+  _warningTimer?.cancel();
+  _scenarioEndTimer?.cancel();
   super.dispose();
 }
 
