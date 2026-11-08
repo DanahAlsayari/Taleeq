@@ -274,6 +274,35 @@ Future<void> stopConversation() async {
             : '${error ?? 'Unknown Realtime API error'}';
         _lastRealtimeError = message;
         debugPrint('Realtime API error: $message');
+
+        // response.cancel can be rejected when the assistant has already
+        // completed its response but response.done has not been processed
+        // locally yet. This is a benign cancellation race, not an analysis
+        // failure. Release the cancellation wait and continue with analysis.
+        final cancelCompleter = _cancelResponseDone;
+        final errorCode = error is Map
+            ? (error['code']?.toString().toLowerCase() ?? '')
+            : '';
+        final lowerMessage = message.toLowerCase();
+        final isInactiveResponseCancellation =
+            cancelCompleter != null &&
+            (lowerMessage.contains('no active response') ||
+                errorCode.contains('cancel') &&
+                    (errorCode.contains('not_active') ||
+                        errorCode.contains('no_active')));
+
+        if (isInactiveResponseCancellation) {
+          debugPrint(
+            'Ignoring response.cancel rejection because no response is active.',
+          );
+          _responseInProgress = false;
+          _activeResponseId = null;
+          if (!cancelCompleter.isCompleted) {
+            cancelCompleter.complete();
+          }
+          return;
+        }
+
         final completer = _analysisCompleter;
         if (completer != null && !completer.isCompleted) {
           completer.completeError(
