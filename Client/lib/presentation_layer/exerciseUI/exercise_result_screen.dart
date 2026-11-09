@@ -1,3 +1,5 @@
+import 'package:client/presentation_layer/trainingUI/scenario_result_screen.dart';
+import 'package:client/services/scenario_api_service.dart';
 import 'package:client/theme/taleeq_theme.dart';
 import 'package:flutter/material.dart';
 import '../../services/exercise_api_service.dart';
@@ -28,6 +30,7 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
   List<Map<String, dynamic>> _speechAttempts = [];
   List<Map<String, dynamic>> _dontSayItAttempts = [];
   List<Map<String, dynamic>> _namingAttempts = [];
+  List<Map<String, dynamic>> _scenarioAttempts = [];
   int currentIndex = 0;
   bool _isLoading = true;
   String? _loadError;
@@ -55,6 +58,7 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
       // Load each source independently so a temporary game API failure
       // does not hide speech-exercise history (or the other game's history).
       List<Map<String, dynamic>> speechData = [];
+      List<Map<String, dynamic>> scenarioData = [];
       List<Map<String, dynamic>> dontSayItData = [];
       List<Map<String, dynamic>> namingData = [];
       Object? speechError;
@@ -65,6 +69,61 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
         speechError = e;
         debugPrint('تعذر تحميل محاولات التمارين: $e');
       }
+        
+    try {
+      final scenarios = await ScenarioApiService().getScenarios();
+
+      final scenarioNames = <String, String>{
+        for (final scenario in scenarios)
+          scenario.id: scenario.name,
+      };
+      final scenarioDifficulties = <String, String>{};
+
+      for (final scenario in scenarios) {
+        final difficulties =
+            await ScenarioApiService().getScenarioDifficulties(scenario.id);
+
+        for (final difficulty in difficulties) {
+          scenarioDifficulties[difficulty.id] = difficulty.difficulty;
+        }
+      }
+      final scenarioAttempts =
+          await ScenarioApiService().getAllScenarioAttempts();
+
+
+      scenarioData = scenarioAttempts
+    .where((attempt) =>
+        attempt.status == 'completed' &&
+        attempt.analysisResult != null)
+    .map((attempt) {
+      return <String, dynamic>{
+        'id': attempt.id,
+        'user_id': attempt.userId,
+        'scenario_id': attempt.scenarioId,
+        'scenario_difficulty_id': attempt.scenarioDifficultyId,
+        'status': attempt.status,
+        'started_at': attempt.startedAt?.toIso8601String(),
+        'ended_at': attempt.endedAt?.toIso8601String(),
+        'duration_seconds': attempt.durationSeconds,
+        'end_reason': attempt.endReason,
+        'created_at': attempt.startedAt?.toIso8601String(),
+        'exercise_type': 'Scenario',
+        'exercise_title': scenarioNames[attempt.scenarioId] ?? 'موقف من الحياة',
+        'difficulty':
+          switch (scenarioDifficulties[attempt.scenarioDifficultyId]) {
+            'easy' => 'سهل',
+            'medium' => 'متوسط',
+            'hard' => 'صعب',
+            _ => scenarioDifficulties[attempt.scenarioDifficultyId] ?? '',
+          },
+        'analysis_result': attempt.analysisResult,
+      };
+    })
+    .toList();
+    
+    } catch (e) {
+      debugPrint('تعذر تحميل محاولات المواقف: $e');
+    }
 
       try {
         final gameService = GameProgressApiService();
@@ -114,6 +173,7 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
 
       final combined = <Map<String, dynamic>>[
         ...speechData,
+        ...scenarioData,
         ...dontSayItData,
         ...namingData,
       ];
@@ -131,6 +191,7 @@ class _ExerciseResultScreenState extends State<ExerciseResultScreen> {
         _dontSayItAttempts = dontSayItData;
         _namingAttempts = namingData;
         attempts = combined;
+        _scenarioAttempts = scenarioData;
         _loadError = combined.isEmpty && speechError != null
             ? 'تعذر تحميل سجل التدريب، حاولي مرة ثانية.'
             : null;
@@ -180,6 +241,7 @@ final exerciseTypeMap = {
   'سرد القصة': 'Storytelling',
   'سؤال وجواب': 'Question & Answer',
   'التحدث الحر': 'Free Speech',
+  'مواقف الحياة': 'Scenario',
   'لا تقولها': 'Dont Say It',
   'تحدي التسمية': 'Naming Challenge',
 };
@@ -198,15 +260,39 @@ final selectedType = exerciseTypeMap[_selectedExerciseFilter];
 
     final isGameFilter = _selectedExerciseFilter == 'لا تقولها' ||
       _selectedExerciseFilter == 'تحدي التسمية';
-  final summaryValues = summaryAttempts.map((attempt) {
-    if (isGameFilter) {
-      return _extractStutteringPercent(attempt['speech_analysis']);
-    }
-    final data = attempt['scores'];
-    if (data is! Map) return null;
-    final score = data['total_score'];
-    return score is num ? score.toDouble() : null;
-  }).whereType<double>().toList();
+
+    final isScenarioFilter =
+    _selectedExerciseFilter == 'مواقف الحياة';
+
+    final summaryValues = summaryAttempts.map((attempt) {
+      if (isGameFilter) {
+        return _extractStutteringPercent(
+          attempt['speech_analysis'],
+        );
+      }
+
+      if (isScenarioFilter) {
+        final analysis = attempt['analysis_result'];
+
+        if (analysis is! Map) return null;
+
+        final scores = analysis['scores'];
+
+        if (scores is! Map) return null;
+
+        final fluency = scores['fluency_score'];
+
+        return fluency is num ? fluency.toDouble() : null;
+      }
+
+      final data = attempt['scores'];
+
+      if (data is! Map) return null;
+
+      final score = data['total_score'];
+
+      return score is num ? score.toDouble() : null;
+    }).whereType<double>().toList();
 
   final latestScore = summaryValues.isNotEmpty ? summaryValues.first : null;
   // Lower stuttering percentage is better; ordinary exercise scores use higher-is-better.
@@ -294,6 +380,7 @@ DropdownButtonHideUnderline(
       'سؤال وجواب',
       'سرد القصة',
       'التحدث الحر',
+      'مواقف الحياة',
       'لا تقولها',
       'تحدي التسمية',
     ].map((filter) {
@@ -434,9 +521,22 @@ if (visibleAttempts.isEmpty)
 ...visibleAttempts.map((attempt) {
   final scoreData = attempt['scores'];
   final gameKind = attempt['_game_kind']?.toString();
-  final score = gameKind != null
-      ? _extractStutteringPercent(attempt['speech_analysis'])
-      : (scoreData is Map ? scoreData['total_score'] : null);
+
+  final isScenario = attempt['exercise_type'] == 'Scenario';
+
+  final analysis = attempt['analysis_result'];
+
+  final scenarioScores = analysis is Map
+      ? analysis['scores']
+      : null;
+
+  final score = isScenario
+      ? (scenarioScores is Map
+          ? scenarioScores['fluency_score']
+          : null)
+      : gameKind != null
+          ? _extractStutteringPercent(attempt['speech_analysis'])
+          : (scoreData is Map ? scoreData['total_score'] : null);
 
   final attemptIndex = attempts.indexOf(attempt);
 
@@ -469,6 +569,7 @@ if (visibleAttempts.isEmpty)
       'Storytelling' => 'سرد القصة',
       'Question & Answer' => 'سؤال وجواب',
       'Free Speech' => 'التحدث الحر',
+      'Scenario' => 'مواقف الحياة',
       _ => type,
     };
 
@@ -525,6 +626,18 @@ if (visibleAttempts.isEmpty)
       );
       return;
     }
+    if (isScenario) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ExerciseResultScreen(
+            result: attempt,
+            exercise: attempt,
+          ),
+        ),
+      );
+      return;
+    }
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -558,6 +671,7 @@ if (visibleAttempts.isEmpty)
             'Free Speech' => Icons.record_voice_over_rounded,
             'Dont Say It' => Icons.voice_over_off_rounded,
             'Naming Challenge' => Icons.lightbulb_outline_rounded,
+            'Scenario' => Icons.forum_outlined,
             _ => Icons.mic_none_rounded,
           },
           color: const Color(0xFF578B80),
@@ -683,11 +797,26 @@ if (filteredAttempts.length > 5)
         ),
       ),
     ),
+    
   ),
+  
     ],
+    
   );
+  
 }
-
+String scenarioDifficultyLabel(String value) {
+  switch (value.toLowerCase()) {
+    case 'easy':
+      return 'سهل';
+    case 'medium':
+      return 'متوسط';
+    case 'hard':
+      return 'صعب';
+    default:
+      return value;
+  }
+}
   @override
   Widget build(BuildContext context) {
 
@@ -738,9 +867,18 @@ if (filteredAttempts.length > 5)
 
 
     
-    final result = widget.result ??
-        attempts[currentIndex];
+    final rawResult = widget.result ?? attempts[currentIndex];
 
+    final isScenario = rawResult['exercise_type'] == 'Scenario';
+
+    final result = isScenario
+        ? <String, dynamic>{
+            ...rawResult,
+            ...Map<String, dynamic>.from(
+              rawResult['analysis_result'] as Map? ?? {},
+            ),
+          }
+        : rawResult;
     final speechEvents = result['speech_events'];
     debugPrint('SPEECH EVENTS: ${result['speech_events']}');
     final List<dynamic> events =
@@ -750,10 +888,13 @@ if (filteredAttempts.length > 5)
     debugPrint('EXERCISE RESULT: $result');
 
     //prepare values
-    final scores = Map<String , dynamic>.from(result['scores']);
-    final totalScore = (scores['total_score']as num).toDouble();
-    
+    final scores = Map<String, dynamic>.from(
+      result['scores'] as Map? ?? {},
+    );
 
+    final totalScore = isScenario
+        ? (scores['fluency_score'] as num?)?.toDouble() ?? 0.0
+        : (scores['total_score'] as num).toDouble();
 
     
     final currentAttemptIndex = attempts.indexWhere(
@@ -815,14 +956,23 @@ final previousScore = previousScoreData is Map
 
 debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
     debugPrint('EXERCISE RESULT: $result');
-    final difficulty = exercise['difficulty'] ?? '' ;
-    debugPrint('📝 TITLE FROM API: ${result['exercise_title']}');
+final isScenario1 = exercise['exercise_type'] == 'Scenario';
+
+final difficulty = isScenario
+    ? scenarioDifficultyLabel(
+        exercise['difficulty']?.toString() ?? '',
+      )
+    : exercise['difficulty'] ?? '';    debugPrint('📝 TITLE FROM API: ${result['exercise_title']}');
     debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
     final fluency = (scores['fluency_score'] as num).toDouble();
     final rhythm = (scores['rhythm_score'] as num).toDouble();
-    final speed = (scores['speed_control_score'] as num).toDouble();
-    final adherence = (scores['task_adherence_score'] as num).toDouble();
+    final speed = isScenario
+        ? null
+        : (scores['speed_control_score'] as num).toDouble();
 
+    final adherence = isScenario
+        ? null
+        : (scores['task_adherence_score'] as num).toDouble();
     final metrics = Map<String , dynamic>.from(result['metrics']);
 
     final stuttering = (metrics['stuttering_percent'] as num).toDouble();
@@ -868,9 +1018,9 @@ debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
                       },
                     ),
 
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'نتيجة التمرين',
+                          isScenario ? 'نتيجة الموقف' : 'نتيجة التمرين',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 20,
@@ -918,7 +1068,6 @@ debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
                                 textDirection: TextDirection.rtl,
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  // يمين: اسم التمرين والصعوبة
                                   Expanded(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -1055,12 +1204,16 @@ debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
                               'ما معنى مقاييس الأداء؟',
                               textDirection: TextDirection.rtl,
                             ),
-                            content: const Text(
-                              'الطلاقة: مدى سلاسة الكلام واستمراره بدون تأتأه.\n\n'
-                              'الإيقاع: مدى انتظام توقيت الكلام والوقفات.\n\n'
-                              'التحكم بالسرعة: مدى مناسبة سرعة الكلام.\n\n'
-                              'الالتزام بالمهمة: مدى ارتباط الكلام بالمطلوب في التمرين.\n\n'
-                              'كلما ارتفعت الدرجة، كان الأداء أفضل.',
+                            content: Text(
+                              isScenario
+                                  ? 'الطلاقة: مدى سلاسة الكلام واستمراره بدون تأتأة.\n\n'
+                                    'الإيقاع: مدى انتظام توقيت الكلام والوقفات.\n\n'
+                                    'كلما ارتفعت الدرجة، كان الأداء أفضل.'
+                                  : 'الطلاقة: مدى سلاسة الكلام واستمراره بدون تأتأة.\n\n'
+                                    'الإيقاع: مدى انتظام توقيت الكلام والوقفات.\n\n'
+                                    'التحكم بالسرعة: مدى مناسبة سرعة الكلام.\n\n'
+                                    'الالتزام بالمهمة: مدى ارتباط الكلام بالمطلوب في التمرين.\n\n'
+                                    'كلما ارتفعت الدرجة، كان الأداء أفضل.',
                               textDirection: TextDirection.rtl,
                             ),
                             actions: [
@@ -1089,19 +1242,20 @@ debugPrint('📝 FINAL EXERCISE TITLE: $exerciseTitle');
                     Icons.graphic_eq_rounded,
                     const Color(0xFF5FAFA8),
                   ),
+                  if (!isScenario) ...[
                   _performanceMetricRow(
                     'التحكم بالسرعة',
-                    speed,
+                    speed!,
                     Icons.speed_rounded,
                     const Color(0xFF508B9B),
                   ),
                   _performanceMetricRow(
                     'الالتزام بالمهمة',
-                    adherence,
+                    adherence!,
                     Icons.task_alt_rounded,
                     const Color(0xFFB28B56),
                   ),
-                      
+                  ],
                     ],
                   ),),
                   //end of first box
