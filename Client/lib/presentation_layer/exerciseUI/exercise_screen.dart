@@ -268,26 +268,30 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isSubmitting && widget.sessionExerciseId == null) {
-      return const Scaffold(
+    if (_isSubmitting) {
+      return Scaffold(
         backgroundColor: Color(0xFFFCFAF6),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircularProgressIndicator(color: Color(0xFF6FA7A3)),
-              SizedBox(height: 16),
+              const CircularProgressIndicator(color: Color(0xFF6FA7A3)),
+              const SizedBox(height: 16),
               Text(
-                'نجهّز لك تحليل تمرينك...',
+                widget.sessionExerciseId != null
+                    ? 'جاري حفظ تمرينك...'
+                    : 'نجهّز لك تحليل تمرينك...',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: Color(0xFF2E3A38),
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
-                'لحظات ونعرض لك النتائج',
+                widget.sessionExerciseId != null
+                    ? 'لحظات ونرجعك لجلستك التدريبية'
+                    : 'لحظات ونعرض لك النتائج',
                 style: TextStyle(fontSize: 12, color: Color(0xFF8FA39F)),
               ),
             ],
