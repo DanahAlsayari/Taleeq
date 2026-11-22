@@ -16,7 +16,10 @@ import '../../services/progress_calculator.dart';
 import '../widgets/assesmentWidgets/speech_assesment_intro_screen.dart';
 import '../widgets/taleeq_info_modal.dart';
 import '../exerciseUI/exercise_result_screen.dart';
+import '../trainingUI/practice_session_overview_screen.dart';
+import 'progress_overview_section.dart';
 import 'session_history_section.dart';
+import 'session_progress_summary_section.dart';
 import '../../services/game_progress_api_service.dart';
 import '../trainingUI/Games/dont_say_it_screen.dart';
 import '../trainingUI/Games/naming_challenge_screen.dart';
@@ -123,6 +126,12 @@ void _loadTrainingAttempts() {
   late int _tab;
   int _assessmentIndex = 0;
 
+  // Bumped each time the Sessions tab is opened, so its data reloads.
+  int _sessionsReload = 0;
+
+  // Same for the Overview tab (sessions and training numbers).
+  int _overviewReload = 0;
+
   String _arabicNumber(int number) {
     const digits = '٠١٢٣٤٥٦٧٨٩';
     return number
@@ -224,7 +233,7 @@ Future<void> _loadCombinedTrainingStats() async {
 void initState() {
   super.initState();
 
-  _tab = widget.initialTab.clamp(0, 2).toInt();
+  _tab = widget.initialTab.clamp(0, 3).toInt();
 
   _loadProgress();
   _loadGameProgress();
@@ -240,6 +249,7 @@ void didUpdateWidget(covariant ProgressScreen oldWidget) {
   // (stats, attempts and the sessions list) each time its tab is opened.
   if (widget.isActive && !oldWidget.isActive) {
     setState(() {
+      _overviewReload++;
       _loadTrainingAttempts();
       _loadAttemptsStat();
     });
@@ -258,6 +268,22 @@ void _retry() {
 
   _loadCombinedTrainingStats();
 }
+
+  /// Opens today's practice session (the planned one), then refreshes.
+  Future<void> _startPracticeSession() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const PracticeSessionOverviewScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _overviewReload++;
+      _sessionsReload++;
+    });
+  }
 
  Future<void> _retakeAssessment() async {
   await Navigator.of(context).push(
@@ -316,8 +342,8 @@ void _retry() {
                 children: [
                   _tabButton('نظرة عامة', 0),
                   _tabButton('التقييمات', 1),
-                  _tabButton('التدريب', 2),
-                  
+                  _tabButton('الجلسات', 2),
+                  _tabButton('التدريب', 3),
                 ],
               ),
             ),
@@ -328,8 +354,8 @@ void _retry() {
               children: [
                 _historyView(isOverview: true),
                 _historyView(isOverview: false),
+                _sessionsView(),
                 _trainingView(),
-                
               ],
             ),
           ),
@@ -347,13 +373,21 @@ onTap: () {
   setState(() {
     _tab = index;
 
+    if (index == 0) {
+      _overviewReload++;
+    }
+
     if (index == 2) {
+      _sessionsReload++;
+    }
+
+    if (index == 3) {
       _loadTrainingAttempts();
        _loadAttemptsStat();
     }
   });
 
-  if (index == 2) {
+  if (index == 3) {
     _loadCombinedTrainingStats();
     _loadGameProgress();
   }
@@ -417,7 +451,16 @@ onTap: () {
           );
         }
 
-        return isOverview ? _overviewView(history) : _assessmentsView(history);
+        // The new overview combines assessments, sessions and training.
+        // (The old assessments-only _overviewView below is kept unchanged.)
+        return isOverview
+            ? ProgressOverviewSection(
+                key: ValueKey('overview-$_overviewReload'),
+                assessments: history,
+                onStartAssessment: _retakeAssessment,
+                onStartSession: _startPracticeSession,
+              )
+            : _assessmentsView(history);
       },
     );
   }
@@ -884,7 +927,7 @@ onTap: () {
                             color: percent == null || percent.abs() < 0.05
                                 ? TaleeqTheme.textMuted
                                 : percent < 0
-                                ? Colors.green
+                                ? TaleeqTheme.darkSlate
                                 : Colors.red,
                           ),
                         ),
@@ -913,7 +956,7 @@ onTap: () {
                   color: percent == null || percent.abs() < 0.05
                       ? TaleeqTheme.textMuted
                       : percent < 0
-                      ? Colors.green
+                      ? TaleeqTheme.darkSlate
                       : Colors.red,
                 ),
                 const SizedBox(width: 6),
@@ -1344,6 +1387,244 @@ onTap: () {
     );
   }
 
+  /// Assessment patterns and per-task results, shown at the end of the
+  /// Overview tab.
+  Widget _assessmentComparisonCards(List<ProgressAssessment> history) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _surface(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'أنماط عدم الطلاقة',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: TaleeqTheme.darkSlate,
+                ),
+              ),
+
+              const SizedBox(height: 5),
+
+              Text(
+                history.length < 2
+                    ? 'ستظهر مقارنة أنماط التأتأة بعد إكمال تقييم آخر.'
+                    : 'تعرّف على تغير أنماط التأتأة لديك عبر تقييماتك.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: TaleeqTheme.textMuted,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              FutureBuilder<List<AssessmentProgressData>>(
+                future: _detailedHistory,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: TaleeqTheme.primaryTeal,
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return const Text(
+                      'تعذر تحميل تفاصيل أنماط عدم الطلاقة.',
+                      style: TextStyle(color: TaleeqTheme.textMuted),
+                    );
+                  }
+                  final detailedHistory =
+                      ProgressCalculator.sortDetailedChronologically(
+                        snapshot.data!,
+                      );
+
+                  if (detailedHistory.isEmpty) {
+                    return const Text(
+                      'لا تتوفر تفاصيل للتقييمات حاليًا.',
+                      style: TextStyle(color: TaleeqTheme.textMuted),
+                    );
+                  }
+
+                  final repetitionChange =
+                      ProgressCalculator.calculatePatternEstimatedChange(
+                        detailedHistory,
+                        (details) => details.repetitionPercent,
+                      );
+
+                  final prolongationChange =
+                      ProgressCalculator.calculatePatternEstimatedChange(
+                        detailedHistory,
+                        (details) => details.prolongationPercent,
+                      );
+
+                  final blockChange =
+                      ProgressCalculator.calculatePatternEstimatedChange(
+                        detailedHistory,
+                        (details) => details.blockPercent,
+                      );
+
+                  final repetitionTrend = _getPatternTrend(
+                    detailedHistory,
+                    'التكرار',
+                    (details) => details.repetitionPercent,
+                  );
+
+                  final prolongationTrend = _getPatternTrend(
+                    detailedHistory,
+                    'الإطالة',
+                    (details) => details.prolongationPercent,
+                  );
+
+                  final blockTrend = _getPatternTrend(
+                    detailedHistory,
+                    'التوقف',
+                    (details) => details.blockPercent,
+                  );
+                  return Column(
+                    children: [
+                      _patternRow(
+                        'التكرار',
+                        'Repetition',
+                        repetitionChange,
+                        repetitionTrend.title,
+                        repetitionTrend.message,
+                        repetitionTrend.icon,
+                        repetitionTrend.color,
+                        detailedHistory.length >= 2,
+                      ),
+                      const Divider(height: 24),
+                      _patternRow(
+                        'الإطالة',
+                        'Prolongation',
+                        prolongationChange,
+                        prolongationTrend.title,
+                        prolongationTrend.message,
+                        prolongationTrend.icon,
+                        prolongationTrend.color,
+                        detailedHistory.length >= 2,
+                      ),
+                      const Divider(height: 24),
+                      _patternRow(
+                        'التوقف',
+                        'Block',
+                        blockChange,
+                        blockTrend.title,
+                        blockTrend.message,
+                        blockTrend.icon,
+                        blockTrend.color,
+                        detailedHistory.length >= 2,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Per-task change across all assessments (shown in the task-results tab).
+  Widget _taskPerformanceCard(List<ProgressAssessment> history) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _surface(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'تغيّر أدائك في المهام عبر كل تقييماتك',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: TaleeqTheme.darkSlate,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                history.length < 2
+                    ? 'ستظهر مقارنة أدائك بعد إكمال تقييم آخر.'
+                    : 'تابع نسبة التأتأة في كل مهمة عبر تقييماتك.',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: TaleeqTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              FutureBuilder<List<AssessmentProgressData>>(
+                future: _detailedHistory,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: CircularProgressIndicator(
+                        color: TaleeqTheme.primaryTeal,
+                      ),
+                    );
+                  }
+
+                  if (snapshot.hasError || !snapshot.hasData) {
+                    return const Text(
+                      'تعذر تحميل نتائج مهام التقييم.',
+                      style: TextStyle(color: TaleeqTheme.textMuted),
+                    );
+                  }
+
+                  final history = snapshot.data!;
+
+                  if (history.isEmpty) {
+                    return const Text(
+                      'لا تتوفر نتائج للمهام حاليًا.',
+                      style: TextStyle(color: TaleeqTheme.textMuted),
+                    );
+                  }
+
+                  Widget buildTask(String taskType, String taskName) {
+                    final taskHistory = _getTaskHistory(history, taskType);
+
+                    final percent =
+                        ProgressCalculator.calculatePatternEstimatedChange(
+                          taskHistory,
+                          (details) => _getTaskPercent(details, taskType)!,
+                        );
+
+                    final trend = _getTaskTrend(history, taskType, taskName);
+
+                    return _taskRow(
+                      taskName,
+                      percent,
+                      trend.title,
+                      trend.message,
+                      trend.icon,
+                      trend.color,
+                      history.length >= 2,
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      buildTask('task_1', 'القراءة بصوت عالٍ'),
+                      const Divider(height: 24),
+                      buildTask('task_2', 'وصف الصورة'),
+                      const Divider(height: 24),
+                      buildTask('task_3', 'التحدث العفوي'),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _assessmentsView(List<ProgressAssessment> history) {
     final index = _assessmentIndex.clamp(0, history.length - 1);
     final selected = history[index];
@@ -1426,11 +1707,50 @@ onTap: () {
             key: ValueKey(selected.assessmentId),
             assessmentId: selected.assessmentId,
             service: _service,
+            onStartAssessment: _retakeAssessment,
+            taskPerformance: _taskPerformanceCard(history),
           ),
         ),
       ],
     );
-  }Widget _trainingView() {
+  }
+
+  Widget _sessionsView() {
+  return SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'جلساتك التدريبية',
+          style: TextStyle(
+            fontSize: 23,
+            fontWeight: FontWeight.bold,
+            color: TaleeqTheme.darkSlate,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'تابع تقدمك عبر جلساتك المكتملة.',
+          style: TextStyle(color: TaleeqTheme.textMuted),
+        ),
+
+        // Completed sessions: count, training time, scores, stuttering %.
+        SessionProgressSummarySection(
+          key: ValueKey('session-summary-$_sessionsReload'),
+        ),
+
+        // Every completed session with its result.
+        SessionHistorySection(
+          key: ValueKey('session-history-$_sessionsReload'),
+          title: 'كل الجلسات',
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _trainingView() {
   return FutureBuilder<Map<String, dynamic>>(
     future: _gameProgress,
     builder: (context, snapshot) {
@@ -1491,21 +1811,22 @@ onTap: () {
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
           children: [
             const Text(
-              'سجل التدريب',
+              'تمارينك وألعابك',
               style: TextStyle(
-                fontSize: 23,
-                fontWeight: FontWeight.bold,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
                 color: TaleeqTheme.darkSlate,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 2),
             const Text(
-              'تابع تمارينك وجلساتك التدريبية.',
+              'تابع تمارينك وألعابك ونتائجك فيها.',
               style: TextStyle(
+                fontSize: 12,
                 color: TaleeqTheme.textMuted,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
 
             // Combined totals: speech exercises + both games.
             Row(
@@ -1513,24 +1834,21 @@ onTap: () {
                 Expanded(
                   child: _trainingTile(
                     Icons.menu_book_rounded,
-                    '$totalAttempts محاولة',
+                    '$totalAttempts',
+                    'محاولة',
                     TaleeqTheme.softTeal,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: _trainingTile(
                     Icons.timer_outlined,
                     durationLabel,
+                    'وقت التدريب',
                     TaleeqTheme.softPeach,
                   ),
                 ),
               ],
-            ),
-
-            // Completed practice sessions with their result.
-            SessionHistorySection(
-              key: ValueKey('session-history-${_trainingAttempts.hashCode}'),
             ),
 
             const SizedBox(height: 10),
@@ -1544,20 +1862,49 @@ onTap: () {
     },
   );
 }
-  Widget _trainingTile(IconData icon, String label, Color color) {
-    return _surface(
+  // Same look as the stat tiles of the Sessions tab.
+  Widget _trainingTile(
+    IconData icon,
+    String value,
+    String label,
+    Color color,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TaleeqTheme.borderSubtle),
+        boxShadow: TaleeqTheme.cardShadow,
+      ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(15),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: TaleeqTheme.primaryTeal, size: 28),
+            child: Icon(icon, color: TaleeqTheme.primaryTeal, size: 22),
           ),
-          const SizedBox(height: 12),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              color: TaleeqTheme.primaryTeal,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: TaleeqTheme.textMuted,
+            ),
+          ),
         ],
       ),
     );
@@ -2524,11 +2871,15 @@ Widget _gamePerformanceCard({
 class _AssessmentDetails extends StatefulWidget {
   final int assessmentId;
   final ProgressService service;
+  final VoidCallback onStartAssessment;
+  final Widget? taskPerformance;
 
   const _AssessmentDetails({
     super.key,
     required this.assessmentId,
     required this.service,
+    required this.onStartAssessment,
+    this.taskPerformance,
   });
 
   @override
@@ -2567,6 +2918,8 @@ class _AssessmentDetailsState extends State<_AssessmentDetails> {
         return FluencyProfileScreen(
           profileData: snapshot.data!,
           isHistoryView: true,
+          onStartAssessment: widget.onStartAssessment,
+          taskPerformance: widget.taskPerformance,
         );
       },
     );
