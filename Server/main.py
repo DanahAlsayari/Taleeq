@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.assessment import router as assessment_router
 from api.training import router as training_router
+from api.ai_assistant import router as ai_assistant_router
 from api.techniques import router as techniques_router
 from api.speech_exercises import router as speech_exercises_router
 from api.exercise import router as exercise_router
@@ -51,6 +52,9 @@ app.include_router(techniques_router)
 
 # Training endpoints
 app.include_router(training_router)
+
+# AI Assistant endpoints
+app.include_router(ai_assistant_router)
 
 # Speech exercise endpoints
 app.include_router(speech_exercises_router)

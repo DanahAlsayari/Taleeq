@@ -7,11 +7,26 @@ enum Difficulty {
   hard('hard', 'متقدم', 3);
 
   const Difficulty(this.id, this.labelAr, this.bars);
+  
   final String id;
   final String labelAr;
 
   /// Number of filled bars in the difficulty indicator (1..3).
   final int bars;
+}
+extension DifficultyParsing on Difficulty {
+  static Difficulty fromAiValue(String value) {
+    switch (value.toLowerCase()) {
+      case 'easy':
+        return Difficulty.easy;
+      case 'medium':
+        return Difficulty.medium;
+      case 'hard':
+        return Difficulty.hard;
+      default:
+        throw ArgumentError('Unsupported AI difficulty: $value');
+    }
+  }
 }
 
 /// The nine exercise types. [id] is the stable key used by the backend.
@@ -28,6 +43,30 @@ enum ExerciseType {
 
   const ExerciseType(this.id);
   final String id;
+}
+extension ExerciseTypeParsing on ExerciseType {
+  static ExerciseType fromAiValue(String value) {
+    switch (value) {
+      case 'Reading':
+        return ExerciseType.reading;
+      case 'Picture Description':
+        return ExerciseType.pictureDescription;
+      case 'Question & Answer':
+        return ExerciseType.questionAnswer;
+      case 'Storytelling':
+        return ExerciseType.storytelling;
+      case 'Free Speech':
+        return ExerciseType.freeSpeech;
+      case 'real_life_scenarios':
+        return ExerciseType.realLifeScenarios;
+      case 'countingChallenge':
+        return ExerciseType.countingChallenge;
+      case 'dontSayIt':
+        return ExerciseType.dontSayIt;
+      default:
+        throw ArgumentError('Unsupported AI exercise type: $value');
+    }
+  }
 }
 
 /// Drives the category icon (and its background colour) in the UI.

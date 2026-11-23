@@ -8,6 +8,7 @@ import 'theme/training_theme.dart';
 import 'widgets/taleeq_bottom_nav.dart';
 import 'widgets/training_category_card.dart';
 import 'widgets/training_exercise_card.dart';
+import 'widgets/ai_assistant_card.dart';
 import '../../../presentation_layer/trainingUI/exercise_prep_screen_prepared.dart';
 
 import 'package:client/presentation_layer/exerciseUI/exercise_screen.dart';
@@ -19,6 +20,8 @@ import '../../../presentation_layer/trainingUI/Games/naming_challenge_screen.dar
 import 'package:client/models/scenario_model.dart';
 import 'package:client/services/scenario_api_service.dart';
 import 'package:client/presentation_layer/trainingUI/scenario_instructions_screen.dart';
+
+import 'ai_assistant_chat_screen.dart';
 
 // TODO (Integration):
 // Connect this callback to the Instructions screen.
@@ -556,6 +559,20 @@ class _TrainingScreenState extends State<TrainingScreen> {
             }, style: TrainingText.screenSubtitle),
 
             const SizedBox(height: 14),
+
+            if (widget.section == TrainingSection.all) ...[
+              AiAssistantCard(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AiAssistantChatScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+            ],
 
             for (final category in _controller.categories.where(
               (category) => category.exercises.any(
