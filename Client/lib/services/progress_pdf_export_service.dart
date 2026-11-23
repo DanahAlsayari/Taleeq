@@ -211,13 +211,13 @@ class ProgressPdfExportService {
 
   List<pw.Widget> _trendRows(List<ProgressAssessment> history, ProgressOverviewData overview) {
     final points = <_Point>[
-      ...history.reversed.map((e) => _Point('التقييم • ${_date(e.completedAt.toIso8601String())}', e.overallStutteringPercent, _teal)),
-      ...overview.sessionsSeries.map((e) => _Point('جلسة • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.78, 0.50, 0.37))),
-      ...overview.trainingSeries.map((e) => _Point('تدريب • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.48, 0.62, 0.82))),
+      ...history.reversed.map((e) => _Point(e.completedAt.toLocal(), 'التقييم • ${_date(e.completedAt.toIso8601String())}', e.overallStutteringPercent, _teal)),
+      ...overview.sessionsSeries.map((e) => _Point(e.date, 'جلسة • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.78, 0.50, 0.37))),
+      ...overview.trainingSeries.map((e) => _Point(e.date, 'تدريب • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.48, 0.62, 0.82))),
     ];
     if (points.isEmpty) return [_mutedText('لا توجد بيانات كافية لعرض التطور.')];
-    points.sort((a, b) => a.label.compareTo(b.label));
-    return points.take(18).map((p) => pw.Padding(
+    points.sort((a, b) => a.date.compareTo(b.date));
+    return points.map((p) => pw.Padding(
       padding: const pw.EdgeInsets.symmetric(vertical: 3),
       child: pw.Row(children: [
         pw.SizedBox(width: 100, child: pw.Text(p.label, style: pw.TextStyle(fontSize: 8, color: _muted))),
@@ -393,7 +393,8 @@ class ProgressPdfExportService {
 }
 
 class _Point {
-  const _Point(this.label, this.value, this.color);
+  const _Point(this.date, this.label, this.value, this.color);
+  final DateTime date;
   final String label;
   final double value;
   final PdfColor color;
