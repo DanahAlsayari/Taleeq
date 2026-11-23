@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../models/progress_assessment_model.dart';
 import '../../services/progress_service.dart';
+import '../../services/progress_pdf_export_service.dart';
+import 'package:printing/printing.dart';
 import '../../theme/taleeq_theme.dart';
 import '../fluencyUI/fluency_profile_screen.dart';
 import '../../services/progress_calculator.dart';
@@ -41,6 +43,27 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
+  bool _isExportingProgress = false;
+
+  Future<void> _exportProgressPdf() async {
+    if (_isExportingProgress) return;
+    setState(() => _isExportingProgress = true);
+    try {
+      final bytes = await ProgressPdfExportService().generate();
+      await Printing.sharePdf(bytes: bytes, filename: 'taleeq_progress.pdf');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تصدير التقدم: $error'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingProgress = false);
+    }
+  }
+
   final ProgressService _service = ProgressService();
 
   late Future<List<ProgressAssessment>> _history;
@@ -319,6 +342,35 @@ void _retry() {
         elevation: 0,
         toolbarHeight: 76,
         centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 12),
+            child: TextButton.icon(
+              onPressed: _isExportingProgress ? null : _exportProgressPdf,
+              icon: _isExportingProgress
+                  ? const SizedBox(
+                      width: 17,
+                      height: 17,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: TaleeqTheme.primaryTeal,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.picture_as_pdf_outlined,
+                      size: 19,
+                      color: TaleeqTheme.primaryTeal,
+                    ),
+              label: Text(
+                'Export',
+                style: GoogleFonts.cairo(
+                  color: TaleeqTheme.primaryTeal,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
         title: Text(
           'تقدّمي',
           style: GoogleFonts.cairo(
