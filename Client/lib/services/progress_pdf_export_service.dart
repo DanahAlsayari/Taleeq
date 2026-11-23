@@ -234,12 +234,6 @@ class ProgressPdfExportService {
             e.stutteringPercent,
             const PdfColor(0.78, 0.50, 0.37),
           )),
-      ...overview.trainingSeries.map((e) => _Point(
-            e.date,
-            'تدريب • ${_date(e.date.toIso8601String())}',
-            e.stutteringPercent,
-            const PdfColor(0.48, 0.62, 0.82),
-          )),
     ];
 
     if (points.isEmpty) {
@@ -247,6 +241,10 @@ class ProgressPdfExportService {
     }
 
     points.sort((a, b) => a.date.compareTo(b.date));
+    // Keep only the 10 most recent combined assessment and session records.
+    if (points.length > 10) {
+      points.removeRange(0, points.length - 10);
+    }
 
     // Draw a real time-series line chart as SVG so it stays crisp in the PDF.
     const chartWidth = 520.0;
@@ -293,9 +291,7 @@ class ProgressPdfExportService {
       final point = points[i];
       final x = xFor(i).toStringAsFixed(1);
       final y = yFor(point.value).toStringAsFixed(1);
-      final color = point.color == _teal
-          ? '#1F5F5A'
-          : (point.color == const PdfColor(0.78, 0.50, 0.37) ? '#C7805F' : '#7B9ED1');
+      final color = point.color == _teal ? '#1F5F5A' : '#C7805F';
       svg
         ..writeln('<circle cx="$x" cy="$y" r="4.2" fill="$color" stroke="#FFFFFF" stroke-width="1.5"/>')
         ..writeln('<text x="$x" y="${(double.parse(y) - 9).toStringAsFixed(1)}" text-anchor="middle" font-size="9" font-weight="bold" fill="#34413F">${point.value.toStringAsFixed(1)}%</text>');
@@ -326,7 +322,6 @@ class ProgressPdfExportService {
         children: [
           _legendItem('التقييمات', _teal),
           _legendItem('الجلسات', const PdfColor(0.78, 0.50, 0.37)),
-          _legendItem('التدريب', const PdfColor(0.48, 0.62, 0.82)),
         ],
       ),
     ];
