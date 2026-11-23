@@ -9,6 +9,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../models/fluency_profile_data.dart';
 import '../../models/progress_assessment_model.dart';
 import '../../services/progress_service.dart';
+import '../../services/progress_pdf_export_service.dart';
+import 'package:printing/printing.dart';
 import '../../theme/taleeq_theme.dart';
 import '../fluencyUI/fluency_profile_screen.dart';
 import '../../services/progress_calculator.dart';
@@ -41,6 +43,27 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
+  bool _isExportingProgress = false;
+
+  Future<void> _exportProgressPdf() async {
+    if (_isExportingProgress) return;
+    setState(() => _isExportingProgress = true);
+    try {
+      final bytes = await ProgressPdfExportService().generate();
+      await Printing.sharePdf(bytes: bytes, filename: 'taleeq_progress.pdf');
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('تعذر تصدير التقدم: $error'),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isExportingProgress = false);
+    }
+  }
+
   final ProgressService _service = ProgressService();
 
   late Future<List<ProgressAssessment>> _history;
@@ -319,6 +342,37 @@ void _retry() {
         elevation: 0,
         toolbarHeight: 76,
         centerTitle: false,
+        actions: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(end: 12),
+            child: InkWell(
+              onTap: _isExportingProgress ? null : _exportProgressPdf,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.ios_share_rounded,
+                      size: 23,
+                      color: TaleeqTheme.primaryTeal,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'مشاركة',
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
+                        color: TaleeqTheme.primaryTeal,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
         title: Text(
           'تقدّمي',
           style: GoogleFonts.cairo(
@@ -328,8 +382,10 @@ void _retry() {
           ),
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Column(
+            children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Container(
@@ -359,6 +415,44 @@ void _retry() {
               ],
             ),
           ),
+            ],
+          ),
+          if (_isExportingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.18),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 22,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: TaleeqTheme.cardShadow,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: TaleeqTheme.primaryTeal,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'جاري تجهيز التقرير...',
+                          style: GoogleFonts.cairo(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: TaleeqTheme.darkSlate,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
