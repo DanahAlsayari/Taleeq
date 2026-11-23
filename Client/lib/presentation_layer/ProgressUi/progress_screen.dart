@@ -353,20 +353,11 @@ void _retry() {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _isExportingProgress
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: TaleeqTheme.primaryTeal,
-                            ),
-                          )
-                        : const Icon(
-                            Icons.ios_share_rounded,
-                            size: 23,
-                            color: TaleeqTheme.primaryTeal,
-                          ),
+                    const Icon(
+                      Icons.ios_share_rounded,
+                      size: 23,
+                      color: TaleeqTheme.primaryTeal,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       'مشاركة',
@@ -391,8 +382,10 @@ void _retry() {
           ),
         ),
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Column(
+            children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
             child: Container(
@@ -422,6 +415,44 @@ void _retry() {
               ],
             ),
           ),
+            ],
+          ),
+          if (_isExportingProgress)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.18),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 22,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: TaleeqTheme.cardShadow,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const CircularProgressIndicator(
+                          color: TaleeqTheme.primaryTeal,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'جاري تجهيز التقرير...',
+                          style: GoogleFonts.cairo(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: TaleeqTheme.darkSlate,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
