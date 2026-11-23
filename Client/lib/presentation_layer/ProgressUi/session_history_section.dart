@@ -8,7 +8,12 @@ import '../trainingUI/sessionResult/session_result_screen.dart';
 /// "Training sessions" list for the Progress tab (التقدم ← التدريب).
 /// Shows completed sessions, newest first; tapping one opens its result.
 class SessionHistorySection extends StatefulWidget {
-  const SessionHistorySection({super.key});
+  const SessionHistorySection({
+    super.key,
+    this.title = 'جلساتك التدريبية',
+  });
+
+  final String title;
 
   @override
   State<SessionHistorySection> createState() => _SessionHistorySectionState();
@@ -79,9 +84,9 @@ class _SessionHistorySectionState extends State<SessionHistorySection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 14),
-            const Text(
-              'جلساتك التدريبية',
-              style: TextStyle(
+            Text(
+              widget.title,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
                 color: TaleeqTheme.darkSlate,
@@ -127,12 +132,12 @@ class _SessionTile extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: TaleeqTheme.softTeal,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(
-                  Icons.fact_check_outlined,
+                  Icons.check_circle_outline_rounded,
                   color: TaleeqTheme.primaryTeal,
                 ),
               ),
@@ -166,32 +171,60 @@ class _SessionTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text(
-                      session.totalScore == null
-                          ? '--'
-                          : session.totalScore!.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 18,
-                        color: TaleeqTheme.primaryTeal,
-                      ),
-                    ),
-                  ),
-                  if (change != null)
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: Text(
-                        '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: change >= 0
-                              ? TaleeqTheme.primaryTeal
-                              : const Color(0xFFA5483B),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Directionality(
+                        textDirection: TextDirection.ltr,
+                        child: Text(
+                          session.totalScore == null
+                              ? '--'
+                              : session.totalScore!.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 18,
+                            color: TaleeqTheme.primaryTeal,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'درجة',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: TaleeqTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (change != null)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Directionality(
+                          textDirection: TextDirection.ltr,
+                          child: Text(
+                            '${change >= 0 ? '▲' : '▼'} ${change.abs().toStringAsFixed(1)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: change >= 0
+                                  ? TaleeqTheme.primaryTeal
+                                  : const Color(0xFFA5483B),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Text(
+                          'عن السابقة',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: TaleeqTheme.textMuted,
+                          ),
+                        ),
+                      ],
                     ),
                 ],
               ),

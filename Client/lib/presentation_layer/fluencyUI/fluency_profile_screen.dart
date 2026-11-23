@@ -43,12 +43,20 @@ class FluencyProfileScreen extends StatefulWidget {
   final bool isPreview;
   final bool isRetake;
 
+  /// History view only: shows a "start a new assessment" button.
+  final VoidCallback? onStartAssessment;
+
+  /// History view only: per-task change across assessments.
+  final Widget? taskPerformance;
+
   const FluencyProfileScreen({
     super.key,
     this.profileData,
     this.isHistoryView = false,
     this.isPreview = false,
     this.isRetake = false,
+    this.onStartAssessment,
+    this.taskPerformance,
   });
 
   @override
@@ -376,6 +384,36 @@ bottomNavigationBar: widget.isHistoryView
                   ),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
+                        if (widget.isHistoryView &&
+                            widget.onStartAssessment != null) ...[
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: widget.onStartAssessment,
+                              icon: const Icon(Icons.mic_rounded, size: 22),
+                              label: const Text(
+                                'بدء تقييم جديد للطلاقة',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: TaleeqTheme.primaryTeal,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                       // حالة الجلسة
                       _buildTabs(),
                       const SizedBox(height: 20),
@@ -399,6 +437,7 @@ bottomNavigationBar: widget.isHistoryView
                           onTimingPacingInfoTap: () =>
                               _showTimingPacingInfo(context),
                         ),
+
 
                         const SizedBox(height: 24),
                       ],
@@ -426,6 +465,12 @@ bottomNavigationBar: widget.isHistoryView
                             .animate()
                             .fadeIn(duration: 500.ms, delay: 300.ms)
                             .slideY(begin: 0.08, end: 0),
+
+                        if (widget.isHistoryView &&
+                            widget.taskPerformance != null) ...[
+                          const SizedBox(height: 16),
+                          widget.taskPerformance!,
+                        ],
 
                         const SizedBox(height: 24),
                       ],

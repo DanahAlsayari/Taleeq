@@ -48,6 +48,20 @@ class SessionResultService {
         .toList();
   }
 
+  /// [period] is "week", "month" or "all".
+  Future<SessionProgressSummary> fetchSummary({String period = 'all'}) async {
+    final data = await _get('/practice-sessions/summary?period=$period');
+
+    return SessionProgressSummary.fromJson(data);
+  }
+
+  /// Sessions and training numbers for the Progress "Overview" tab.
+  Future<ProgressOverviewData> fetchOverview() async {
+    final data = await _get('/practice-sessions/overview');
+
+    return ProgressOverviewData.fromJson(data);
+  }
+
   Future<SessionResultData> fetchSessionResult(int sessionId) async {
     final data = await _get('/practice-sessions/$sessionId/result');
 

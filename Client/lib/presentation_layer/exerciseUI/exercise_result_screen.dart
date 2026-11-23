@@ -228,8 +228,8 @@ final selectedType = exerciseTypeMap[_selectedExerciseFilter];
       Text(
         'ملخص الأداء',
         style: TextStyle(
-          fontSize: 23,
-          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          fontWeight: FontWeight.w800,
           color: Color(0xFF203E3A),
         ),
       ),
@@ -238,7 +238,7 @@ final selectedType = exerciseTypeMap[_selectedExerciseFilter];
         _selectedExerciseFilter == 'لا تقولها' || _selectedExerciseFilter == 'تحدي التسمية'
             ? 'تابعي نسبة التأتأة في آخر محاولة وأفضل نسبة حققتِها.'
                 : _selectedExerciseFilter == 'الكل'
-                    ? 'ملخص لجميع المحاولات، بما فيها تمارين الكلام والألعاب.'
+                    ? 'اختاري نوع التمرين لتشوفين محاولاته ودرجاتك فيه.'
                     : 'تابعي آخر درجة وأفضل درجة في هذا التمرين.',
         style: TextStyle(
           fontSize: 13,
@@ -265,7 +265,29 @@ Container(
     ),
     boxShadow: TaleeqTheme.cardShadow
   ),
-  child:
+  child: Row(
+    children: [
+      const Icon(
+        Icons.filter_alt_outlined,
+        color: TaleeqTheme.primaryTeal,
+        size: 20,
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'نوع التمرين',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: TaleeqTheme.textMuted,
+                ),
+              ),
+            ),
 DropdownButtonHideUnderline(
   child: DropdownButton<String>(
     value: _selectedExerciseFilter,
@@ -316,6 +338,11 @@ DropdownButtonHideUnderline(
     },
   ),
 ),
+          ],
+        ),
+      ),
+    ],
+  ),
 ),
 
 const SizedBox(height: 16),

@@ -4,6 +4,12 @@ from sqlalchemy.orm import Session, selectinload
 from application_layer.authentication_managment.auth import (
     get_current_user,
 )
+from application_layer.training_management.progress_overview_service import (
+    get_progress_overview,
+)
+from application_layer.training_management.session_progress_summary_service import (
+    get_session_progress_summary,
+)
 from application_layer.training_management.session_result_service import (
     ensure_session_result,
     get_latest_attempts_by_item,
@@ -143,6 +149,36 @@ def read_session_history(
             for result, session in rows
         ],
     }
+
+
+@router.get("/summary")
+def read_session_progress_summary(
+    period: str = Query(default="all", pattern="^(week|month|all)$"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Numbers for the Progress tab: completed sessions, total training
+    time, latest and best score, and the stuttering % of each session."""
+
+    return get_session_progress_summary(
+        db=db,
+        user_id=current_user.id,
+        period=period,
+    )
+
+
+@router.get("/overview")
+def read_progress_overview(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Sessions and training stuttering numbers for the Progress
+    "Overview" tab (the assessments are read by the app separately)."""
+
+    return get_progress_overview(
+        db=db,
+        user_id=current_user.id,
+    )
 
 
 @router.get("/{session_id}/result")

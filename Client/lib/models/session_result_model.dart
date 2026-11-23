@@ -221,6 +221,193 @@ class SessionHistoryItem {
   }
 }
 
+/// One point of the stuttering-percentage-per-session series.
+class SessionStutteringPoint {
+  const SessionStutteringPoint({
+    required this.sessionId,
+    required this.stutteringPercent,
+    this.sequenceNumber,
+    this.practiceDate,
+  });
+
+  final int sessionId;
+  final int? sequenceNumber;
+  final String? practiceDate;
+  final double stutteringPercent;
+
+  factory SessionStutteringPoint.fromJson(Map<String, dynamic> json) {
+    return SessionStutteringPoint(
+      sessionId: _asInt(json['session_id']),
+      sequenceNumber: json['sequence_number'] is num
+          ? _asInt(json['sequence_number'])
+          : null,
+      practiceDate: _asString(json['practice_date']),
+      stutteringPercent: _asDouble(json['stuttering_percent']) ?? 0,
+    );
+  }
+}
+
+/// GET /practice-sessions/summary?period=week|month|all
+class SessionProgressSummary {
+  const SessionProgressSummary({
+    required this.period,
+    required this.completedSessions,
+    required this.totalTrainingSeconds,
+    this.latestScore,
+    this.bestScore,
+    this.stutteringChange,
+    this.patternChanges,
+    this.stutteringSeries = const [],
+  });
+
+  final String period;
+  final int completedSessions;
+  final int totalTrainingSeconds;
+  final double? latestScore;
+  final double? bestScore;
+
+  /// Last session minus first session in the period (negative = better).
+  final double? stutteringChange;
+
+  /// repetition / prolongation / block: last session minus first session.
+  final Map<String, double>? patternChanges;
+  final List<SessionStutteringPoint> stutteringSeries;
+
+  factory SessionProgressSummary.fromJson(Map<String, dynamic> json) {
+    final series = json['stuttering_series'];
+
+    return SessionProgressSummary(
+      period: _asString(json['period']) ?? 'all',
+      completedSessions: _asInt(json['completed_sessions']),
+      totalTrainingSeconds: _asInt(json['total_training_seconds']),
+      latestScore: _asDouble(json['latest_score']),
+      bestScore: _asDouble(json['best_score']),
+      stutteringChange: _asDouble(json['stuttering_change']),
+      patternChanges: json['pattern_changes'] is Map
+          ? {
+              for (final entry in (json['pattern_changes'] as Map).entries)
+                entry.key.toString(): _asDouble(entry.value) ?? 0,
+            }
+          : null,
+      stutteringSeries: series is List
+          ? series
+                .whereType<Map>()
+                .map(
+                  (item) => SessionStutteringPoint.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
+                .toList()
+          : const [],
+    );
+  }
+}
+
+/// One point of the overview chart: a day and the stuttering % on it.
+class OverviewPoint {
+  const OverviewPoint({required this.date, required this.stutteringPercent});
+
+  final DateTime date;
+  final double stutteringPercent;
+
+  static OverviewPoint? tryParse(Map<String, dynamic> json) {
+    final date = DateTime.tryParse(json['date']?.toString() ?? '');
+    final percent = _asDouble(json['stuttering_percent']);
+
+    if (date == null || percent == null) {
+      return null;
+    }
+
+    return OverviewPoint(date: date, stutteringPercent: percent);
+  }
+}
+
+/// First and last stuttering % of one exercise type, scenario or game.
+class OverviewTypeResult {
+  const OverviewTypeResult({
+    required this.name,
+    required this.attempts,
+    required this.firstPercent,
+    required this.lastPercent,
+  });
+
+  final String name;
+  final int attempts;
+  final double firstPercent;
+  final double lastPercent;
+
+  /// Last minus first (negative = better).
+  double get change => lastPercent - firstPercent;
+}
+
+/// GET /practice-sessions/overview
+class ProgressOverviewData {
+  const ProgressOverviewData({
+    this.sessionsSeries = const [],
+    this.sessionsPatternChanges,
+    this.trainingSeries = const [],
+    this.trainingAttempts = const [],
+    this.trainingPatternChanges,
+    this.types = const [],
+  });
+
+  final List<OverviewPoint> sessionsSeries;
+  final Map<String, double>? sessionsPatternChanges;
+  final List<OverviewPoint> trainingSeries;
+  final List<OverviewPoint> trainingAttempts;
+  final Map<String, double>? trainingPatternChanges;
+  final List<OverviewTypeResult> types;
+
+  static List<OverviewPoint> _points(dynamic raw) {
+    if (raw is! List) {
+      return const [];
+    }
+
+    return raw
+        .whereType<Map>()
+        .map((item) => OverviewPoint.tryParse(Map<String, dynamic>.from(item)))
+        .whereType<OverviewPoint>()
+        .toList();
+  }
+
+  static Map<String, double>? _changes(dynamic raw) {
+    if (raw is! Map) {
+      return null;
+    }
+
+    return {
+      for (final entry in raw.entries)
+        entry.key.toString(): _asDouble(entry.value) ?? 0,
+    };
+  }
+
+  factory ProgressOverviewData.fromJson(Map<String, dynamic> json) {
+    final types = json['types'];
+
+    return ProgressOverviewData(
+      sessionsSeries: _points(json['sessions_series']),
+      sessionsPatternChanges: _changes(json['sessions_pattern_changes']),
+      trainingSeries: _points(json['training_series']),
+      trainingAttempts: _points(json['training_attempts']),
+      trainingPatternChanges: _changes(json['training_pattern_changes']),
+      types: types is List
+          ? types
+                .whereType<Map>()
+                .map(
+                  (item) => OverviewTypeResult(
+                    name: item['name']?.toString() ?? '',
+                    attempts: _asInt(item['attempts']),
+                    firstPercent: _asDouble(item['first_percent']) ?? 0,
+                    lastPercent: _asDouble(item['last_percent']) ?? 0,
+                  ),
+                )
+                .where((item) => item.name.isNotEmpty)
+                .toList()
+          : const [],
+    );
+  }
+}
+
 class ExerciseTechniqueResult {
   const ExerciseTechniqueResult({
     this.nameAr,
