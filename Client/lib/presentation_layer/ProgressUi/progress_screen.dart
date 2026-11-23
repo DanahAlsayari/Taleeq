@@ -345,27 +345,38 @@ void _retry() {
         actions: [
           Padding(
             padding: const EdgeInsetsDirectional.only(end: 12),
-            child: TextButton.icon(
-              onPressed: _isExportingProgress ? null : _exportProgressPdf,
-              icon: _isExportingProgress
-                  ? const SizedBox(
-                      width: 17,
-                      height: 17,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
+            child: InkWell(
+              onTap: _isExportingProgress ? null : _exportProgressPdf,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _isExportingProgress
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: TaleeqTheme.primaryTeal,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.ios_share_rounded,
+                            size: 23,
+                            color: TaleeqTheme.primaryTeal,
+                          ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Export',
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
                         color: TaleeqTheme.primaryTeal,
+                        fontWeight: FontWeight.w700,
                       ),
-                    )
-                  : const Icon(
-                      Icons.picture_as_pdf_outlined,
-                      size: 19,
-                      color: TaleeqTheme.primaryTeal,
                     ),
-              label: Text(
-                'Export',
-                style: GoogleFonts.cairo(
-                  color: TaleeqTheme.primaryTeal,
-                  fontWeight: FontWeight.w700,
+                  ],
                 ),
               ),
             ),
