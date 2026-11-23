@@ -369,7 +369,7 @@ void _retry() {
                           ),
                     const SizedBox(height: 2),
                     Text(
-                      'Export',
+                      'مشاركة',
                       style: GoogleFonts.cairo(
                         fontSize: 11,
                         color: TaleeqTheme.primaryTeal,
