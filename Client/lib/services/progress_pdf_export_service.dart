@@ -98,6 +98,7 @@ class ProgressPdfExportService {
     }
 
     doc.addPage(pw.MultiPage(
+      maxPages: 1000,
       pageTheme: pw.PageTheme(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.fromLTRB(28, 34, 28, 42),
