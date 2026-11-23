@@ -222,27 +222,128 @@ class ProgressPdfExportService {
 
   List<pw.Widget> _trendRows(List<ProgressAssessment> history, ProgressOverviewData overview) {
     final points = <_Point>[
-      ...history.reversed.map((e) => _Point(e.completedAt.toLocal(), 'التقييم • ${_date(e.completedAt.toIso8601String())}', e.overallStutteringPercent, _teal)),
-      ...overview.sessionsSeries.map((e) => _Point(e.date, 'جلسة • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.78, 0.50, 0.37))),
-      ...overview.trainingSeries.map((e) => _Point(e.date, 'تدريب • ${_date(e.date.toIso8601String())}', e.stutteringPercent, const PdfColor(0.48, 0.62, 0.82))),
+      ...history.reversed.map((e) => _Point(
+            e.completedAt.toLocal(),
+            'التقييم • ${_date(e.completedAt.toIso8601String())}',
+            e.overallStutteringPercent,
+            _teal,
+          )),
+      ...overview.sessionsSeries.map((e) => _Point(
+            e.date,
+            'جلسة • ${_date(e.date.toIso8601String())}',
+            e.stutteringPercent,
+            const PdfColor(0.78, 0.50, 0.37),
+          )),
+      ...overview.trainingSeries.map((e) => _Point(
+            e.date,
+            'تدريب • ${_date(e.date.toIso8601String())}',
+            e.stutteringPercent,
+            const PdfColor(0.48, 0.62, 0.82),
+          )),
     ];
-    if (points.isEmpty) return [_mutedText('لا توجد بيانات كافية لعرض التطور.')];
+
+    if (points.isEmpty) {
+      return [_mutedText('لا توجد بيانات كافية لعرض التطور.')];
+    }
+
     points.sort((a, b) => a.date.compareTo(b.date));
-    return points.map((p) => pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(children: [
-        pw.SizedBox(width: 100, child: pw.Text(p.label, style: pw.TextStyle(fontSize: 8, color: _muted))),
-        pw.Expanded(child: pw.Container(
-          height: 6,
-          alignment: pw.Alignment.centerRight,
-          decoration: pw.BoxDecoration(color: _border, borderRadius: pw.BorderRadius.circular(3)),
-          child: pw.Container(width: 210 * (p.value.clamp(0, 100) / 100), height: 6, decoration: pw.BoxDecoration(color: p.color, borderRadius: pw.BorderRadius.circular(3))),
-        )),
-        pw.SizedBox(width: 7),
-        pw.Text('${p.value.toStringAsFixed(1)}%', style: pw.TextStyle(fontSize: 8, color: _dark)),
-      ]),
-    )).toList();
+
+    // Draw a real time-series line chart as SVG so it stays crisp in the PDF.
+    const chartWidth = 520.0;
+    const chartHeight = 220.0;
+    const left = 43.0;
+    const right = 505.0;
+    const top = 18.0;
+    const bottom = 174.0;
+    final plotWidth = right - left;
+    final plotHeight = bottom - top;
+
+    double xFor(int index) {
+      if (points.length == 1) return left + plotWidth / 2;
+      return left + (plotWidth * index / (points.length - 1));
+    }
+
+    double yFor(double value) =>
+        bottom - (value.clamp(0.0, 100.0) / 100.0) * plotHeight;
+
+    final svg = StringBuffer()
+      ..writeln('<svg xmlns="http://www.w3.org/2000/svg" width="520" height="220" viewBox="0 0 520 220">')
+      ..writeln('<rect width="520" height="220" fill="#FFFFFF"/>');
+
+    for (var tick = 0; tick <= 100; tick += 25) {
+      final y = yFor(tick.toDouble()).toStringAsFixed(1);
+      svg
+        ..writeln('<line x1="$left" y1="$y" x2="$right" y2="$y" stroke="#E3EBEA" stroke-width="1"/>')
+        ..writeln('<text x="34" y="${(double.parse(y) + 3).toStringAsFixed(1)}" text-anchor="end" font-size="10" fill="#6B7E7B">$tick%</text>');
+    }
+
+    svg
+      ..writeln('<line x1="$left" y1="$top" x2="$left" y2="$bottom" stroke="#AABAB7" stroke-width="1"/>')
+      ..writeln('<line x1="$left" y1="$bottom" x2="$right" y2="$bottom" stroke="#AABAB7" stroke-width="1"/>');
+
+    final linePoints = <String>[];
+    for (var i = 0; i < points.length; i++) {
+      linePoints.add('${xFor(i).toStringAsFixed(1)},${yFor(points[i].value).toStringAsFixed(1)}');
+    }
+    if (points.length > 1) {
+      svg.writeln('<polyline points="${linePoints.join(' ')}" fill="none" stroke="#1F5F5A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>');
+    }
+
+    for (var i = 0; i < points.length; i++) {
+      final point = points[i];
+      final x = xFor(i).toStringAsFixed(1);
+      final y = yFor(point.value).toStringAsFixed(1);
+      final color = point.color == _teal
+          ? '#1F5F5A'
+          : (point.color == const PdfColor(0.78, 0.50, 0.37) ? '#C7805F' : '#7B9ED1');
+      svg
+        ..writeln('<circle cx="$x" cy="$y" r="4.2" fill="$color" stroke="#FFFFFF" stroke-width="1.5"/>')
+        ..writeln('<text x="$x" y="${(double.parse(y) - 9).toStringAsFixed(1)}" text-anchor="middle" font-size="9" font-weight="bold" fill="#34413F">${point.value.toStringAsFixed(1)}%</text>');
+    }
+
+    final labelIndexes = <int>{0, points.length - 1};
+    if (points.length > 2) {
+      labelIndexes.add((points.length - 1) ~/ 3);
+      labelIndexes.add(((points.length - 1) * 2) ~/ 3);
+    }
+    for (final index in labelIndexes.toList()..sort()) {
+      final x = xFor(index).toStringAsFixed(1);
+      final date = _date(points[index].date.toIso8601String());
+      svg.writeln('<text x="$x" y="195" text-anchor="middle" font-size="9" fill="#6B7E7B">$date</text>');
+    }
+    svg.writeln('</svg>');
+
+    return [
+      pw.SizedBox(
+        width: chartWidth,
+        height: chartHeight,
+        child: pw.SvgImage(svg: svg.toString(), width: chartWidth, height: chartHeight),
+      ),
+      pw.SizedBox(height: 5),
+      pw.Wrap(
+        spacing: 14,
+        runSpacing: 5,
+        children: [
+          _legendItem('التقييمات', _teal),
+          _legendItem('الجلسات', const PdfColor(0.78, 0.50, 0.37)),
+          _legendItem('التدريب', const PdfColor(0.48, 0.62, 0.82)),
+        ],
+      ),
+    ];
   }
+
+  pw.Widget _legendItem(String label, PdfColor color) => pw.Row(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Container(
+            width: 7,
+            height: 7,
+            decoration: pw.BoxDecoration(color: color, shape: pw.BoxShape.circle),
+          ),
+          pw.SizedBox(width: 4),
+          pw.Text(label, style: pw.TextStyle(fontSize: 8, color: _muted)),
+        ],
+      );
 
   List<pw.Widget> _assessmentWidgets(ProgressAssessment assessment, FluencyProfileData data) => [
     _card([
