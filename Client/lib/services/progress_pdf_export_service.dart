@@ -51,7 +51,8 @@ class ProgressPdfExportService {
       }
     } catch (_) {}
 
-    final attempts = await _loadAttempts();
+    final exportWarnings = <String>[];
+    final attempts = await _loadAttempts(exportWarnings);
     final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Tajawal-Regular.ttf'));
     final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Tajawal-Bold.ttf'));
     final doc = pw.Document(theme: pw.ThemeData.withFont(base: regular, bold: bold));
@@ -89,6 +90,9 @@ class ProgressPdfExportService {
 
     widgets.add(_section('جميع محاولات التدريب والألعاب'));
     widgets.add(_mutedText('عدد المحاولات: ${attempts.length}'));
+    if (exportWarnings.isNotEmpty) {
+      widgets.add(_card([_mutedText('تنبيه: تعذر تحميل بعض مصادر البيانات: ${exportWarnings.join('، ')}. قد لا تكون القائمة مكتملة.') ]));
+    }
     if (attempts.isEmpty) {
       widgets.add(_card([_mutedText('لا توجد محاولات تدريب مسجلة حتى الآن.')]));
     } else {
@@ -124,12 +128,14 @@ class ProgressPdfExportService {
     return doc.save();
   }
 
-  Future<List<Map<String, dynamic>>> _loadAttempts() async {
+  Future<List<Map<String, dynamic>>> _loadAttempts(List<String> warnings) async {
     final all = <Map<String, dynamic>>[];
     try {
       final data = await _exercises.getAllAttempts();
       all.addAll(data.map((e) => {...e, '_source': 'تمرين كلام'}));
-    } catch (_) {}
+    } catch (_) {
+      warnings.add('محاولات تمارين الكلام');
+    }
     try {
       final response = await _games.getDontSayItProgress();
       final raw = response['attempts'];
@@ -140,7 +146,9 @@ class ProgressPdfExportService {
           'exercise_title': 'لا تقولها: ${e['target_word'] ?? 'تحدي'}',
         }));
       }
-    } catch (_) {}
+    } catch (_) {
+      warnings.add('لعبة لا تقولها');
+    }
     try {
       final response = await _games.getNamingChallengeAttempts();
       final raw = response['attempts'];
@@ -151,7 +159,9 @@ class ProgressPdfExportService {
           'exercise_title': 'تحدي التسمية: ${e['prompt'] ?? 'تحدي'}',
         }));
       }
-    } catch (_) {}
+    } catch (_) {
+      warnings.add('تحدي التسمية');
+    }
     all.sort((a, b) {
       final da = DateTime.tryParse(a['created_at']?.toString() ?? '');
       final db = DateTime.tryParse(b['created_at']?.toString() ?? '');
