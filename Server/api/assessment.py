@@ -276,11 +276,6 @@ def build_task_results(tasks):
                 "repetition_percent": result.repetition_percent,
                 "prolongation_percent": result.prolongation_percent,
                 "block_percent": result.block_percent,
-                "speech_events": [
-                    {"word_or_sound": event.word_or_sound}
-                    for event in (result.speech_events or [])
-                    if event.word_or_sound and event.word_or_sound.strip()
-                ],
             }
         )
 

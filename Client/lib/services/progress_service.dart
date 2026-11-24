@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
-
 import 'package:http/http.dart' as http;
 
 import '../models/progress_assessment_model.dart';
@@ -66,27 +64,13 @@ class ProgressService {
   Future<List<AssessmentProgressData>> getAllAssessmentDetails(
     List<ProgressAssessment> assessments,
   ) async {
-    // An assessment whose details cannot be loaded (for example one with
-    // no analysed tasks) is skipped, so it does not hide all the others.
-    final results = await Future.wait(
+    return Future.wait(
       assessments.map((assessment) async {
-        try {
-          final details = await getAssessmentDetails(assessment.assessmentId);
+        final details = await getAssessmentDetails(assessment.assessmentId);
 
-          return AssessmentProgressData(
-            assessment: assessment,
-            details: details,
-          );
-        } catch (error) {
-          debugPrint(
-            'تعذر تحميل تفاصيل التقييم ${assessment.assessmentId}: $error',
-          );
-          return null;
-        }
+        return AssessmentProgressData(assessment: assessment, details: details);
       }),
     );
-
-    return results.whereType<AssessmentProgressData>().toList();
   }
 
   Never _handleError(http.Response response) {

@@ -545,16 +545,7 @@ onTap: () {
           );
         }
 
-        // The new overview combines assessments, sessions and training.
-        // (The old assessments-only _overviewView below is kept unchanged.)
-        return isOverview
-            ? ProgressOverviewSection(
-                key: ValueKey('overview-$_overviewReload'),
-                assessments: history,
-                onStartAssessment: _retakeAssessment,
-                onStartSession: _startPracticeSession,
-              )
-            : _assessmentsView(history);
+        return isOverview ? _overviewView(history) : _assessmentsView(history);
       },
     );
   }
@@ -1021,7 +1012,7 @@ onTap: () {
                             color: percent == null || percent.abs() < 0.05
                                 ? TaleeqTheme.textMuted
                                 : percent < 0
-                                ? TaleeqTheme.darkSlate
+                                ? Colors.green
                                 : Colors.red,
                           ),
                         ),
@@ -1050,7 +1041,7 @@ onTap: () {
                   color: percent == null || percent.abs() < 0.05
                       ? TaleeqTheme.textMuted
                       : percent < 0
-                      ? TaleeqTheme.darkSlate
+                      ? Colors.green
                       : Colors.red,
                 ),
                 const SizedBox(width: 6),
@@ -1483,242 +1474,7 @@ onTap: () {
 
   /// Assessment patterns and per-task results, shown at the end of the
   /// Overview tab.
-  Widget _assessmentComparisonCards(List<ProgressAssessment> history) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _surface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'أنماط عدم الطلاقة',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: TaleeqTheme.darkSlate,
-                ),
-              ),
-
-              const SizedBox(height: 5),
-
-              Text(
-                history.length < 2
-                    ? 'ستظهر مقارنة أنماط التأتأة بعد إكمال تقييم آخر.'
-                    : 'تعرّف على تغير أنماط التأتأة لديك عبر تقييماتك.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: TaleeqTheme.textMuted,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              FutureBuilder<List<AssessmentProgressData>>(
-                future: _detailedHistory,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: TaleeqTheme.primaryTeal,
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return const Text(
-                      'تعذر تحميل تفاصيل أنماط عدم الطلاقة.',
-                      style: TextStyle(color: TaleeqTheme.textMuted),
-                    );
-                  }
-                  final detailedHistory =
-                      ProgressCalculator.sortDetailedChronologically(
-                        snapshot.data!,
-                      );
-
-                  if (detailedHistory.isEmpty) {
-                    return const Text(
-                      'لا تتوفر تفاصيل للتقييمات حاليًا.',
-                      style: TextStyle(color: TaleeqTheme.textMuted),
-                    );
-                  }
-
-                  final repetitionChange =
-                      ProgressCalculator.calculatePatternEstimatedChange(
-                        detailedHistory,
-                        (details) => details.repetitionPercent,
-                      );
-
-                  final prolongationChange =
-                      ProgressCalculator.calculatePatternEstimatedChange(
-                        detailedHistory,
-                        (details) => details.prolongationPercent,
-                      );
-
-                  final blockChange =
-                      ProgressCalculator.calculatePatternEstimatedChange(
-                        detailedHistory,
-                        (details) => details.blockPercent,
-                      );
-
-                  final repetitionTrend = _getPatternTrend(
-                    detailedHistory,
-                    'التكرار',
-                    (details) => details.repetitionPercent,
-                  );
-
-                  final prolongationTrend = _getPatternTrend(
-                    detailedHistory,
-                    'الإطالة',
-                    (details) => details.prolongationPercent,
-                  );
-
-                  final blockTrend = _getPatternTrend(
-                    detailedHistory,
-                    'التوقف',
-                    (details) => details.blockPercent,
-                  );
-                  return Column(
-                    children: [
-                      _patternRow(
-                        'التكرار',
-                        'Repetition',
-                        repetitionChange,
-                        repetitionTrend.title,
-                        repetitionTrend.message,
-                        repetitionTrend.icon,
-                        repetitionTrend.color,
-                        detailedHistory.length >= 2,
-                      ),
-                      const Divider(height: 24),
-                      _patternRow(
-                        'الإطالة',
-                        'Prolongation',
-                        prolongationChange,
-                        prolongationTrend.title,
-                        prolongationTrend.message,
-                        prolongationTrend.icon,
-                        prolongationTrend.color,
-                        detailedHistory.length >= 2,
-                      ),
-                      const Divider(height: 24),
-                      _patternRow(
-                        'التوقف',
-                        'Block',
-                        blockChange,
-                        blockTrend.title,
-                        blockTrend.message,
-                        blockTrend.icon,
-                        blockTrend.color,
-                        detailedHistory.length >= 2,
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   /// Per-task change across all assessments (shown in the task-results tab).
-  Widget _taskPerformanceCard(List<ProgressAssessment> history) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _surface(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'تغيّر أدائك في المهام عبر كل تقييماتك',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: TaleeqTheme.darkSlate,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                history.length < 2
-                    ? 'ستظهر مقارنة أدائك بعد إكمال تقييم آخر.'
-                    : 'تابع نسبة التأتأة في كل مهمة عبر تقييماتك.',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: TaleeqTheme.textMuted,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              FutureBuilder<List<AssessmentProgressData>>(
-                future: _detailedHistory,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: TaleeqTheme.primaryTeal,
-                      ),
-                    );
-                  }
-
-                  if (snapshot.hasError || !snapshot.hasData) {
-                    return const Text(
-                      'تعذر تحميل نتائج مهام التقييم.',
-                      style: TextStyle(color: TaleeqTheme.textMuted),
-                    );
-                  }
-
-                  final history = snapshot.data!;
-
-                  if (history.isEmpty) {
-                    return const Text(
-                      'لا تتوفر نتائج للمهام حاليًا.',
-                      style: TextStyle(color: TaleeqTheme.textMuted),
-                    );
-                  }
-
-                  Widget buildTask(String taskType, String taskName) {
-                    final taskHistory = _getTaskHistory(history, taskType);
-
-                    final percent =
-                        ProgressCalculator.calculatePatternEstimatedChange(
-                          taskHistory,
-                          (details) => _getTaskPercent(details, taskType)!,
-                        );
-
-                    final trend = _getTaskTrend(history, taskType, taskName);
-
-                    return _taskRow(
-                      taskName,
-                      percent,
-                      trend.title,
-                      trend.message,
-                      trend.icon,
-                      trend.color,
-                      history.length >= 2,
-                    );
-                  }
-
-                  return Column(
-                    children: [
-                      buildTask('task_1', 'القراءة بصوت عالٍ'),
-                      const Divider(height: 24),
-                      buildTask('task_2', 'وصف الصورة'),
-                      const Divider(height: 24),
-                      buildTask('task_3', 'التحدث العفوي'),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _assessmentsView(List<ProgressAssessment> history) {
     final index = _assessmentIndex.clamp(0, history.length - 1);
     final selected = history[index];
@@ -1801,8 +1557,6 @@ onTap: () {
             key: ValueKey(selected.assessmentId),
             assessmentId: selected.assessmentId,
             service: _service,
-            onStartAssessment: _retakeAssessment,
-            taskPerformance: _taskPerformanceCard(history),
           ),
         ),
       ],
@@ -2965,15 +2719,11 @@ Widget _gamePerformanceCard({
 class _AssessmentDetails extends StatefulWidget {
   final int assessmentId;
   final ProgressService service;
-  final VoidCallback onStartAssessment;
-  final Widget? taskPerformance;
 
   const _AssessmentDetails({
     super.key,
     required this.assessmentId,
     required this.service,
-    required this.onStartAssessment,
-    this.taskPerformance,
   });
 
   @override
@@ -3012,8 +2762,6 @@ class _AssessmentDetailsState extends State<_AssessmentDetails> {
         return FluencyProfileScreen(
           profileData: snapshot.data!,
           isHistoryView: true,
-          onStartAssessment: widget.onStartAssessment,
-          taskPerformance: widget.taskPerformance,
         );
       },
     );
