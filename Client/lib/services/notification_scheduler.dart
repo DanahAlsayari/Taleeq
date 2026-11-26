@@ -1,23 +1,23 @@
+
 import 'dart:async';
 
-import 'notification_service.dart';
+import 'package:flutter/foundation.dart';
 
-import 'package:flutter/foundation.dart'; // Import foundation.dart for debugPrint
+import 'notification_service.dart';
 
 class NotificationScheduler {
   NotificationScheduler._internal();
 
+  // Singleton instance.
   static final NotificationScheduler _instance =
       NotificationScheduler._internal();
 
   factory NotificationScheduler() => _instance;
 
-  final NotificationService _notificationService = NotificationService();
+  final NotificationService _notificationService =
+      NotificationService();
 
-  // Maximum number of training reminders to keep pending.
   static const int maxReminders = 56;
-
-  // Number of weeks to project after next week.
   static const int futureWeeks = 7;
 
   // Prevent overlapping synchronization operations.
@@ -26,8 +26,11 @@ class NotificationScheduler {
   // Prevent outdated synchronization after logout.
   bool _suspended = false;
   int _generation = 0;
-  // Expose the current generation to detect outdated API responses.
+
   int get generation => _generation;
+
+  // Track the last applied reminder time.
+  String? _lastAppliedTime;
 
   Future<void> _enqueue(Future<void> Function() action) {
     final operation = _queue.then((_) => action());
@@ -36,42 +39,77 @@ class NotificationScheduler {
     _queue = operation.then<void>(
       (_) {},
       onError: (Object error, StackTrace stackTrace) {
-        debugPrint('Notification queue operation failed: $error');
+        debugPrint(
+          'Notification queue operation failed: $error',
+        );
       },
     );
 
     return operation;
   }
 
-  // Generate a stable notification ID for each date.
+  // Generate a consistent notification ID for each date.
   int notificationIdForDate(DateTime date) {
-    final utcDate = DateTime.utc(date.year, date.month, date.day);
+    final utcDate = DateTime.utc(
+      date.year,
+      date.month,
+      date.day,
+    );
 
     final daysSinceEpoch =
-        utcDate.millisecondsSinceEpoch ~/ Duration.millisecondsPerDay;
+        utcDate.millisecondsSinceEpoch ~/
+        Duration.millisecondsPerDay;
 
     return 100000 + daysSinceEpoch;
   }
 
   DateTime _dateOnly(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day);
+    return DateTime.utc(
+      date.year,
+      date.month,
+      date.day,
+    );
   }
 
+  // Synchronize reminders using the selected time and status.
   Future<void> syncWeeklyPlans({
     required Map<String, dynamic>? currentPlan,
     required Map<String, dynamic>? nextPlan,
+    int reminderHour = 11,
+    int reminderMinute = 50,
+    bool remindersEnabled = true,
   }) {
-    // Capture the current generation to identify outdated sync requests.
+    if (reminderHour < 0 ||
+        reminderHour > 23 ||
+        reminderMinute < 0 ||
+        reminderMinute > 59) {
+      throw ArgumentError('Invalid reminder time');
+    }
+
     final generation = _generation;
 
-    // Queue the synchronization task to prevent overlapping operations.
     return _enqueue(() async {
-      /* Skip synchronization if notifications are suspended
-     or if the request belongs to an outdated generation.*/
-      if (_suspended || generation != _generation) return;
+      // Skip suspended or outdated synchronization.
+      if (_suspended || generation != _generation) {
+        return;
+      }
 
-      // Synchronize reminders with the weekly plans.
-      await _sync(currentPlan, nextPlan, generation);
+      // Cancel reminders when disabled.
+      if (!remindersEnabled) {
+        await _notificationService
+            .cancelAllTrainingReminders();
+
+        _lastAppliedTime = null;
+        return;
+      }
+
+      await _sync(
+        currentPlan,
+        nextPlan,
+        generation,
+        reminderHour,
+        reminderMinute,
+      );
     });
   }
 
@@ -79,44 +117,54 @@ class NotificationScheduler {
     Map<String, dynamic>? currentPlan,
     Map<String, dynamic>? nextPlan,
     int generation,
+    int reminderHour,
+    int reminderMinute,
   ) async {
     final desiredDates = <DateTime>{};
 
-    // 1. Current week: exclude completed sessions.
+    // Collect incomplete sessions from the current week.
     if (currentPlan != null) {
-      final sessions = (currentPlan['sessions'] as List<dynamic>?) ?? [];
+      final sessions =
+          (currentPlan['sessions'] as List<dynamic>?) ?? [];
 
       for (final session in sessions) {
         if (session['is_completed'] == true) continue;
 
         final date = _dateOnly(
-          DateTime.parse(session['practice_date'] as String),
+          DateTime.parse(
+            session['practice_date'] as String,
+          ),
         );
 
         desiredDates.add(date);
       }
     }
 
-    // 2. Next week and its repeating pattern.
+    // Collect sessions from the next week.
     if (nextPlan != null) {
       final nextWeekStart = _dateOnly(
-        DateTime.parse(nextPlan['week_start'] as String),
+        DateTime.parse(
+          nextPlan['week_start'] as String,
+        ),
       );
 
-      final sessions = (nextPlan['sessions'] as List<dynamic>?) ?? [];
+      final sessions =
+          (nextPlan['sessions'] as List<dynamic>?) ?? [];
 
       final dayOffsets = <int>{};
 
       for (final session in sessions) {
         final date = _dateOnly(
-          DateTime.parse(session['practice_date'] as String),
+          DateTime.parse(
+            session['practice_date'] as String,
+          ),
         );
 
-        final offset = date.difference(nextWeekStart).inDays;
+        final offset =
+            date.difference(nextWeekStart).inDays;
 
         if (offset < 0 || offset > 6) continue;
 
-        // Schedule next week's session.
         if (session['is_completed'] != true) {
           desiredDates.add(date);
         }
@@ -124,80 +172,118 @@ class NotificationScheduler {
         dayOffsets.add(offset);
       }
 
-      // Project the selected weekdays into future weeks.
+      // Repeat training days for future weeks.
       for (var week = 1; week <= futureWeeks; week++) {
         for (final offset in dayOffsets) {
           desiredDates.add(
-            nextWeekStart.add(Duration(days: week * 7 + offset)),
+            nextWeekStart.add(
+              Duration(days: week * 7 + offset),
+            ),
           );
         }
       }
     }
 
-    // 3. Remove past dates and sort future dates.
+    // Keep only future reminders.
     final now = DateTime.now();
 
     final futureDates = desiredDates.where((date) {
-      final reminderTime = DateTime(date.year, date.month, date.day, 11 , 50);
+      final reminderTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        reminderHour,
+        reminderMinute,
+      );
 
       return reminderTime.isAfter(now);
-    }).toList()..sort();
+    }).toList()
+      ..sort();
 
-    // 4. Respect the pending reminder limit.
-    final selectedDates = futureDates.take(maxReminders).toList();
+    final selectedDates =
+        futureDates.take(maxReminders).toList();
 
     final desiredIds = <int, DateTime>{
-      for (final date in selectedDates) notificationIdForDate(date): date,
+      for (final date in selectedDates)
+        notificationIdForDate(date): date,
     };
 
-    // 5. Read currently pending training reminders.
-    final pendingIds = await _notificationService.pendingTrainingReminderIds();
+    // Get currently scheduled reminders.
+    final pendingIds = await _notificationService
+        .pendingTrainingReminderIds();
 
-    // Stop if logout occurred while reading pending reminders.
-    if (_suspended || generation != _generation) return;
-
-    // 6. Cancel reminders that are no longer needed.
-    for (final id in pendingIds.difference(desiredIds.keys.toSet())) {
-      // Prevent outdated synchronization from continuing after logout.
-      if (_suspended || generation != _generation) return;
-
-      await _notificationService.cancelPracticeReminder(id);
+    if (_suspended || generation != _generation) {
+      return;
     }
 
-    // 7. Schedule reminders that are missing.
+    // Detect a change in the reminder time.
+    final selectedTime =
+        '$reminderHour:$reminderMinute';
+
+    final forceRefresh =
+        _lastAppliedTime != selectedTime;
+
+    // Cancel outdated reminders.
+    final idsToCancel = forceRefresh
+        ? pendingIds
+        : pendingIds.difference(
+            desiredIds.keys.toSet(),
+          );
+
+    for (final id in idsToCancel) {
+      if (_suspended || generation != _generation) {
+        return;
+      }
+
+      await _notificationService
+          .cancelPracticeReminder(id);
+    }
+
+    // Schedule missing reminders.
     for (final entry in desiredIds.entries) {
-      // Stop scheduling if this request is no longer valid.
-      if (_suspended || generation != _generation) return;
+      if (_suspended || generation != _generation) {
+        return;
+      }
 
-      if (pendingIds.contains(entry.key)) continue;
+      if (!forceRefresh &&
+          pendingIds.contains(entry.key)) {
+        continue;
+      }
 
-      await _notificationService.schedulePracticeReminder(
+      await _notificationService
+          .schedulePracticeReminder(
         notificationId: entry.key,
         practiceDate: entry.value,
+        reminderHour: reminderHour,
+        reminderMinute: reminderMinute,
       );
     }
+
+    if (_suspended || generation != _generation) {
+      return;
+    }
+
+    _lastAppliedTime = selectedTime;
   }
 
-  // Stop outdated synchronization and cancel training reminders on logout.
+  // Suspend synchronization and cancel reminders on logout.
   Future<void> suspendAndCancelTrainingReminders() {
-    // Immediately prevent old synchronization requests from continuing.
     _suspended = true;
-
-    // Invalidate synchronization requests from the previous session.
     _generation++;
 
-    // Wait for ongoing operations, then cancel training reminders.
+    _lastAppliedTime = null;
+
     return _enqueue(() async {
-      await _notificationService.cancelAllTrainingReminders();
+      await _notificationService
+          .cancelAllTrainingReminders();
     });
   }
 
-  // Allow notification synchronization for a new login session.
+  // Allow synchronization after login.
   void resume() {
-    // Enable notification scheduling again.
     _suspended = false;
-
-    // Invalidate any synchronization requests from previous sessions.
     _generation++;
+
+    _lastAppliedTime = null;
   }
 }

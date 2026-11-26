@@ -82,12 +82,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     super.initState();
 
     // Enable notification synchronization for the current session.
-    _notificationScheduler.resume();
+    _notificationScheduler.resume(); //*
 
     WidgetsBinding.instance.addObserver(this);
     _loadProfile();
     _loadAssessmentStatus();
-    _loadWeeklyPlan();
+    _loadWeeklyPlan(); //*
     _loadStreak();
   }
 
@@ -392,6 +392,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         weekStart: nextWeekKey,
       );
 
+      // Load the patient's saved reminder preferences.
+      final reminder = await _profileService.getReminder();
+
+      final remindersEnabled = reminder['enabled'] as bool? ?? true;
+
+      final reminderTime = reminder['reminder_time']?.toString() ?? '12:00:00';
+
+      final parts = reminderTime.split(':');
+
+      final reminderHour = int.parse(parts[0]);
+      final reminderMinute = int.parse(parts[1]);
+
       // Ignore API responses belonging to an outdated session.
       if (!mounted || generation != _notificationScheduler.generation) {
         return;
@@ -401,6 +413,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await _notificationScheduler.syncWeeklyPlans(
         currentPlan: currentPlan,
         nextPlan: nextPlan,
+        reminderHour: reminderHour,
+        reminderMinute: reminderMinute,
+        remindersEnabled: remindersEnabled,
       );
     } catch (error) {
       // Notification synchronization must not affect the weekly plan UI.
