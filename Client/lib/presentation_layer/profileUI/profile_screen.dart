@@ -13,6 +13,7 @@ import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
 import '../../services/notification_scheduler.dart';
 import 'real_life_challenge_history_screen.dart';
+import '../../services/weekly_plan_service.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:client/presentation_layer/error_snackbar.dart';
@@ -34,6 +35,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final ScrollController _scrollController = ScrollController();
   final ProfileService _profileService = ProfileService();
+
+  final WeeklyPlanService _weeklyPlanService = WeeklyPlanService();
+
+  final NotificationScheduler _notificationScheduler = NotificationScheduler();
   final ImagePicker _imagePicker = ImagePicker();
 
   String _name = '';
@@ -426,25 +431,92 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _syncSavedReminder({
+    required bool enabled,
+    required TimeOfDay time,
+  }) async {
+    final generation = _notificationScheduler.generation;
+
+    // No need to fetch plans when reminders are disabled.
+    if (!enabled) {
+      await _notificationScheduler.syncWeeklyPlans(
+        currentPlan: null,
+        nextPlan: null,
+        remindersEnabled: false,
+      );
+      return;
+    }
+
+    // Calculate today's date in Riyadh.
+    final now = DateTime.now().toUtc().add(const Duration(hours: 3));
+
+    final today = DateTime.utc(now.year, now.month, now.day);
+
+    // Current week starts on Sunday.
+    final currentWeekStart = today.subtract(Duration(days: today.weekday % 7));
+
+    final nextWeekStart = currentWeekStart.add(const Duration(days: 7));
+
+    final nextWeekKey = nextWeekStart.toIso8601String().substring(0, 10);
+
+    // Fetch the current and next weekly plans.
+    final currentPlan = await _weeklyPlanService.getWeeklyPlan();
+
+    final nextPlan = await _weeklyPlanService.getWeeklyPlan(
+      weekStart: nextWeekKey,
+    );
+
+    // Ignore outdated requests after logout or login.
+    if (!mounted || generation != _notificationScheduler.generation) {
+      return;
+    }
+
+    // Apply the saved reminder settings.
+    await _notificationScheduler.syncWeeklyPlans(
+      currentPlan: currentPlan,
+      nextPlan: nextPlan,
+      reminderHour: time.hour,
+      reminderMinute: time.minute,
+      remindersEnabled: enabled,
+    );
+  }
+
   Future<void> _updateReminder({
     required bool enabled,
     required TimeOfDay time,
   }) async {
+    Map<String, dynamic> reminder;
+
     try {
-      final reminder = await _profileService.updateReminder(
+      // Save reminder settings in the backend.
+      reminder = await _profileService.updateReminder(
         enabled: enabled,
         reminderTime: _formatTimeForApi(time),
       );
-
-      if (!mounted) return;
-
-      setState(() {
-        _reminderEnabled = reminder['enabled'] as bool? ?? enabled;
-
-        _reminderTime = _parseTime(reminder['reminder_time']?.toString());
-      });
-    } catch (_) {
+    } catch (error) {
       _showError('تعذر تحديث التذكير');
+      return;
+    }
+
+    if (!mounted) return;
+
+    final savedEnabled = reminder['enabled'] as bool? ?? enabled;
+
+    final savedTime = _parseTime(reminder['reminder_time']?.toString());
+
+    // Update the UI with the saved settings.
+    setState(() {
+      _reminderEnabled = savedEnabled;
+      _reminderTime = savedTime;
+    });
+
+    try {
+      // Apply changes to local scheduled notifications.
+      await _syncSavedReminder(enabled: savedEnabled, time: savedTime);
+    } catch (error) {
+      debugPrint('Failed to sync reminder settings: $error');
+
+      _showError('تم حفظ الإعدادات، لكن تعذر تحديث الإشعارات على الجهاز');
     }
   }
 
@@ -1745,8 +1817,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
 
               const SizedBox(height: 24),
-
-              /* _sectionTitle('التذكيرات'),
+              _sectionTitle('التذكيرات'),
 
               const SizedBox(height: 10),
 
@@ -1755,7 +1826,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 time: _reminderTime,
                 onChanged: _changeReminderStatus,
                 onChangeTime: _changeReminderTime,
-              ),*/
+              ),
               const SizedBox(height: 28),
 
               LogoutButton(onPressed: _logout),

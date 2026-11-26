@@ -4,7 +4,6 @@ import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
-  // Use a single notification service instance across the application.
   NotificationService._internal();
 
   static final NotificationService _instance = NotificationService._internal();
@@ -12,7 +11,7 @@ class NotificationService {
   factory NotificationService() => _instance;
   final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
-  // Initialize the notification service
+
   Future<void> initialize() async {
     // Load timezone data.
     tz_data.initializeTimeZones();
@@ -26,7 +25,7 @@ class NotificationService {
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
     );
-    /* ios settings to not request notification permissions immediately when opening the app */
+
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: false,
       requestBadgePermission: false,
@@ -41,11 +40,9 @@ class NotificationService {
     await _notifications.initialize(settings: settings);
   }
 
-  // Request permission to display notifications.
   Future<bool> requestPermission() async {
     final ios = _notifications
         .resolvePlatformSpecificImplementation<
-          //allows you to access platform-specific implementations of the FlutterLocalNotificationsPlugin.
           IOSFlutterLocalNotificationsPlugin
         >();
 
@@ -70,78 +67,13 @@ class NotificationService {
     return false;
   }
 
-  // Display a test notification immediately.
-  Future<void> showTestNotification() async {
-    const androidDetails = AndroidNotificationDetails(
-      'training_reminders',
-      'Training Reminders',
-      channelDescription: 'Reminders for scheduled speech training',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.show(
-      id: 1,
-      title: 'طليق | تذكير بالتدريب',
-      body: 'حان وقت تدريبك! 🌿',
-      notificationDetails: details,
-    );
-  }
-
-  // Schedule a test notification one minute from now.
-  Future<void> scheduleTestNotification() async {
-    final scheduledTime = tz.TZDateTime.now(tz.local)
-        .add(const Duration(minutes: 1));
-
-    const androidDetails = AndroidNotificationDetails(
-      'training_reminders',
-      'Training Reminders',
-      channelDescription: 'Reminders for scheduled speech training',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _notifications.zonedSchedule(
-      id: 2,
-      title: 'طليق | تذكير مجدول',
-      body: 'حان وقت تدريبك على الطلاقة! 🌿',
-      scheduledDate: scheduledTime,
-      notificationDetails: details,
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-    );
-  }
-
   Future<void> schedulePracticeReminder({
     required int notificationId,
     required DateTime practiceDate,
+    required int reminderHour, //for editable training reminder time
+    required int reminderMinute,
   }) async {
-    const int reminderHour = 11;
-    const int reminderMinute = 50;
-
     final scheduledTime = tz.TZDateTime(
-      //translate the practiceDate to the local timezone and set the time to 7 PM
       tz.local,
       practiceDate.year,
       practiceDate.month,
@@ -187,7 +119,6 @@ class NotificationService {
     await _notifications.cancel(id: notificationId);
   }
 
-  // Get the IDs of pending training reminders only the one it date didnt come yet.
   Future<Set<int>> pendingTrainingReminderIds() async {
     final pending = await _notifications.pendingNotificationRequests();
 
@@ -197,7 +128,6 @@ class NotificationService {
         .toSet();
   }
 
-  // Cancel pending training reminders without affecting other notifications.
   Future<void> cancelAllTrainingReminders() async {
     final ids = await pendingTrainingReminderIds();
 
