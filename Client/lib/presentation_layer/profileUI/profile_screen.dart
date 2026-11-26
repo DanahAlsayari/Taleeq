@@ -12,6 +12,7 @@ import '../widgets/reminder_card.dart';
 import '../widgets/training_goals_section.dart';
 import '../authenticationUI/welcome_screen.dart';
 import '../../services/notification_scheduler.dart';
+import 'real_life_challenge_history_screen.dart';
 
 import 'package:image_picker/image_picker.dart';
 import 'package:client/presentation_layer/error_snackbar.dart';
@@ -1706,10 +1707,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onDeleteGoal: _deleteGoal,
                 onToggleGoal: _toggleGoal,
               ),
+              const SizedBox(height: 24),
+
+              Material(
+                color: const Color(0xFFEAF4F1),
+                borderRadius: BorderRadius.circular(18),
+                clipBehavior: Clip.antiAlias,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  leading: const Icon(
+                    Icons.auto_stories_outlined,
+                    color: darkGreen,
+                  ),
+                  title: const Text(
+                    'تجاربي مع التحديات',
+                    style: TextStyle(
+                      color: darkGreen,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'تحدّيات أكملتها وتجارب شاركتها',
+                    style: TextStyle(color: Color(0xFF526B68), height: 1.6),
+                  ),
+                  trailing: const Icon(Icons.chevron_left, color: darkGreen),
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => const RealLifeChallengeHistoryScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
               const SizedBox(height: 24),
 
-             /* _sectionTitle('التذكيرات'),
+              /* _sectionTitle('التذكيرات'),
 
               const SizedBox(height: 10),
 
@@ -1719,7 +1756,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChanged: _changeReminderStatus,
                 onChangeTime: _changeReminderTime,
               ),*/
-
               const SizedBox(height: 28),
 
               LogoutButton(onPressed: _logout),

@@ -11,6 +11,8 @@ import '../../services/notification_scheduler.dart';
 import '../../services/notification_service.dart';
 import '../trainingUI/practice_session_overview_screen.dart';
 import '../../services/practice_streak_service.dart';
+import '../../services/real_life_challenge_service.dart';
+import 'real_life_challenge_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.isActive = true});
@@ -31,6 +33,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final NotificationService _notificationService = NotificationService();
   bool _notificationPermissionRequested = false;
   DateTime? _selectedPracticeDate;
+  final _challengeService = RealLifeChallengeService();
+
+  Map<String, dynamic>? _challenge;
+  bool _isLoadingChallenge = true;
+  bool _isOpeningChallenge = false;
+  String? _challengeError;
+  int _challengeRequest = 0;
 
   Map<String, dynamic>? _weeklyPlan;
   bool _isLoadingWeeklyPlan = true;
@@ -89,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadAssessmentStatus();
     _loadWeeklyPlan();
     _loadStreak();
+    _loadChallenge();
   }
 
   DateTime _riyadhToday() {
@@ -205,6 +215,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadAssessmentStatus();
       _loadWeeklyPlan();
       _loadStreak();
+      _loadChallenge();
     }
   }
 
@@ -214,6 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _loadWeeklyPlan();
       _loadAssessmentStatus();
       _loadStreak();
+      _loadChallenge();
     }
   }
 
@@ -237,6 +249,199 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } catch (error) {
       debugPrint('Notification permission request failed: $error');
     }
+  }
+
+  Future<void> _loadChallenge() async {
+    final request = ++_challengeRequest;
+
+    setState(() {
+      _isLoadingChallenge = true;
+      _challengeError = null;
+    });
+
+    try {
+      final challenge = await _challengeService.ensureCurrent();
+
+      if (!mounted || request != _challengeRequest) return;
+
+      setState(() {
+        _challenge = challenge;
+        _isLoadingChallenge = false;
+      });
+    } catch (error) {
+      if (!mounted || request != _challengeRequest) return;
+
+      setState(() {
+        _challengeError = error.toString().replaceFirst('Exception: ', '');
+        _isLoadingChallenge = false;
+      });
+    }
+  }
+
+  Future<void> _openChallenge() async {
+    if (_isOpeningChallenge) return;
+
+    setState(() {
+      _isOpeningChallenge = true;
+    });
+
+    try {
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute(builder: (_) => const RealLifeChallengeScreen()),
+      );
+
+      if (!mounted) return;
+
+      await _loadChallenge();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOpeningChallenge = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildTealCard({
+    required Widget child,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(20),
+  }) {
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF347E78), Color(0xFF438983)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            top: -75,
+            right: -45,
+            child: IgnorePointer(
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: const BoxDecoration(
+                  color: Color(0x12FFFFFF),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -55,
+            left: -35,
+            child: IgnorePointer(
+              child: Container(
+                width: 145,
+                height: 145,
+                decoration: const BoxDecoration(
+                  color: Color(0x0FFFFFFF),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ),
+          Padding(padding: padding, child: child),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChallengeCard() {
+    const teal = Color(0xFF1F5F5A);
+    const muted = Color(0xFF526B68);
+
+    final completed = _challenge?['is_completed'] == true;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F0ED),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'تحدّيك الواقعي',
+                  style: TextStyle(
+                    color: teal,
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              Icon(
+                completed ? Icons.check_circle_outline : Icons.flag_outlined,
+                color: teal,
+                size: 25,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_isLoadingChallenge)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: CircularProgressIndicator(color: teal),
+              ),
+            )
+          else if (_challengeError != null) ...[
+            Text(
+              _challengeError!,
+              style: const TextStyle(color: muted, height: 1.6),
+            ),
+            TextButton(
+              onPressed: _loadChallenge,
+              style: TextButton.styleFrom(foregroundColor: teal),
+              child: const Text('إعادة المحاولة'),
+            ),
+          ] else if (_challenge != null) ...[
+            Text(
+              _challenge!['title'] as String,
+              style: const TextStyle(
+                color: teal,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              completed
+                  ? 'أحسنت! شارك تجربتك أو اختر تحدّيًا جديدًا.'
+                  : 'خطوة بسيطة لممارسة الكلام في حياتك اليومية.',
+              style: const TextStyle(color: muted, fontSize: 14, height: 1.6),
+            ),
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: _isOpeningChallenge ? null : _openChallenge,
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D77),
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFC9DDD7),
+                disabledForegroundColor: muted,
+                minimumSize: const Size.fromHeight(46),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: Text(
+                completed ? 'عرض تجربتي' : 'عرض التحدّي',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildPracticeSessionCard() {
@@ -282,16 +487,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ? 'ابدأ الجلسة'
         : 'ابدأ جلسة اختيارية';
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF398681), Color(0xFF5B9D98)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
+    return _buildTealCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -944,9 +1140,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF5EEE4),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: const Color(0xFFE7DCCD)),
+          border: Border.all(color: const Color(0xFFEDF1EF)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -972,7 +1168,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF6E6D6),
+                        color: const Color(0xFFE3F0ED),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -987,7 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Text(
                             countLabel,
                             style: const TextStyle(
-                              color: darkText,
+                              color: const Color(0xFF1F5F5A),
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -1232,11 +1428,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF5EEE4),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE7DCCD)),
+        border: Border.all(color: const Color(0xFFEDF1EF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1248,7 +1444,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   'خطتك الأسبوعية',
                   style: TextStyle(
                     color: darkText,
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -1301,16 +1497,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: LinearProgressIndicator(
                   value: sessions.isEmpty
                       ? 0
                       : completedCount / sessions.length,
-                  minHeight: 8,
+                  minHeight: 6,
                   color: teal,
-                  backgroundColor: const Color(0xFFE2D7CA),
+                  backgroundColor: const Color(0xFFEDF2F0),
                 ),
               ),
               const SizedBox(height: 8),
@@ -1319,7 +1515,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 style: const TextStyle(color: mutedText, fontSize: 12),
               ),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             LayoutBuilder(
               builder: (context, constraints) {
                 final tileWidth = (constraints.maxWidth - 24) / 7;
@@ -1341,7 +1537,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         button: true,
                         label: '${dayNames[index]} ${_arabicDate(date)}',
                         child: Material(
-                          color: selected ? teal : const Color(0xFFFFFBF6),
+                          color: selected ? teal : const Color(0xFFF4F8F6),
                           borderRadius: BorderRadius.circular(14),
                           child: InkWell(
                             borderRadius: BorderRadius.circular(14),
@@ -1514,16 +1710,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       return _buildPracticeSessionCard();
     }
 
-    return Container(
+    return _buildTealCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF398681), Color(0xFF5B9D98)],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(24),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1654,6 +1842,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               _buildStreakCard(),
               const SizedBox(height: 14),
               _buildWeeklyPlanCard(),
+              const SizedBox(height: 14),
+              _buildChallengeCard(),
             ],
           ),
         ),

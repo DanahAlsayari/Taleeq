@@ -301,7 +301,7 @@ class _PracticeSessionOverviewScreenState
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      color: completed ? const Color(0xFFEAF4F2) : const Color(0xFFF3EADF),
+      color: completed ? const Color(0xFFEAF4F2) : Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: ListTile(

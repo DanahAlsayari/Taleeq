@@ -15,6 +15,9 @@ from api.practice_streak import router as practice_streak_router
 from application_layer.authentication_managment.main import (
     app as authentication_app,
 )
+from api.real_life_challenges import (
+    router as real_life_challenges_router,
+)
 from api.scenarios import router as scenarios_router
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +68,7 @@ app.include_router(exercise_router)
 # Game endpoints
 app.include_router(naming_challenge_router)
 app.include_router(dont_say_it_router)
+app.include_router(real_life_challenges_router)
 
 # Authentication endpoints
 app.mount("/auth", authentication_app)
