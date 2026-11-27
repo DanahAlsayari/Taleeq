@@ -631,8 +631,13 @@ class _AiAssistantChatScreenState extends State<AiAssistantChatScreen> {
           ),
         ),
         bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+  child: Padding(
+    padding: EdgeInsets.fromLTRB(
+      16,
+      16,
+      16,
+      16 + MediaQuery.of(context).viewInsets.bottom,
+    ),
             child: Row(
               children: [
                 Expanded(
