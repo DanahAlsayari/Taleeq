@@ -34,9 +34,10 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6FA7A3),
+                  backgroundColor: const Color(0xFF006B63),
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18.0),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                 ),
                 child: const Text(
@@ -139,6 +140,57 @@ class PreAssessmentIntroScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: 16.0),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFFE8F3EF),
+                        Color(0xFFF5F9F7),
+                      ],
+                      begin: Alignment.topRight,
+                      end: Alignment.bottomLeft,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFDCEBE5),
+                    ),
+                  ),
+                  child: Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.auto_awesome_outlined,
+                          color: Color(0xFF6FA7A3),
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          'كل تجربة تستحق أن تُسمع',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            color: Color(0xFF477B75),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
         
 /*

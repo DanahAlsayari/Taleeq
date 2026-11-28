@@ -830,6 +830,51 @@ class _OverallFluencyCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 20),
+                const SizedBox(height: 12),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    textDirection: TextDirection.ltr,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          const Icon(
+                            Icons.auto_awesome_outlined,
+                            size: 14,
+                            color: TaleeqTheme.primaryTeal,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'تذكّر',
+                            style: GoogleFonts.cairo(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: TaleeqTheme.primaryTeal,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'هذه النسبة تصف كلامك اليوم، ولا تحدد ما يمكنك قوله أو تحقيقه.',
+                        textAlign: TextAlign.right,
+                        textDirection: TextDirection.rtl,
+                        style: GoogleFonts.cairo(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w400,
+                          color: TaleeqTheme.textMuted,
+                          height: 1.7,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                    ],
+                  ),
+                ),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),

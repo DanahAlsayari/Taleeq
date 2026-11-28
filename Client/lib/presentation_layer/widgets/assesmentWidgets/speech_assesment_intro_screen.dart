@@ -190,6 +190,39 @@ class SpeechAssesmentIntroScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16.0),
+
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14.0,
+                    horizontal: 16.0,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F1EF),
+                    borderRadius: BorderRadius.circular(16.0),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.directions_walk_rounded,
+                        color: Color(0xFF6FA7A3),
+                        size: 28.0,
+                      ),
+                      SizedBox(height: 8.0),
+                      Text(
+                        'أول خطوة قطعتها بمجرد وصولك',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF487E79),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16.0),
                 ],
               ),
             ),

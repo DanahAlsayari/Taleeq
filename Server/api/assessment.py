@@ -64,8 +64,8 @@ class AssessmentTaskCreate(BaseModel):
 
 class PreAssessmentSubmissionCreate(BaseModel):
     answers: list[PreAssessmentAnswer] = Field(
-        min_length=6,
-        max_length=6,
+        min_length=8,
+        max_length=8,
     )
 
 

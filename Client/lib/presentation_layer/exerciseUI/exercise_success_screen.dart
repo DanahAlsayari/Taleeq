@@ -92,7 +92,7 @@ class ExerciseSuccessScreen extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const SizedBox(height: 36),
+                const SizedBox(height: 22),
 
                 // Success icon
                 Container(
@@ -229,16 +229,68 @@ Container(
               ),
             ),
           ],
-        )
-      else
-        const Text(
-          'أول محاولة لك في هذا النوع والمستوى',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13,
-            color: Color(0xFF7A8E8B),
+        ),
+      
+        if (previousScore == null || scoreChange != null) ...[
+  const SizedBox(height: 12),
+
+  Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [
+          Color(0xFFE8F3EF),
+          Color(0xFFF5F9F7),
+        ],
+        begin: Alignment.topRight,
+        end: Alignment.bottomLeft,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(
+        color: const Color(0xFFDCEBE5),
+      ),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.auto_awesome_outlined,
+            color: Color(0xFF6FA7A3),
+            size: 18,
           ),
         ),
+        const SizedBox(width: 10),
+        Expanded(
+  child: Text(
+    previousScore == null
+        ? 'أول محاولة لك بهالتمرين، وهذا وحده إنجاز'
+        : scoreChange! > 0
+            ? 'تدريبك يؤتي ثماره'
+            : scoreChange < 0
+                ? 'التقدم لا يسير في خط مستقيم، وأنت على الطريق'
+                : 'ثباتك قوة، استمر',
+    textAlign: TextAlign.right,
+    style: const TextStyle(
+      color: Color(0xFF477B75),
+      fontSize: 11,
+      fontWeight: FontWeight.w500,
+      height: 1.7,
+    ),
+  ),
+),
+
+      ],
+    ),
+  ),
+  const SizedBox(height: 8),
+],
 
       const Divider(
         color: Color.fromARGB(255, 210, 225, 233),
@@ -658,7 +710,7 @@ const SizedBox(height: 16),
 
 SizedBox(
   width: double.infinity,
-  height: 56,
+  height: 46,
   child: TextButton(
     
         onPressed: () {
